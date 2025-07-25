@@ -477,7 +477,7 @@ ps3000aStreamingReady = CFUNCTYPE(
 class PicoScope3000aWrapper:
     def __init__(self, library_path: str | None = None):
         if library_path is None:
-            library_path = find_library("ps6000a")
+            library_path = find_library("ps3000a")
         if library_path is None:
             raise Exception("Library not found")
 
@@ -815,7 +815,7 @@ class PicoScope3000aWrapper:
                 threshold,
                 direction,
                 delay,
-                autoTriggerUS,
+                autoTriggerMS,
             )
         )
 
