@@ -596,7 +596,7 @@ class PicoScope6000aWrapper:
         size = c_int16(0)
         status = self._ps6000aGetUnitInfo(handle, buf, 255, byref(size), info)
         if status == PICO_STATUS.PICO_OK:
-            infostr = buf.raw[: size.value].decode("utf-8")
+            infostr = buf.raw[: size.value - 1].decode("utf-8")
         else:
             infostr = ""
         return PICO_STATUS(status), infostr
