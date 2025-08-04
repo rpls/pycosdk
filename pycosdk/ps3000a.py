@@ -588,7 +588,7 @@ class PicoScope3000aWrapper:
         self._ps3000aSetDataBuffer.resType = PICO_STATUS_T
         self._ps3000aSetDataBuffer.argTypes = [
             c_int16,
-            c_int32,
+            PS3000A_CHANNEL_T,
             POINTER(c_int16),
             c_int32,
             c_uint32,
@@ -599,7 +599,7 @@ class PicoScope3000aWrapper:
         self._ps3000aSetDataBuffers.resType = PICO_STATUS_T
         self._ps3000aSetDataBuffers.argTypes = [
             c_int16,
-            c_int32,
+            PS3000A_CHANNEL_T,
             POINTER(c_int16),
             POINTER(c_int16),
             c_int32,
@@ -935,7 +935,7 @@ class PicoScope3000aWrapper:
     ):
         assert nosamples > 0
         assert fromSegment <= toSegment
-        nosamples_ = c_uint64(nosamples)
+        nosamples_ = c_uint32(nosamples)
         nsegments = (toSegment - fromSegment) + 1
         overflow = (c_int16 * nsegments)(0)
         return (
