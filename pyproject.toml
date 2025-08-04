@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pycosdk"
-version = "0.0.1"
+version = "0.0.2"
 description = "Yet another wrapper for the PicoSDK"
 requires-python = ">=3.11"
 authors = [{name="Richard Petri", email="git@rpls.de"}]
