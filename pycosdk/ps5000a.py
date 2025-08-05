@@ -846,7 +846,7 @@ class PicoScope5000aWrapper:
         return (
             PICO_STATUS(
                 self._ps5000aGetAnalogueOffset(
-                    handle, range, coupling, byref(minv), byref(maxv)
+                    handle, range, coupling, byref(maxv), byref(minv)
                 )
             ),
             minv.value,

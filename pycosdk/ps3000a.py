@@ -914,7 +914,7 @@ class PicoScope3000aWrapper:
         return (
             PICO_STATUS(
                 self._ps3000aGetAnalogueOffset(
-                    handle, range, coupling, byref(minv), byref(maxv)
+                    handle, range, coupling, byref(maxv), byref(minv)
                 )
             ),
             minv.value,
