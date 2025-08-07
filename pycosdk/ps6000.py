@@ -1203,3 +1203,26 @@ class PicoScope6000Wrapper:
             nosamples_.value,
             [int(f) for f in overflow],
         )
+
+    def ps6000GetValuesTriggerTimeOffsetBulk64(
+        self,
+        handle: c_int16,
+        fromSegment: int,
+        toSegment: int,
+    ):
+        assert fromSegment <= toSegment
+        n = toSegment - fromSegment + 1
+        times = (c_int64 * n)()
+        units = (PS6000_TIME_UNITS_T * n)()
+        status = PICO_STATUS(self._ps6000GetValuesTriggerTimeOffsetBulk64(handle, times, units, fromSegment, toSegment))
+        unitmap = {
+            PS6000_TIME_UNITS.PS6000_FS: 1e-15,
+            PS6000_TIME_UNITS.PS6000_PS: 1e-12,
+            PS6000_TIME_UNITS.PS6000_NS: 1e-9,
+            PS6000_TIME_UNITS.PS6000_US: 1e-6,
+            PS6000_TIME_UNITS.PS6000_MS: 1e-3,
+            PS6000_TIME_UNITS.PS6000_S: 1.0,
+        }
+        times_sec = [t * unitmap[PS6000_TIME_UNITS(u)] for t, u in zip(times, units)]
+        return status, times_sec
+
