@@ -968,7 +968,6 @@ class PicoScope6000Wrapper:
             c_uint32,
         ]
 
-
     def ps6000OpenUnit(self, serial: str | None):
         handle = c_int16(0)
         ser = c_char_p(serial.encode()) if serial is not None else 0
@@ -1008,7 +1007,7 @@ class PicoScope6000Wrapper:
         coupling: PS6000_COUPLING,
         range: PS6000_RANGE,
         analog_offset: float,
-        bandwidth: PS6000_BANDWIDTH_LIMITER
+        bandwidth: PS6000_BANDWIDTH_LIMITER,
     ):
         return PICO_STATUS(
             self._ps6000SetChannel(
@@ -1018,7 +1017,7 @@ class PicoScope6000Wrapper:
                 coupling,
                 range,
                 c_float(analog_offset),
-                bandwidth
+                bandwidth,
             )
         )
 
@@ -1027,7 +1026,12 @@ class PicoScope6000Wrapper:
         return PICO_STATUS(self._ps6000SetNoOfCaptures(handle, ncaptures))
 
     def ps6000GetTimebase2(
-        self, handle: c_int16, timebase: int, noSamples: int, oversample: int, segmentIndex: int
+        self,
+        handle: c_int16,
+        timebase: int,
+        noSamples: int,
+        oversample: int,
+        segmentIndex: int,
     ):
         assert oversample >= 0 and oversample <= PS6000_MAX_OVERSAMPLE_8BIT
         timeIntervalNS = c_float(0)
@@ -1097,9 +1101,7 @@ class PicoScope6000Wrapper:
         mode: PS6000_RATIO_MODE,
     ):
         return PICO_STATUS(
-            self._ps6000SetDataBuffer(
-                handle, channel, buffer, bufferLth, mode
-            )
+            self._ps6000SetDataBuffer(handle, channel, buffer, bufferLth, mode)
         )
 
     def ps6000SetDataBufferBulk(
@@ -1214,7 +1216,11 @@ class PicoScope6000Wrapper:
         n = toSegment - fromSegment + 1
         times = (c_int64 * n)()
         units = (PS6000_TIME_UNITS_T * n)()
-        status = PICO_STATUS(self._ps6000GetValuesTriggerTimeOffsetBulk64(handle, times, units, fromSegment, toSegment))
+        status = PICO_STATUS(
+            self._ps6000GetValuesTriggerTimeOffsetBulk64(
+                handle, times, units, fromSegment, toSegment
+            )
+        )
         unitmap = {
             PS6000_TIME_UNITS.PS6000_FS: 1e-15,
             PS6000_TIME_UNITS.PS6000_PS: 1e-12,
@@ -1225,4 +1231,3 @@ class PicoScope6000Wrapper:
         }
         times_sec = [t * unitmap[PS6000_TIME_UNITS(u)] for t, u in zip(times, units)]
         return status, times_sec
-

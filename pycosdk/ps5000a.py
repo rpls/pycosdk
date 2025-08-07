@@ -434,7 +434,11 @@ class PicoScope5000aWrapper:
 
         self._ps5000aOpenUnit = getattr(self.lib, "ps5000aOpenUnit")
         self._ps5000aOpenUnit.resType = PICO_STATUS_T
-        self._ps5000aOpenUnit.argTypes = [POINTER(c_int16), c_char_p, PS5000A_DEVICE_RESOLUTION_T]
+        self._ps5000aOpenUnit.argTypes = [
+            POINTER(c_int16),
+            c_char_p,
+            PS5000A_DEVICE_RESOLUTION_T,
+        ]
 
         self._ps5000aGetUnitInfo = getattr(self.lib, "ps5000aGetUnitInfo")
         self._ps5000aGetUnitInfo.resType = PICO_STATUS_T
@@ -646,7 +650,9 @@ class PicoScope5000aWrapper:
         self._ps5000aCurrentPowerSource.resType = PICO_STATUS_T
         self._ps5000aCurrentPowerSource.argTypes = [c_int16]
 
-    def ps5000aOpenUnit(self, serial: str | None, resolution: PS5000A_DEVICE_RESOLUTION):
+    def ps5000aOpenUnit(
+        self, serial: str | None, resolution: PS5000A_DEVICE_RESOLUTION
+    ):
         handle = c_int16(0)
         ser = c_char_p(serial.encode()) if serial is not None else 0
         return (
