@@ -1,27 +1,27 @@
+import sys
 from ctypes import (
     CFUNCTYPE,
     POINTER,
     LibraryLoader,
     Structure,
-    c_float,
+    byref,
+    c_char_p,
     c_double,
+    c_float,
     c_int16,
     c_int32,
     c_int64,
     c_uint16,
     c_uint32,
     c_uint64,
-    c_char_p,
     c_void_p,
-    byref,
     create_string_buffer,
 )
 from ctypes.util import find_library
-from typing import Callable
 from enum import IntEnum, IntFlag
-import sys
+from typing import Callable, final
 
-from .status import PICO_INFO_T, PICO_INFO, PICO_STATUS_T, PICO_STATUS
+from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
 
 
 class PS5000A_DEVICE_RESOLUTION(IntEnum):
@@ -309,6 +309,7 @@ class PS5000A_CHANNEL_INFO(IntEnum):
 PS5000A_CHANNEL_INFO_T = c_int32
 
 
+@final
 class PS5000A_TRIGGER_INFO(Structure):
     _pack_ = 1
     _fields_ = [
@@ -322,6 +323,7 @@ class PS5000A_TRIGGER_INFO(Structure):
     ]
 
 
+@final
 class PS5000A_TRIGGER_CONDITIONS(Structure):
     _pack_ = 1
     _fields_ = [
@@ -335,6 +337,7 @@ class PS5000A_TRIGGER_CONDITIONS(Structure):
     ]
 
 
+@final
 class PS5000A_CONDITION(Structure):
     _pack_ = 1
     _fields_ = [
@@ -343,6 +346,7 @@ class PS5000A_CONDITION(Structure):
     ]
 
 
+@final
 class PS5000A_DIRECTION(Structure):
     _pack_ = 1
     _fields_ = [
@@ -352,6 +356,7 @@ class PS5000A_DIRECTION(Structure):
     ]
 
 
+@final
 class PS5000A_PWQ_CONDITIONS(Structure):
     _pack_ = 1
     _fields = [
@@ -364,6 +369,7 @@ class PS5000A_PWQ_CONDITIONS(Structure):
     ]
 
 
+@final
 class PS5000A_SCALING_FACTORS_VALUES(Structure):
     _pack_ = 1
     _fields_ = [
@@ -374,6 +380,7 @@ class PS5000A_SCALING_FACTORS_VALUES(Structure):
     ]
 
 
+@final
 class PS5000A_TRIGGER_CHANNEL_PROPERTIES(Structure):
     _pack_ = 1
     _fields_ = [
@@ -386,6 +393,7 @@ class PS5000A_TRIGGER_CHANNEL_PROPERTIES(Structure):
     ]
 
 
+@final
 class PS5000A_TRIGGER_CHANNEL_PROPERTIES_V2(Structure):
     _pack_ = 1
     _fields_ = [
@@ -397,6 +405,7 @@ class PS5000A_TRIGGER_CHANNEL_PROPERTIES_V2(Structure):
     ]
 
 
+@final
 class PS5000A_DIGITAL_CHANNEL_DIRECTIONS(Structure):
     _pack_ = 1
     _fields_ = [

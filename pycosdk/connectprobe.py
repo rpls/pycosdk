@@ -1,5 +1,5 @@
-from enum import IntEnum
 from ctypes import c_int32
+from enum import IntEnum
 
 PicoConnectProbe = c_int32
 

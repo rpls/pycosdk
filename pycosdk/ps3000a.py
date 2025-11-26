@@ -1,27 +1,25 @@
+import sys
 from ctypes import (
     CFUNCTYPE,
     POINTER,
     LibraryLoader,
     Structure,
+    byref,
     c_char_p,
+    c_double,
     c_float,
-    c_int,
     c_int16,
     c_int32,
-    c_int8,
+    c_int64,
     c_uint16,
     c_uint32,
-    c_double,
     c_uint64,
-    c_int64,
     c_void_p,
-    byref,
     create_string_buffer,
 )
 from ctypes.util import find_library
-from typing import Callable
 from enum import IntEnum
-import sys
+from typing import Callable, final
 
 from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
 
@@ -370,6 +368,7 @@ class PS3000A_HOLDOFF_TYPE(IntEnum):
     PS3000A_MAX_HOLDOFF_TYPE = 2
 
 
+@final
 class PS3000A_TRIGGER_CONDITIONS(Structure):
     _pack_ = 1
     _fields_ = [
@@ -383,6 +382,7 @@ class PS3000A_TRIGGER_CONDITIONS(Structure):
     ]
 
 
+@final
 class PS3000A_TRIGGER_CONDITIONS_V2(Structure):
     _pack_ = 1
     _fields_ = [
@@ -397,6 +397,7 @@ class PS3000A_TRIGGER_CONDITIONS_V2(Structure):
     ]
 
 
+@final
 class PS3000A_PWQ_CONDITIONS(Structure):
     _pack_ = 1
     _fields_ = [
@@ -409,6 +410,7 @@ class PS3000A_PWQ_CONDITIONS(Structure):
     ]
 
 
+@final
 class PS3000A_PWQ_CONDITIONS_V2(Structure):
     _pack_ = 1
     _fields_ = [
@@ -422,6 +424,7 @@ class PS3000A_PWQ_CONDITIONS_V2(Structure):
     ]
 
 
+@final
 class PS3000A_DIGITAL_CHANNEL_DIRECTIONS(Structure):
     _pack_ = 1
     _fields_ = [
@@ -430,6 +433,7 @@ class PS3000A_DIGITAL_CHANNEL_DIRECTIONS(Structure):
     ]
 
 
+@final
 class PS3000A_TRIGGER_CHANNEL_PROPERTIES(Structure):
     _pack_ = 1
     _fields_ = [
@@ -442,6 +446,7 @@ class PS3000A_TRIGGER_CHANNEL_PROPERTIES(Structure):
     ]
 
 
+@final
 class PS3000A_TRIGGER_INFO(Structure):
     _pack_ = 1
     _fields_ = [
@@ -455,6 +460,7 @@ class PS3000A_TRIGGER_INFO(Structure):
     ]
 
 
+@final
 class PS3000A_SCALING_FACTORS_VALUES(Structure):
     _pack_ = 1
     _fields_ = [

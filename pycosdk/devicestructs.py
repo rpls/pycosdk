@@ -1,28 +1,28 @@
 from ctypes import (
-    POINTER,
     Structure,
+    c_double,
+    c_int8,
+    c_int16,
     c_int32,
     c_int64,
-    c_int8,
-    c_uint32,
     c_uint8,
-    c_int16,
     c_uint16,
+    c_uint32,
     c_uint64,
-    c_double,
     c_void_p,
 )
+from typing import final
 
 from .connectprobe import (
     PICO_CONNECT_PROBE_RANGE_T,
     PICO_PROBE_RANGE_INFO_T,
     PicoConnectProbe,
 )
-from .status import PICO_STATUS_T
 from .deviceenums import (
     PICO_BANDWIDTH_LIMITER_FLAGS_T,
     PICO_BANDWIDTH_LIMITER_T,
     PICO_CHANNEL_T,
+    PICO_COUPLING_T,
     PICO_DATA_TYPE_T,
     PICO_DIGITAL_DIRECTION_T,
     PICO_DIGITAL_PORT_T,
@@ -33,13 +33,14 @@ from .deviceenums import (
     PICO_READ_SELECTION_T,
     PICO_THRESHOLD_DIRECTION_T,
     PICO_THRESHOLD_MODE_T,
-    PICO_TRIGGER_STATE_T,
     PICO_TIME_UNITS_T,
-    PICO_COUPLING_T,
+    PICO_TRIGGER_STATE_T,
     PICO_USB_POWER_DELIVERY_DEVICE_TYPE_T,
 )
+from .status import PICO_STATUS_T
 
 
+@final
 class PICO_TRIGGER_INFO(Structure):
     _pack_ = 1
     _fields_ = [
@@ -53,6 +54,7 @@ class PICO_TRIGGER_INFO(Structure):
     ]
 
 
+@final
 class PICO_TRIGGER_CHANNEL_PROPERTIES(Structure):
     _pack_ = 1
     _fields_ = [
@@ -64,6 +66,7 @@ class PICO_TRIGGER_CHANNEL_PROPERTIES(Structure):
     ]
 
 
+@final
 class PICO_CONDITION(Structure):
     _pack_ = 1
     _fields_ = [
@@ -72,6 +75,7 @@ class PICO_CONDITION(Structure):
     ]
 
 
+@final
 class PICO_DIRECTION(Structure):
     _pack_ = 1
     _fields_ = [
@@ -81,6 +85,7 @@ class PICO_DIRECTION(Structure):
     ]
 
 
+@final
 class PICO_USER_PROBE_INTERACTIONS(Structure):
     _pack_ = 1
     _fields_ = [
@@ -104,6 +109,7 @@ class PICO_USER_PROBE_INTERACTIONS(Structure):
     ]
 
 
+@final
 class PICO_DATA_BUFFERS(Structure):
     _pack_ = 1
     _fields_ = [
@@ -118,6 +124,7 @@ class PICO_DATA_BUFFERS(Structure):
     ]
 
 
+@final
 class PICO_STREAMING_DATA_INFO(Structure):
     _pack_ = 1
     _fields_ = [
@@ -131,6 +138,7 @@ class PICO_STREAMING_DATA_INFO(Structure):
     ]
 
 
+@final
 class PICO_STREAMING_DATA_TRIGGER_INFO(Structure):
     _pack_ = 1
     _fields_ = [
@@ -140,6 +148,7 @@ class PICO_STREAMING_DATA_TRIGGER_INFO(Structure):
     ]
 
 
+@final
 class PICO_SCALING_FACTORS_VALUES(Structure):
     _pack_ = 1
     _fields_ = [
@@ -150,6 +159,7 @@ class PICO_SCALING_FACTORS_VALUES(Structure):
     ]
 
 
+@final
 class PICO_SCALING_FACTORS_FOR_RANGE_TYPES_VALUES(Structure):
     _pack_ = 1
     _fields_ = [
@@ -162,6 +172,7 @@ class PICO_SCALING_FACTORS_FOR_RANGE_TYPES_VALUES(Structure):
     ]
 
 
+@final
 class PROBE_APP(Structure):
     _pack_ = 1
     _fields_ = [
@@ -171,6 +182,7 @@ class PROBE_APP(Structure):
     ]
 
 
+@final
 class PICO_DIGITAL_CHANNEL_DIRECTIONS(Structure):
     _pack_ = 1
     _fields_ = [
@@ -179,6 +191,7 @@ class PICO_DIGITAL_CHANNEL_DIRECTIONS(Structure):
     ]
 
 
+@final
 class PICO_DIGITAL_PORT_INTERACTIONS(Structure):
     _pack_ = 1
     _fields_ = [
@@ -191,6 +204,7 @@ class PICO_DIGITAL_PORT_INTERACTIONS(Structure):
     ]
 
 
+@final
 class PICO_CHANNEL_OVERVOLTAGE_TRIPPED(Structure):
     _pack_ = 1
     _fields_ = [
@@ -199,6 +213,7 @@ class PICO_CHANNEL_OVERVOLTAGE_TRIPPED(Structure):
     ]
 
 
+@final
 class PICO_USB_POWER_DELIVERY(Structure):
     _pack_ = 1
     _fields_ = [
@@ -214,6 +229,7 @@ class PICO_USB_POWER_DELIVERY(Structure):
     ]
 
 
+@final
 class PICO_USB_POWER_DETAILS(Structure):
     _pack_ = 1
     _fields_ = [
@@ -223,6 +239,7 @@ class PICO_USB_POWER_DETAILS(Structure):
     ]
 
 
+@final
 class PICO_LED_COLOUR_PROPERTIES(Structure):
     _pack_ = 1
     _fields_ = [
@@ -232,6 +249,7 @@ class PICO_LED_COLOUR_PROPERTIES(Structure):
     ]
 
 
+@final
 class PICO_LED_STATE_PROPERTIES(Structure):
     _pack_ = 1
     _fields_ = [

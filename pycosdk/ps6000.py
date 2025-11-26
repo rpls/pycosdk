@@ -1,27 +1,27 @@
+import sys
 from ctypes import (
     CFUNCTYPE,
     POINTER,
     LibraryLoader,
     Structure,
-    c_float,
+    byref,
+    c_char_p,
     c_double,
+    c_float,
     c_int16,
     c_int32,
     c_int64,
     c_uint16,
     c_uint32,
     c_uint64,
-    c_char_p,
     c_void_p,
-    byref,
     create_string_buffer,
 )
 from ctypes.util import find_library
-from typing import Callable
 from enum import IntEnum
-import sys
+from typing import Callable, final
 
-from .status import PICO_INFO_T, PICO_INFO, PICO_STATUS_T, PICO_STATUS
+from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
 
 PS6000_MAX_OVERSAMPLE_8BIT = 256
 
@@ -292,6 +292,7 @@ class PS6000_TEMPERATURES(IntEnum):
     PS6000_INTERNAL_TEMPERATURE = 1
 
 
+@final
 class PS6000_TRIGGER_INFO(Structure):
     _pack_ = 1
     _fields_ = [
@@ -305,6 +306,7 @@ class PS6000_TRIGGER_INFO(Structure):
     ]
 
 
+@final
 class PS6000_TRIGGER_CONDITIONS(Structure):
     _pack_ = 1
     _fields_ = [
@@ -318,6 +320,7 @@ class PS6000_TRIGGER_CONDITIONS(Structure):
     ]
 
 
+@final
 class PS6000_PWQ_CONDITIONS(Structure):
     _pack_ = 1
     _fields_ = [
@@ -330,6 +333,7 @@ class PS6000_PWQ_CONDITIONS(Structure):
     ]
 
 
+@final
 class PS6000_TRIGGER_CHANNEL_PROPERTIES(Structure):
     _pack_ = 1
     _fields_ = [
