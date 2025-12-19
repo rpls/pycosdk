@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pycosdk"
-version = "0.0.4"
+version = "0.0.5"
 description = "Yet another wrapper for the PicoSDK"
 requires-python = ">=3.11"
 authors = [{name="Richard Petri", email="git@rpls.de"}]
@@ -22,6 +22,9 @@ classifiers = [
 "Homepage" = "https://github.com/rpls/pycosdk"
 "Bug Reports" = "https://github.com/rpls/pycosdk/issues"
 "Source" = "https://github.com/rpls/pycosdk/"
+
+[tool.setuptools]
+packages = ["pycosdk"]
 
 [tool.setuptools.package-data]
 pycosdk = ["py.typed"]

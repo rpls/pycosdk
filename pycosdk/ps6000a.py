@@ -1,7 +1,9 @@
+import sys
 from ctypes import (
     CFUNCTYPE,
     POINTER,
     LibraryLoader,
+    byref,
     c_char_p,
     c_double,
     c_int16,
@@ -9,11 +11,10 @@ from ctypes import (
     c_uint32,
     c_uint64,
     c_void_p,
-    byref,
     create_string_buffer,
 )
 from ctypes.util import find_library
-from typing import Callable
+from typing import Any, Callable
 
 from .connectprobe import PICO_CONNECT_PROBE_RANGE, PICO_CONNECT_PROBE_RANGE_T
 from .deviceenums import (
@@ -25,6 +26,8 @@ from .deviceenums import (
     PICO_CHANNEL_FLAGS,
     PICO_CHANNEL_FLAGS_T,
     PICO_CHANNEL_T,
+    PICO_CLOCK_REFERENCE,
+    PICO_CLOCK_REFERENCE_T,
     PICO_COUPLING,
     PICO_COUPLING_T,
     PICO_DATA_TYPE,
@@ -39,19 +42,19 @@ from .deviceenums import (
     PICO_THRESHOLD_DIRECTION_T,
 )
 from .devicestructs import PICO_TRIGGER_INFO, PICO_USER_PROBE_INTERACTIONS
-from .status import PICO_INFO_T, PICO_INFO, PICO_STATUS_T, PICO_STATUS
-
-import sys
+from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
 
 ps6000aBlockReady = CFUNCTYPE(None, c_int16, PICO_STATUS_T, c_void_p)
 ps6000aDataReady = CFUNCTYPE(None, c_int16, PICO_STATUS_T, c_uint64, c_int16, c_void_p)
 ps6000aProbeInteractions = CFUNCTYPE(
     None, c_int16, PICO_STATUS_T, POINTER(PICO_USER_PROBE_INTERACTIONS), c_uint32
 )
+PicoExternalReferenceInterations = CFUNCTYPE(
+    None, c_int16, PICO_STATUS_T, PICO_CLOCK_REFERENCE_T
+)
 
 
 class PicoScope6000aWrapper:
-
     def __init__(self, library_path: str | None = None):
         if library_path is None:
             library_path = find_library("ps6000a")
@@ -239,6 +242,7 @@ class PicoScope6000aWrapper:
             ps6000aBlockReady,
             c_void_p,
         ]
+        self._lpReady: Any | None = None
 
         self._ps6000aIsReady = getattr(self.lib, "ps6000aIsReady")
         self._ps6000aIsReady.resType = PICO_STATUS_T
@@ -302,6 +306,16 @@ class PicoScope6000aWrapper:
         self._ps6000aStop = getattr(self.lib, "ps6000aStop")
         self._ps6000aStop.resType = PICO_STATUS_T
         self._ps6000aStop.argTypes = [c_int16]
+
+        self._ps6000aSetExternalReferenceInteractionCallback = getattr(
+            self.lib, "ps6000aSetExternalReferenceInteractionCallback"
+        )
+        self._ps6000aSetExternalReferenceInteractionCallback.resType = PICO_STATUS_T
+        self._ps6000aSetExternalReferenceInteractionCallback.argTypes = [
+            c_int16,
+            PicoExternalReferenceInterations,
+        ]
+        self._extrefcb: Any | None = None
 
     def ps6000aOpenUnit(self, serial: str | None, resolution: PICO_DEVICE_RESOLUTION):
         handle = c_int16(0)
@@ -506,13 +520,13 @@ class PicoScope6000aWrapper:
         assert preSamples >= 0
         assert postSamples >= 0
         timeInd = c_double(0)
-        lpReady = None
+        self._lpReady = None
         if callback is not None:
 
             def cbwrapper(handle: c_int16, status: PICO_STATUS_T, _: c_void_p):
                 callback(handle, PICO_STATUS(status))
 
-            lpReady = ps6000aBlockReady(cbwrapper)
+            self._lpReady = ps6000aBlockReady(cbwrapper)
         return (
             PICO_STATUS(
                 self._ps6000aRunBlock(
@@ -522,7 +536,7 @@ class PicoScope6000aWrapper:
                     timebase,
                     byref(timeInd),
                     segment,
-                    lpReady,
+                    self._lpReady,
                     None,
                 )
             ),
@@ -600,3 +614,19 @@ class PicoScope6000aWrapper:
         else:
             infostr = ""
         return PICO_STATUS(status), infostr
+
+    def ps6000aSetExternalReferenceInteractionCallback(
+        self,
+        handle: c_int16,
+        callback: Callable[[c_int16, PICO_STATUS, PICO_CLOCK_REFERENCE], None],
+    ):
+        def cbwrapper(
+            handle: c_int16, status: PICO_STATUS_T, reference: PICO_CLOCK_REFERENCE_T
+        ):
+            callback(handle, PICO_STATUS(status), PICO_CLOCK_REFERENCE(reference))
+
+        # We need to keep a reference
+        self._extrefcb = PicoExternalReferenceInterations(cbwrapper)
+        return PICO_STATUS(
+            self._ps6000aSetExternalReferenceInteractionCallback(handle, self._extrefcb)
+        )

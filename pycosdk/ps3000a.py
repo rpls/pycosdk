@@ -19,7 +19,7 @@ from ctypes import (
 )
 from ctypes.util import find_library
 from enum import IntEnum
-from typing import Callable, final
+from typing import Callable, final, Any
 
 from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
 
@@ -630,6 +630,7 @@ class PicoScope3000aWrapper:
             ps3000aBlockReady,
             c_void_p,
         ]
+        self._lpReady: Any | None = None
 
         self._ps3000aGetValues = getattr(self.lib, "ps3000aGetValues")
         self._ps3000aGetValues.resType = PICO_STATUS_T
@@ -873,13 +874,13 @@ class PicoScope3000aWrapper:
         assert preSamples >= 0
         assert postSamples >= 0
         timeInd = c_uint32(0)
-        lpReady = None
+        self._lpReady = None
         if callback is not None:
 
             def cbwrapper(handle: c_int16, status: PICO_STATUS_T, _: c_void_p):
                 callback(handle, PICO_STATUS(status))
 
-            lpReady = ps3000aBlockReady(cbwrapper)
+            self._lpReady = ps3000aBlockReady(cbwrapper)
         return (
             PICO_STATUS(
                 self._ps3000aRunBlock(
@@ -890,7 +891,7 @@ class PicoScope3000aWrapper:
                     0,
                     byref(timeInd),
                     segment,
-                    lpReady,
+                    self._lpReady,
                     None,
                 )
             ),
