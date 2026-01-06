@@ -27,3 +27,12 @@ PicoAWGOverrangeInteractions = CFUNCTYPE(None, c_int16, PICO_STATUS_T)
 PicoTemperatureSensorInteractions = CFUNCTYPE(
     None, c_int16, PICO_TEMPERATURE_REFERENCE_T
 )
+
+__all__ = (
+    "PicoUpdateFirmwareProgress",
+    "PicoProbeInteractions",
+    "PicoDataReadyUsingReads",
+    "PicoExternalReferenceInteractions",
+    "PicoAWGOverrangeInteractions",
+    "PicoTemperatureSensorInteractions",
+)

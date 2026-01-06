@@ -1,8 +1,6 @@
 from ctypes import c_int32
 from enum import IntEnum
 
-PicoConnectProbe = c_int32
-
 
 class PICO_CONNECT_PROBE(IntEnum):
     PICO_CONNECT_PROBE_NONE = 0
@@ -36,6 +34,9 @@ class PICO_CONNECT_PROBE(IntEnum):
     PICO_CONNECT_PROBE_INTELLIGENT = -3
     PICO_CONNECT_PROBE_UNKNOWN_PROBE = -2
     PICO_CONNECT_PROBE_FAULT_PROBE = -1
+
+
+PICO_CONNECT_PROBE_T = c_int32
 
 
 class PICO_CONNECT_PROBE_RANGE(IntEnum):
@@ -249,3 +250,13 @@ class PICO_PROBE_RANGE_INFO(IntEnum):
 
 
 PICO_PROBE_RANGE_INFO_T = c_int32
+
+
+__all__ = (
+    "PICO_CONNECT_PROBE",
+    "PICO_CONNECT_PROBE_T",
+    "PICO_CONNECT_PROBE_RANGE",
+    "PICO_CONNECT_PROBE_RANGE_T",
+    "PICO_PROBE_RANGE_INFO",
+    "PICO_PROBE_RANGE_INFO_T",
+)

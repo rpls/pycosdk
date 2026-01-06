@@ -22,3 +22,9 @@ class PICO_FIRMWARE_INFO(Structure):
         ("updateVersion", PICO_VERSION),
         ("updateRequired", c_int16),
     ]
+
+
+__all__ = (
+    "PICO_VERSION",
+    "PICO_FIRMWARE_INFO",
+)

@@ -15,8 +15,8 @@ from typing import final
 
 from .connectprobe import (
     PICO_CONNECT_PROBE_RANGE_T,
+    PICO_CONNECT_PROBE_T,
     PICO_PROBE_RANGE_INFO_T,
-    PicoConnectProbe,
 )
 from .deviceenums import (
     PICO_BANDWIDTH_LIMITER_FLAGS_T,
@@ -92,7 +92,7 @@ class PICO_USER_PROBE_INTERACTIONS(Structure):
         ("connected_", c_uint16),
         ("channel_", PICO_CHANNEL_T),
         ("enabled_", c_uint16),
-        ("probeName_", PicoConnectProbe),
+        ("probeName_", PICO_CONNECT_PROBE_T),
         ("requiresPower_", c_uint8),
         ("isPowered_", c_uint8),
         ("status_", PICO_STATUS_T),
@@ -256,3 +256,25 @@ class PICO_LED_STATE_PROPERTIES(Structure):
         ("led_", PICO_LED_SELECT_T),
         ("state_", PICO_LED_STATE_T),
     ]
+
+
+__all__ = (
+    "PICO_TRIGGER_INFO",
+    "PICO_TRIGGER_CHANNEL_PROPERTIES",
+    "PICO_CONDITION",
+    "PICO_DIRECTION",
+    "PICO_USER_PROBE_INTERACTIONS",
+    "PICO_DATA_BUFFERS",
+    "PICO_STREAMING_DATA_INFO",
+    "PICO_STREAMING_DATA_TRIGGER_INFO",
+    "PICO_SCALING_FACTORS_VALUES",
+    "PICO_SCALING_FACTORS_FOR_RANGE_TYPES_VALUES",
+    "PROBE_APP",
+    "PICO_DIGITAL_CHANNEL_DIRECTIONS",
+    "PICO_DIGITAL_PORT_INTERACTIONS",
+    "PICO_CHANNEL_OVERVOLTAGE_TRIPPED",
+    "PICO_USB_POWER_DELIVERY",
+    "PICO_USB_POWER_DETAILS",
+    "PICO_LED_COLOUR_PROPERTIES",
+    "PICO_LED_STATE_PROPERTIES",
+)

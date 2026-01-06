@@ -1,3 +1,4 @@
+# pyright: reportAny=false, reportUnannotatedClassAttribute=false
 import sys
 from ctypes import (
     CFUNCTYPE,
@@ -242,7 +243,7 @@ class PicoScope6000aWrapper:
             ps6000aBlockReady,
             c_void_p,
         ]
-        self._lpReady: Any | None = None
+        self._lpReady: Any | None = None  # pyright: ignore[reportExplicitAny]
 
         self._ps6000aIsReady = getattr(self.lib, "ps6000aIsReady")
         self._ps6000aIsReady.resType = PICO_STATUS_T
@@ -315,7 +316,7 @@ class PicoScope6000aWrapper:
             c_int16,
             PicoExternalReferenceInterations,
         ]
-        self._extrefcb: Any | None = None
+        self._extrefcb: Any | None = None  # pyright: ignore[reportExplicitAny]
 
     def ps6000aOpenUnit(self, serial: str | None, resolution: PICO_DEVICE_RESOLUTION):
         handle = c_int16(0)
@@ -630,3 +631,8 @@ class PicoScope6000aWrapper:
         return PICO_STATUS(
             self._ps6000aSetExternalReferenceInteractionCallback(handle, self._extrefcb)
         )
+
+
+__all__ = (
+    "PicoScope6000aWrapper",
+)

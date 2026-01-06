@@ -1,3 +1,4 @@
+# pyright: reportAny=false, reportUnannotatedClassAttribute=false
 import sys
 from ctypes import (
     CFUNCTYPE,
@@ -19,7 +20,7 @@ from ctypes import (
 )
 from ctypes.util import find_library
 from enum import IntEnum, IntFlag
-from typing import Callable, final, Any
+from typing import Any, Callable, final
 
 from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
 
@@ -575,7 +576,7 @@ class PicoScope5000aWrapper:
             ps5000aBlockReady,
             c_void_p,
         ]
-        self._lpReady: Any | None = None
+        self._lpReady: Any | None = None  # pyright: ignore[reportExplicitAny]
 
         self._ps5000aGetValues = getattr(self.lib, "ps5000aGetValues")
         self._ps5000aGetValues.resType = PICO_STATUS_T
@@ -901,3 +902,49 @@ class PicoScope5000aWrapper:
             nosamples_.value,
             [int(f) for f in overflow],
         )
+
+
+__all__ = (
+    "PicoScope5000aWrapper",
+    "PS5000A_DEVICE_RESOLUTION",
+    "PS5000A_EXTRA_OPERATIONS",
+    "PS5000A_BANDWIDTH_LIMITER",
+    "PS5000A_COUPLING",
+    "PS5000A_CHANNEL",
+    "PS5000A_CHANNEL_FLAGS",
+    "PS5000A_DIGITAL_CHANNEL",
+    "PS5000A_DIGITAL_DIRECTION",
+    "PS5000A_RANGE",
+    "PS5000A_ETS_MODE",
+    "PS5000A_TIME_UNITS",
+    "PS5000A_SWEEP_TYPE",
+    "PS5000A_WAVE_TYPE",
+    "PS5000A_CONDITIONS_INFO",
+    "PS5000A_SIGGEN_TRIG_TYPE",
+    "PS5000A_SIGGEN_TRIG_SOURCE",
+    "PS5000A_INDEX_MODE",
+    "PS5000A_THRESHOLD_MODE",
+    "PS5000A_THRESHOLD_DIRECTION",
+    "PS5000A_TRIGGER_STATE",
+    "PS5000A_TRIGGER_WITHIN_PRE_TRIGGER",
+    "PS5000A_RATIO_MODE",
+    "PS5000A_PULSE_WIDTH_TYPE",
+    "PS5000A_CHANNEL_INFO",
+    "PS5000A_TRIGGER_INFO",
+    "PS5000A_TRIGGER_CONDITIONS",
+    "PS5000A_CONDITION",
+    "PS5000A_DIRECTION",
+    "PS5000A_PWQ_CONDITIONS",
+    "PS5000A_SCALING_FACTORS_VALUES",
+    "PS5000A_TRIGGER_CHANNEL_PROPERTIES",
+    "PS5000A_TRIGGER_CHANNEL_PROPERTIES_V2",
+    "PS5000A_DIGITAL_CHANNEL_DIRECTIONS",
+    "PS5000A_SINE_MAX_FREQUENCY",
+    "PS5000A_SQUARE_MAX_FREQUENCY",
+    "PS5000A_TRIANGLE_MAX_FREQUENCY",
+    "PS5000A_SINC_MAX_FREQUENCY",
+    "PS5000A_RAMP_MAX_FREQUENCY",
+    "PS5000A_HALF_SINE_MAX_FREQUENCY",
+    "PS5000A_GAUSSIAN_MAX_FREQUENCY",
+    "PS5000A_MIN_FREQUENCY",
+)
