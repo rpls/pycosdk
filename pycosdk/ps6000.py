@@ -1237,6 +1237,23 @@ class PicoScope6000Wrapper:
         times_sec = [t * unitmap[PS6000_TIME_UNITS(u)] for t, u in zip(times, units)]
         return status, times_sec
 
+    def ps6000SetExternalClock(
+        self,
+        handle: c_int16,
+        frequency: PS6000_EXTERNAL_FREQUENCY,
+        threshold: int | float,
+    ) -> PICO_STATUS:
+        if isinstance(threshold, float):
+            assert threshold >= -1.0 and threshold <= 1.0, (
+                "if threashold is a float it must bit in [-1.0, 1.0]"
+            )
+            threshold: int = round(threshold * 32512)
+        else:
+            assert threshold >= -32512 and threshold <= 32512, (
+                "if threashold is an int it must bit in [-32512, 32512]"
+            )
+        return PICO_STATUS(self._ps6000SetExternalClock(handle, frequency, threshold))
+
 
 __all__ = (
     "PS6000_EXTERNAL_FREQUENCY",
