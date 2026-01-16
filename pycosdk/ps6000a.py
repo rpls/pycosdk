@@ -293,7 +293,7 @@ class PicoScope6000aWrapper:
             self.lib, "ps6000aGetDeviceResolution"
         )
         self._ps6000aGetDeviceResolution.resType = PICO_STATUS_T
-        self._ps6000aGetDeviceResolution.argTypes = [c_int16, PICO_DEVICE_RESOLUTION_T]
+        self._ps6000aGetDeviceResolution.argTypes = [c_int16, POINTER(PICO_DEVICE_RESOLUTION_T)]
 
         self._ps6000aGetAdcLimits = getattr(self.lib, "ps6000aGetAdcLimits")
         self._ps6000aGetAdcLimits.resType = PICO_STATUS_T

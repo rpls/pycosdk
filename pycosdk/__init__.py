@@ -206,9 +206,10 @@ from .ps6000 import (
     PicoScope6000Wrapper,
 )
 from .ps6000a import PicoScope6000aWrapper
+from .psosca import PicoScope3000eWrapper
 from .status import PICO_INFO, PICO_STATUS
 
-__all__ = [
+__all__ = (
     "PICO_ACTION",
     "PICO_BANDWIDTH_LIMITER",
     "PICO_CHANNEL",
@@ -410,4 +411,5 @@ __all__ = [
     "PS3000A_MIN_ANALOGUE_OFFSET_500MV_2V",
     "PS3000A_MIN_DWELL_COUNT",
     "PS3000A_MIN_SIG_GEN_BUFFER_SIZE",
-]
+    "PicoScope3000eWrapper",
+)

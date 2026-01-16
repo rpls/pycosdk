@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from ctypes import (
     Structure,
     c_double,
@@ -36,6 +37,7 @@ from .deviceenums import (
     PICO_TIME_UNITS_T,
     PICO_TRIGGER_STATE_T,
     PICO_USB_POWER_DELIVERY_DEVICE_TYPE_T,
+    PICO_USB_POWER_DELIVERY_DEVICE_TYPE,
 )
 from .status import PICO_STATUS_T
 
@@ -230,6 +232,34 @@ class PICO_USB_POWER_DELIVERY(Structure):
 
 
 @final
+@dataclass
+class PicoUsbPowerDelivery:
+    valid: bool
+    busVoltagemV: int
+    rpCurrentLimitmA: int
+    partnerConnected: bool
+    ccPolarity: int
+    attachedDevice: PICO_USB_POWER_DELIVERY_DEVICE_TYPE
+    contractExists: bool
+    currentPdo: int
+    currentRdo: int
+
+    @classmethod
+    def from_struct(cls, c: PICO_USB_POWER_DELIVERY):
+        return cls(
+            c.valid_ != 0,
+            c.busVoltagemV_.value,
+            c.rpCurrentLimitmA_.value,
+            c.partnerConnected_.value,
+            c.ccPolarity_.value,
+            PICO_USB_POWER_DELIVERY_DEVICE_TYPE(c.attachedDevice_.value),
+            c.contractExists_.value != 0,
+            c.currentPdo_.value,
+            c.currentRdo_.value,
+        )
+
+
+@final
 class PICO_USB_POWER_DETAILS(Structure):
     _pack_ = 1
     _fields_ = [
@@ -237,6 +267,22 @@ class PICO_USB_POWER_DETAILS(Structure):
         ("dataPort_", PICO_USB_POWER_DELIVERY),
         ("powerPort_", PICO_USB_POWER_DELIVERY),
     ]
+
+
+@final
+@dataclass
+class PicoUsbPowerDetails:
+    powerErrorLikely: bool
+    dataPort: PicoUsbPowerDelivery
+    powerPort: PicoUsbPowerDelivery
+
+    @classmethod
+    def from_struct(cls, c: PICO_USB_POWER_DETAILS):
+        return cls(
+            c.powerErrorLikely_ != 0,
+            PicoUsbPowerDelivery.from_struct(c.dataPort_),
+            PicoUsbPowerDelivery.from_struct(c.powerPort_),
+        )
 
 
 @final
@@ -274,7 +320,9 @@ __all__ = (
     "PICO_DIGITAL_PORT_INTERACTIONS",
     "PICO_CHANNEL_OVERVOLTAGE_TRIPPED",
     "PICO_USB_POWER_DELIVERY",
+    "PicoUsbPowerDelivery",
     "PICO_USB_POWER_DETAILS",
+    "PicoUsbPowerDetails",
     "PICO_LED_COLOUR_PROPERTIES",
     "PICO_LED_STATE_PROPERTIES",
 )
