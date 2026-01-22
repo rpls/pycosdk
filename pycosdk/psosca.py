@@ -291,7 +291,7 @@ class PicoScope3000eWrapper:
                 self._psospaOpenUnit(byref(handle), ser, resolution, byref(usbpwrdet))
             ),
             handle,
-            PicoUsbPowerDetails(usbpwrdet),
+            PicoUsbPowerDetails.from_struct(usbpwrdet)
         )
 
     def psospaCloseUnit(self, handle: c_int16):

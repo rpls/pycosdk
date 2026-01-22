@@ -248,14 +248,14 @@ class PicoUsbPowerDelivery:
     def from_struct(cls, c: PICO_USB_POWER_DELIVERY):
         return cls(
             c.valid_ != 0,
-            c.busVoltagemV_.value,
-            c.rpCurrentLimitmA_.value,
-            c.partnerConnected_.value,
-            c.ccPolarity_.value,
-            PICO_USB_POWER_DELIVERY_DEVICE_TYPE(c.attachedDevice_.value),
-            c.contractExists_.value != 0,
-            c.currentPdo_.value,
-            c.currentRdo_.value,
+            c.busVoltagemV_,
+            c.rpCurrentLimitmA_,
+            c.partnerConnected_,
+            c.ccPolarity_,
+            PICO_USB_POWER_DELIVERY_DEVICE_TYPE(c.attachedDevice_),
+            c.contractExists_ != 0,
+            c.currentPdo_,
+            c.currentRdo_,
         )
 
 
