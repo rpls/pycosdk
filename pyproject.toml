@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.6.6"]
+build-backend = "uv_build"
 
 [project]
 name = "pycosdk"
-version = "0.0.9"
+version = "0.0.10"
 description = "Yet another wrapper for the PicoSDK"
 requires-python = ">=3.11"
 authors = [{name="Richard Petri", email="git@rpls.de"}]
@@ -18,13 +18,16 @@ classifiers = [
   "Programming Language :: Python :: 3 :: Only",
 ]
 
+[dependency-groups]
+dev = [
+  "mypy",
+  "ruff",
+]
+
 [project.urls]
 "Homepage" = "https://github.com/rpls/pycosdk"
 "Bug Reports" = "https://github.com/rpls/pycosdk/issues"
 "Source" = "https://github.com/rpls/pycosdk/"
 
-[tool.setuptools]
-packages = ["pycosdk"]
-
-[tool.setuptools.package-data]
-pycosdk = ["py.typed"]
+[tool.mypy]
+python_version = "3.11"
