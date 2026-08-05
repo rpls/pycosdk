@@ -42,6 +42,7 @@ from .deviceenums import (
     PICO_USB_POWER_DELIVERY_DEVICE_TYPE,
     PICO_WAVE_TYPE,
 )
+from .exceptions import MissingLibraryException
 from .ps3000a import (
     PS3000A_BANDWIDTH_LIMITER,
     PS3000A_CHANNEL,
@@ -406,6 +407,7 @@ __all__ = (
     "PS6000_TRIGGER_INFO",
     "PS6000_TRIGGER_STATE",
     "PS6000_WAVE_TYPE",
+    "MissingLibraryException",
     "PicoScope3000aWrapper",
     "PicoScope3000eWrapper",
     "PicoScope5000aWrapper",

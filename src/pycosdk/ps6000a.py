@@ -44,6 +44,7 @@ from .deviceenums import (
     PICO_THRESHOLD_DIRECTION_T,
 )
 from .devicestructs import PICO_TRIGGER_INFO, PICO_USER_PROBE_INTERACTIONS
+from .exceptions import MissingLibraryException
 from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
 
 ps6000aBlockReady = CFUNCTYPE(None, c_int16, PICO_STATUS_T, c_void_p)
@@ -61,7 +62,7 @@ class PicoScope6000aWrapper:
         if library_path is None:
             library_path = find_library("ps6000a")
         if library_path is None:
-            raise Exception("Library not found")
+            raise MissingLibraryException("Library not found")
 
         if sys.platform == "win32":
             from ctypes import WinDLL
@@ -108,7 +109,9 @@ class PicoScope6000aWrapper:
             POINTER(c_uint64),
         ]
 
-        self._ps6000aQueryMaxSegmentsBySamples = self.lib.ps6000aQueryMaxSegmentsBySamples
+        self._ps6000aQueryMaxSegmentsBySamples = (
+            self.lib.ps6000aQueryMaxSegmentsBySamples
+        )
         self._ps6000aQueryMaxSegmentsBySamples.resType = PICO_STATUS_T
         self._ps6000aQueryMaxSegmentsBySamples.argTypes = [
             c_int16,
@@ -162,7 +165,9 @@ class PicoScope6000aWrapper:
             c_uint64,
         ]
 
-        self._ps6000aGetMinimumTimebaseStateless = self.lib.ps6000aGetMinimumTimebaseStateless
+        self._ps6000aGetMinimumTimebaseStateless = (
+            self.lib.ps6000aGetMinimumTimebaseStateless
+        )
         self._ps6000aGetMinimumTimebaseStateless.resType = PICO_STATUS_T
         self._ps6000aGetMinimumTimebaseStateless.argTypes = [
             c_int16,
@@ -172,7 +177,9 @@ class PicoScope6000aWrapper:
             PICO_DEVICE_RESOLUTION_T,
         ]
 
-        self._ps6000aNearestSampleIntervalStateless = self.lib.ps6000aNearestSampleIntervalStateless
+        self._ps6000aNearestSampleIntervalStateless = (
+            self.lib.ps6000aNearestSampleIntervalStateless
+        )
         self._ps6000aNearestSampleIntervalStateless.resType = PICO_STATUS_T
         self._ps6000aNearestSampleIntervalStateless.argTypes = [
             c_int16,
@@ -183,7 +190,9 @@ class PicoScope6000aWrapper:
             POINTER(c_double),
         ]
 
-        self._ps6000aChannelCombinationsStateless = self.lib.ps6000aChannelCombinationsStateless
+        self._ps6000aChannelCombinationsStateless = (
+            self.lib.ps6000aChannelCombinationsStateless
+        )
         self._ps6000aChannelCombinationsStateless.resType = PICO_STATUS_T
         self._ps6000aChannelCombinationsStateless.argTypes = [
             c_int16,
@@ -280,7 +289,10 @@ class PicoScope6000aWrapper:
 
         self._ps6000aGetDeviceResolution = self.lib.ps6000aGetDeviceResolution
         self._ps6000aGetDeviceResolution.resType = PICO_STATUS_T
-        self._ps6000aGetDeviceResolution.argTypes = [c_int16, POINTER(PICO_DEVICE_RESOLUTION_T)]
+        self._ps6000aGetDeviceResolution.argTypes = [
+            c_int16,
+            POINTER(PICO_DEVICE_RESOLUTION_T),
+        ]
 
         self._ps6000aGetAdcLimits = self.lib.ps6000aGetAdcLimits
         self._ps6000aGetAdcLimits.resType = PICO_STATUS_T
@@ -295,7 +307,9 @@ class PicoScope6000aWrapper:
         self._ps6000aStop.resType = PICO_STATUS_T
         self._ps6000aStop.argTypes = [c_int16]
 
-        self._ps6000aSetExternalReferenceInteractionCallback = self.lib.ps6000aSetExternalReferenceInteractionCallback
+        self._ps6000aSetExternalReferenceInteractionCallback = (
+            self.lib.ps6000aSetExternalReferenceInteractionCallback
+        )
         self._ps6000aSetExternalReferenceInteractionCallback.resType = PICO_STATUS_T
         self._ps6000aSetExternalReferenceInteractionCallback.argTypes = [
             c_int16,
@@ -618,6 +632,4 @@ class PicoScope6000aWrapper:
         )
 
 
-__all__ = (
-    "PicoScope6000aWrapper",
-)
+__all__ = ("PicoScope6000aWrapper",)

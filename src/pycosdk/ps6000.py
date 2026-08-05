@@ -23,6 +23,7 @@ from ctypes.util import find_library
 from enum import IntEnum
 from typing import final
 
+from .exceptions import MissingLibraryException
 from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
 
 PS6000_MAX_OVERSAMPLE_8BIT = 256
@@ -362,7 +363,7 @@ class PicoScope6000Wrapper:
         if library_path is None:
             library_path = find_library("ps6000")
         if library_path is None:
-            raise Exception("Library not found")
+            raise MissingLibraryException("Library not found")
 
         if sys.platform == "win32":
             from ctypes import WinDLL

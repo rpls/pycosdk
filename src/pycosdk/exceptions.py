@@ -1,0 +1,2 @@
+class MissingLibraryException(Exception):
+    pass

@@ -48,6 +48,7 @@ from .devicestructs import (
     PICO_USB_POWER_DETAILS,
     PicoUsbPowerDetails,
 )
+from .exceptions import MissingLibraryException
 from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
 
 psospaBlockReady = CFUNCTYPE(None, c_int16, PICO_STATUS_T, c_void_p)
@@ -59,7 +60,7 @@ class PicoScope3000eWrapper:
         if library_path is None:
             library_path = find_library("psospa")
         if library_path is None:
-            raise Exception("Library not found")
+            raise MissingLibraryException("psospa library not found")
 
         if sys.platform == "win32":
             from ctypes import WinDLL
