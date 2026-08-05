@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from ctypes import (
     Structure,
     c_double,
@@ -12,6 +11,7 @@ from ctypes import (
     c_uint64,
     c_void_p,
 )
+from dataclasses import dataclass
 from typing import final
 
 from .connectprobe import (
@@ -36,8 +36,8 @@ from .deviceenums import (
     PICO_THRESHOLD_MODE_T,
     PICO_TIME_UNITS_T,
     PICO_TRIGGER_STATE_T,
-    PICO_USB_POWER_DELIVERY_DEVICE_TYPE_T,
     PICO_USB_POWER_DELIVERY_DEVICE_TYPE,
+    PICO_USB_POWER_DELIVERY_DEVICE_TYPE_T,
 )
 from .status import PICO_STATUS_T
 
@@ -305,24 +305,24 @@ class PICO_LED_STATE_PROPERTIES(Structure):
 
 
 __all__ = (
-    "PICO_TRIGGER_INFO",
-    "PICO_TRIGGER_CHANNEL_PROPERTIES",
+    "PICO_CHANNEL_OVERVOLTAGE_TRIPPED",
     "PICO_CONDITION",
-    "PICO_DIRECTION",
-    "PICO_USER_PROBE_INTERACTIONS",
     "PICO_DATA_BUFFERS",
-    "PICO_STREAMING_DATA_INFO",
-    "PICO_STREAMING_DATA_TRIGGER_INFO",
-    "PICO_SCALING_FACTORS_VALUES",
-    "PICO_SCALING_FACTORS_FOR_RANGE_TYPES_VALUES",
-    "PROBE_APP",
     "PICO_DIGITAL_CHANNEL_DIRECTIONS",
     "PICO_DIGITAL_PORT_INTERACTIONS",
-    "PICO_CHANNEL_OVERVOLTAGE_TRIPPED",
-    "PICO_USB_POWER_DELIVERY",
-    "PicoUsbPowerDelivery",
-    "PICO_USB_POWER_DETAILS",
-    "PicoUsbPowerDetails",
+    "PICO_DIRECTION",
     "PICO_LED_COLOUR_PROPERTIES",
     "PICO_LED_STATE_PROPERTIES",
+    "PICO_SCALING_FACTORS_FOR_RANGE_TYPES_VALUES",
+    "PICO_SCALING_FACTORS_VALUES",
+    "PICO_STREAMING_DATA_INFO",
+    "PICO_STREAMING_DATA_TRIGGER_INFO",
+    "PICO_TRIGGER_CHANNEL_PROPERTIES",
+    "PICO_TRIGGER_INFO",
+    "PICO_USB_POWER_DELIVERY",
+    "PICO_USB_POWER_DETAILS",
+    "PICO_USER_PROBE_INTERACTIONS",
+    "PROBE_APP",
+    "PicoUsbPowerDelivery",
+    "PicoUsbPowerDetails",
 )

@@ -1,5 +1,6 @@
 # pyright: reportAny=false, reportUnannotatedClassAttribute=false
 import sys
+from collections.abc import Callable
 from ctypes import (
     CFUNCTYPE,
     POINTER,
@@ -15,7 +16,7 @@ from ctypes import (
     create_string_buffer,
 )
 from ctypes.util import find_library
-from typing import Any, Callable
+from typing import Any
 
 from .connectprobe import PICO_CONNECT_PROBE_RANGE, PICO_CONNECT_PROBE_RANGE_T
 from .deviceenums import (
@@ -73,7 +74,7 @@ class PicoScope6000aWrapper:
         loader = LibraryLoader(loadercls)
         self.lib = loader[library_path]
 
-        self._ps6000aOpenUnit = getattr(self.lib, "ps6000aOpenUnit")
+        self._ps6000aOpenUnit = self.lib.ps6000aOpenUnit
         self._ps6000aOpenUnit.resType = PICO_STATUS_T
         self._ps6000aOpenUnit.argTypes = [
             POINTER(c_int16),
@@ -81,11 +82,11 @@ class PicoScope6000aWrapper:
             PICO_DEVICE_RESOLUTION_T,
         ]
 
-        self._ps6000aCloseUnit = getattr(self.lib, "ps6000aCloseUnit")
+        self._ps6000aCloseUnit = self.lib.ps6000aCloseUnit
         self._ps6000aCloseUnit.resType = PICO_STATUS_T
         self._ps6000aCloseUnit.argTypes = [c_int16]
 
-        self._ps6000aGetUnitInfo = getattr(self.lib, "ps6000aGetUnitInfo")
+        self._ps6000aGetUnitInfo = self.lib.ps6000aGetUnitInfo
         self._ps6000aGetUnitInfo.resType = PICO_STATUS_T
         self._ps6000aGetUnitInfo.argTypes = [
             c_int16,
@@ -95,13 +96,11 @@ class PicoScope6000aWrapper:
             PICO_INFO_T,
         ]
 
-        self._ps6000aMemorySegments = getattr(self.lib, "ps6000aMemorySegments")
+        self._ps6000aMemorySegments = self.lib.ps6000aMemorySegments
         self._ps6000aMemorySegments.resType = PICO_STATUS_T
         self._ps6000aMemorySegments.argTypes = [c_int16, c_uint64, POINTER(c_uint64)]
 
-        self._ps6000aMemorySegmentsBySamples = getattr(
-            self.lib, "ps6000aMemorySegmentsBySamples"
-        )
+        self._ps6000aMemorySegmentsBySamples = self.lib.ps6000aMemorySegmentsBySamples
         self._ps6000aMemorySegmentsBySamples.resType = PICO_STATUS_T
         self._ps6000aMemorySegmentsBySamples.argTypes = [
             c_int16,
@@ -109,9 +108,7 @@ class PicoScope6000aWrapper:
             POINTER(c_uint64),
         ]
 
-        self._ps6000aQueryMaxSegmentsBySamples = getattr(
-            self.lib, "ps6000aQueryMaxSegmentsBySamples"
-        )
+        self._ps6000aQueryMaxSegmentsBySamples = self.lib.ps6000aQueryMaxSegmentsBySamples
         self._ps6000aQueryMaxSegmentsBySamples.resType = PICO_STATUS_T
         self._ps6000aQueryMaxSegmentsBySamples.argTypes = [
             c_int16,
@@ -121,11 +118,11 @@ class PicoScope6000aWrapper:
             PICO_DEVICE_RESOLUTION_T,
         ]
 
-        self._ps6000aSetNoOfCaptures = getattr(self.lib, "ps6000aSetNoOfCaptures")
+        self._ps6000aSetNoOfCaptures = self.lib.ps6000aSetNoOfCaptures
         self._ps6000aSetNoOfCaptures.resType = PICO_STATUS_T
         self._ps6000aSetNoOfCaptures.argTypes = [c_int16, c_uint64]
 
-        self._ps6000aSetChannelOn = getattr(self.lib, "ps6000aSetChannelOn")
+        self._ps6000aSetChannelOn = self.lib.ps6000aSetChannelOn
         self._ps6000aSetChannelOn.resType = PICO_STATUS_T
         self._ps6000aSetChannelOn.argTypes = [
             c_int16,
@@ -136,15 +133,15 @@ class PicoScope6000aWrapper:
             PICO_BANDWIDTH_LIMITER_T,
         ]
 
-        self._ps6000aSetChannelOff = getattr(self.lib, "ps6000aSetChannelOff")
+        self._ps6000aSetChannelOff = self.lib.ps6000aSetChannelOff
         self._ps6000aSetChannelOff.resType = PICO_STATUS_T
         self._ps6000aSetChannelOff.argTypes = [c_int16, PICO_CHANNEL_T]
 
-        self._ps6000aSetDigitalPortOff = getattr(self.lib, "ps6000aSetDigitalPortOff")
+        self._ps6000aSetDigitalPortOff = self.lib.ps6000aSetDigitalPortOff
         self._ps6000aSetDigitalPortOff.resType = PICO_STATUS_T
         self._ps6000aSetDigitalPortOff.argTypes = [c_int16, PICO_CHANNEL_T]
 
-        self._ps6000aSetDigitalPortOn = getattr(self.lib, "ps6000aSetDigitalPortOn")
+        self._ps6000aSetDigitalPortOn = self.lib.ps6000aSetDigitalPortOn
         self._ps6000aSetDigitalPortOn.resType = PICO_STATUS_T
         self._ps6000aSetDigitalPortOn.argTypes = [
             c_int16,
@@ -154,7 +151,7 @@ class PicoScope6000aWrapper:
             PICO_DIGITAL_PORT_HYSTERESIS_T,
         ]
 
-        self._ps6000aGetTimebase = getattr(self.lib, "ps6000aGetTimebase")
+        self._ps6000aGetTimebase = self.lib.ps6000aGetTimebase
         self._ps6000aGetTimebase.resType = PICO_STATUS_T
         self._ps6000aGetTimebase.argTypes = [
             c_int16,
@@ -165,9 +162,7 @@ class PicoScope6000aWrapper:
             c_uint64,
         ]
 
-        self._ps6000aGetMinimumTimebaseStateless = getattr(
-            self.lib, "ps6000aGetMinimumTimebaseStateless"
-        )
+        self._ps6000aGetMinimumTimebaseStateless = self.lib.ps6000aGetMinimumTimebaseStateless
         self._ps6000aGetMinimumTimebaseStateless.resType = PICO_STATUS_T
         self._ps6000aGetMinimumTimebaseStateless.argTypes = [
             c_int16,
@@ -177,9 +172,7 @@ class PicoScope6000aWrapper:
             PICO_DEVICE_RESOLUTION_T,
         ]
 
-        self._ps6000aNearestSampleIntervalStateless = getattr(
-            self.lib, "ps6000aNearestSampleIntervalStateless"
-        )
+        self._ps6000aNearestSampleIntervalStateless = self.lib.ps6000aNearestSampleIntervalStateless
         self._ps6000aNearestSampleIntervalStateless.resType = PICO_STATUS_T
         self._ps6000aNearestSampleIntervalStateless.argTypes = [
             c_int16,
@@ -190,9 +183,7 @@ class PicoScope6000aWrapper:
             POINTER(c_double),
         ]
 
-        self._ps6000aChannelCombinationsStateless = getattr(
-            self.lib, "ps6000aChannelCombinationsStateless"
-        )
+        self._ps6000aChannelCombinationsStateless = self.lib.ps6000aChannelCombinationsStateless
         self._ps6000aChannelCombinationsStateless.resType = PICO_STATUS_T
         self._ps6000aChannelCombinationsStateless.argTypes = [
             c_int16,
@@ -202,7 +193,7 @@ class PicoScope6000aWrapper:
             c_uint32,
         ]
 
-        self._ps6000aSetSimpleTrigger = getattr(self.lib, "ps6000aSetSimpleTrigger")
+        self._ps6000aSetSimpleTrigger = self.lib.ps6000aSetSimpleTrigger
         self._ps6000aSetSimpleTrigger.resType = PICO_STATUS_T
         self._ps6000aSetSimpleTrigger.argTypes = [
             c_int16,
@@ -214,11 +205,11 @@ class PicoScope6000aWrapper:
             c_uint32,
         ]
 
-        self._ps6000aSetTriggerDelay = getattr(self.lib, "ps6000aSetTriggerDelay")
+        self._ps6000aSetTriggerDelay = self.lib.ps6000aSetTriggerDelay
         self._ps6000aSetTriggerDelay.resType = PICO_STATUS_T
         self._ps6000aSetTriggerDelay.argTypes = [c_int16, c_uint64]
 
-        self._ps6000aSetDataBuffer = getattr(self.lib, "ps6000aSetDataBuffer")
+        self._ps6000aSetDataBuffer = self.lib.ps6000aSetDataBuffer
         self._ps6000aSetDataBuffer.resType = PICO_STATUS_T
         self._ps6000aSetDataBuffer.argTypes = [
             c_int16,
@@ -231,7 +222,7 @@ class PicoScope6000aWrapper:
             PICO_ACTION_T,
         ]
 
-        self._ps6000aRunBlock = getattr(self.lib, "ps6000aRunBlock")
+        self._ps6000aRunBlock = self.lib.ps6000aRunBlock
         self._ps6000aRunBlock.resType = PICO_STATUS_T
         self._ps6000aRunBlock.argTypes = [
             c_int16,
@@ -245,11 +236,11 @@ class PicoScope6000aWrapper:
         ]
         self._lpReady: Any | None = None  # pyright: ignore[reportExplicitAny]
 
-        self._ps6000aIsReady = getattr(self.lib, "ps6000aIsReady")
+        self._ps6000aIsReady = self.lib.ps6000aIsReady
         self._ps6000aIsReady.resType = PICO_STATUS_T
         self._ps6000aIsReady.argTypes = [c_int16, POINTER(c_int16)]
 
-        self._ps6000aGetValues = getattr(self.lib, "ps6000aGetValues")
+        self._ps6000aGetValues = self.lib.ps6000aGetValues
         self._ps6000aGetValues.resType = PICO_STATUS_T
         self._ps6000aGetValues.argTypes = [
             c_int16,
@@ -261,7 +252,7 @@ class PicoScope6000aWrapper:
             POINTER(c_int16),
         ]
 
-        self._ps6000aGetValuesBulk = getattr(self.lib, "ps6000aGetValuesBulk")
+        self._ps6000aGetValuesBulk = self.lib.ps6000aGetValuesBulk
         self._ps6000aGetValuesBulk.resType = PICO_STATUS_T
         self._ps6000aGetValuesBulk.argTypes = [
             c_int16,
@@ -274,7 +265,7 @@ class PicoScope6000aWrapper:
             POINTER(c_int16),
         ]
 
-        self._ps6000aGetTriggerInfo = getattr(self.lib, "ps6000aGetTriggerInfo")
+        self._ps6000aGetTriggerInfo = self.lib.ps6000aGetTriggerInfo
         self._ps6000aGetTriggerInfo.resType = PICO_STATUS_T
         self._ps6000aGetTriggerInfo.argTypes = [
             c_int16,
@@ -283,19 +274,15 @@ class PicoScope6000aWrapper:
             c_uint64,
         ]
 
-        self._ps6000aSetDeviceResolution = getattr(
-            self.lib, "ps6000aSetDeviceResolution"
-        )
+        self._ps6000aSetDeviceResolution = self.lib.ps6000aSetDeviceResolution
         self._ps6000aSetDeviceResolution.resType = PICO_STATUS_T
         self._ps6000aSetDeviceResolution.argTypes = [c_int16, PICO_DEVICE_RESOLUTION_T]
 
-        self._ps6000aGetDeviceResolution = getattr(
-            self.lib, "ps6000aGetDeviceResolution"
-        )
+        self._ps6000aGetDeviceResolution = self.lib.ps6000aGetDeviceResolution
         self._ps6000aGetDeviceResolution.resType = PICO_STATUS_T
         self._ps6000aGetDeviceResolution.argTypes = [c_int16, POINTER(PICO_DEVICE_RESOLUTION_T)]
 
-        self._ps6000aGetAdcLimits = getattr(self.lib, "ps6000aGetAdcLimits")
+        self._ps6000aGetAdcLimits = self.lib.ps6000aGetAdcLimits
         self._ps6000aGetAdcLimits.resType = PICO_STATUS_T
         self._ps6000aGetAdcLimits.argTypes = [
             c_int16,
@@ -304,13 +291,11 @@ class PicoScope6000aWrapper:
             POINTER(c_int16),
         ]
 
-        self._ps6000aStop = getattr(self.lib, "ps6000aStop")
+        self._ps6000aStop = self.lib.ps6000aStop
         self._ps6000aStop.resType = PICO_STATUS_T
         self._ps6000aStop.argTypes = [c_int16]
 
-        self._ps6000aSetExternalReferenceInteractionCallback = getattr(
-            self.lib, "ps6000aSetExternalReferenceInteractionCallback"
-        )
+        self._ps6000aSetExternalReferenceInteractionCallback = self.lib.ps6000aSetExternalReferenceInteractionCallback
         self._ps6000aSetExternalReferenceInteractionCallback.resType = PICO_STATUS_T
         self._ps6000aSetExternalReferenceInteractionCallback.argTypes = [
             c_int16,

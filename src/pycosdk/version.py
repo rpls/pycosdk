@@ -25,6 +25,6 @@ class PICO_FIRMWARE_INFO(Structure):
 
 
 __all__ = (
-    "PICO_VERSION",
     "PICO_FIRMWARE_INFO",
+    "PICO_VERSION",
 )

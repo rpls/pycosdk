@@ -1,5 +1,6 @@
 # pyright: reportAny=false, reportUnannotatedClassAttribute=false
 import sys
+from collections.abc import Callable
 from ctypes import (
     CFUNCTYPE,
     POINTER,
@@ -20,7 +21,7 @@ from ctypes import (
 )
 from ctypes.util import find_library
 from enum import IntEnum, IntFlag
-from typing import Any, Callable, final
+from typing import Any, final
 
 from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
 
@@ -442,7 +443,7 @@ class PicoScope5000aWrapper:
         loader = LibraryLoader(loadercls)
         self.lib = loader[library_path]
 
-        self._ps5000aOpenUnit = getattr(self.lib, "ps5000aOpenUnit")
+        self._ps5000aOpenUnit = self.lib.ps5000aOpenUnit
         self._ps5000aOpenUnit.resType = PICO_STATUS_T
         self._ps5000aOpenUnit.argTypes = [
             POINTER(c_int16),
@@ -450,7 +451,7 @@ class PicoScope5000aWrapper:
             PS5000A_DEVICE_RESOLUTION_T,
         ]
 
-        self._ps5000aGetUnitInfo = getattr(self.lib, "ps5000aGetUnitInfo")
+        self._ps5000aGetUnitInfo = self.lib.ps5000aGetUnitInfo
         self._ps5000aGetUnitInfo.resType = PICO_STATUS_T
         self._ps5000aGetUnitInfo.argTypes = [
             c_int16,
@@ -460,15 +461,15 @@ class PicoScope5000aWrapper:
             PICO_INFO_T,
         ]
 
-        self._ps5000aCloseUnit = getattr(self.lib, "ps5000aCloseUnit")
+        self._ps5000aCloseUnit = self.lib.ps5000aCloseUnit
         self._ps5000aCloseUnit.resType = PICO_STATUS_T
         self._ps5000aCloseUnit.argTypes = [c_int16]
 
-        self._ps5000aMemorySegments = getattr(self.lib, "ps5000aMemorySegments")
+        self._ps5000aMemorySegments = self.lib.ps5000aMemorySegments
         self._ps5000aMemorySegments.resType = PICO_STATUS_T
         self._ps5000aMemorySegments.argTypes = [c_int16, c_uint32, POINTER(c_uint32)]
 
-        self._ps5000aSetChannel = getattr(self.lib, "ps5000aSetChannel")
+        self._ps5000aSetChannel = self.lib.ps5000aSetChannel
         self._ps5000aSetChannel.resType = PICO_STATUS_T
         self._ps5000aSetChannel.argTypes = [
             c_int16,
@@ -479,7 +480,7 @@ class PicoScope5000aWrapper:
             c_float,
         ]
 
-        self._ps5000aSetDigitalPort = getattr(self.lib, "ps5000aSetDigitalPort")
+        self._ps5000aSetDigitalPort = self.lib.ps5000aSetDigitalPort
         self._ps5000aSetDigitalPort.resType = PICO_STATUS_T
         self._ps5000aSetDigitalPort.argTypes = [
             c_int16,
@@ -488,7 +489,7 @@ class PicoScope5000aWrapper:
             c_int16,
         ]
 
-        self._ps5000aSetBandwidthFilter = getattr(self.lib, "ps5000aSetBandwidthFilter")
+        self._ps5000aSetBandwidthFilter = self.lib.ps5000aSetBandwidthFilter
         self._ps5000aSetBandwidthFilter.resType = PICO_STATUS_T
         self._ps5000aSetBandwidthFilter.argTypes = [
             c_int16,
@@ -496,11 +497,11 @@ class PicoScope5000aWrapper:
             PS5000A_BANDWIDTH_LIMITER_T,
         ]
 
-        self._ps5000aSetNoOfCaptures = getattr(self.lib, "ps5000aSetNoOfCaptures")
+        self._ps5000aSetNoOfCaptures = self.lib.ps5000aSetNoOfCaptures
         self._ps5000aSetNoOfCaptures.resType = PICO_STATUS_T
         self._ps5000aSetNoOfCaptures.argTypes = [c_int16, c_uint32]
 
-        self._ps5000aGetTimebase2 = getattr(self.lib, "ps5000aGetTimebase2")
+        self._ps5000aGetTimebase2 = self.lib.ps5000aGetTimebase2
         self._ps5000aGetTimebase2.resType = PICO_STATUS_T
         self._ps5000aGetTimebase2.argTypes = [
             c_int16,
@@ -511,7 +512,7 @@ class PicoScope5000aWrapper:
             c_uint32,
         ]
 
-        self._ps5000aSetSimpleTrigger = getattr(self.lib, "ps5000aSetSimpleTrigger")
+        self._ps5000aSetSimpleTrigger = self.lib.ps5000aSetSimpleTrigger
         self._ps5000aSetSimpleTrigger.resType = PICO_STATUS_T
         self._ps5000aSetSimpleTrigger.argTypes = [
             c_int16,
@@ -523,21 +524,19 @@ class PicoScope5000aWrapper:
             c_int16,
         ]
 
-        self._ps5000aSetTriggerDelay = getattr(self.lib, "ps5000aSetTriggerDelay")
+        self._ps5000aSetTriggerDelay = self.lib.ps5000aSetTriggerDelay
         self._ps5000aSetTriggerDelay.resType = PICO_STATUS_T
         self._ps5000aSetTriggerDelay.argTypes = [c_int16, c_uint32]
 
-        self._ps5000aGetNoOfCaptures = getattr(self.lib, "ps5000aGetNoOfCaptures")
+        self._ps5000aGetNoOfCaptures = self.lib.ps5000aGetNoOfCaptures
         self._ps5000aGetNoOfCaptures.resType = PICO_STATUS_T
         self._ps5000aGetNoOfCaptures.argTypes = [c_int16, POINTER(c_uint32)]
 
-        self._ps5000aGetNoOfProcessedCaptures = getattr(
-            self.lib, "ps5000aGetNoOfProcessedCaptures"
-        )
+        self._ps5000aGetNoOfProcessedCaptures = self.lib.ps5000aGetNoOfProcessedCaptures
         self._ps5000aGetNoOfProcessedCaptures.resType = PICO_STATUS_T
         self._ps5000aGetNoOfProcessedCaptures.argTypes = [c_int16, POINTER(c_uint32)]
 
-        self._ps5000aSetDataBuffer = getattr(self.lib, "ps5000aSetDataBuffer")
+        self._ps5000aSetDataBuffer = self.lib.ps5000aSetDataBuffer
         self._ps5000aSetDataBuffer.resType = PICO_STATUS_T
         self._ps5000aSetDataBuffer.argTypes = [
             c_int16,
@@ -548,7 +547,7 @@ class PicoScope5000aWrapper:
             PS5000A_RATIO_MODE_T,
         ]
 
-        self._ps5000aSetDataBuffers = getattr(self.lib, "ps5000aSetDataBuffers")
+        self._ps5000aSetDataBuffers = self.lib.ps5000aSetDataBuffers
         self._ps5000aSetDataBuffers.resType = PICO_STATUS_T
         self._ps5000aSetDataBuffers.argTypes = [
             c_int16,
@@ -560,11 +559,11 @@ class PicoScope5000aWrapper:
             PS5000A_RATIO_MODE_T,
         ]
 
-        self._ps5000aIsReady = getattr(self.lib, "ps5000aIsReady")
+        self._ps5000aIsReady = self.lib.ps5000aIsReady
         self._ps5000aIsReady.resType = PICO_STATUS_T
         self._ps5000aIsReady.argTypes = [c_int16, POINTER(c_int16)]
 
-        self._ps5000aRunBlock = getattr(self.lib, "ps5000aRunBlock")
+        self._ps5000aRunBlock = self.lib.ps5000aRunBlock
         self._ps5000aRunBlock.resType = PICO_STATUS_T
         self._ps5000aRunBlock.argTypes = [
             c_int16,
@@ -578,7 +577,7 @@ class PicoScope5000aWrapper:
         ]
         self._lpReady: Any | None = None  # pyright: ignore[reportExplicitAny]
 
-        self._ps5000aGetValues = getattr(self.lib, "ps5000aGetValues")
+        self._ps5000aGetValues = self.lib.ps5000aGetValues
         self._ps5000aGetValues.resType = PICO_STATUS_T
         self._ps5000aGetValues.argTypes = [
             c_int16,
@@ -590,7 +589,7 @@ class PicoScope5000aWrapper:
             POINTER(c_int16),
         ]
 
-        self._ps5000aGetValuesBulk = getattr(self.lib, "ps5000aGetValuesBulk")
+        self._ps5000aGetValuesBulk = self.lib.ps5000aGetValuesBulk
         self._ps5000aGetValuesBulk.resType = PICO_STATUS_T
         self._ps5000aGetValuesBulk.argTypes = [
             c_int16,
@@ -602,13 +601,11 @@ class PicoScope5000aWrapper:
             POINTER(c_int16),
         ]
 
-        self._ps5000aStop = getattr(self.lib, "ps5000aStop")
+        self._ps5000aStop = self.lib.ps5000aStop
         self._ps5000aStop.resType = PICO_STATUS_T
         self._ps5000aStop.argTypes = [c_int16]
 
-        self._ps5000aGetChannelInformation = getattr(
-            self.lib, "ps5000aGetChannelInformation"
-        )
+        self._ps5000aGetChannelInformation = self.lib.ps5000aGetChannelInformation
         self._ps5000aGetChannelInformation.resType = PICO_STATUS_T
         self._ps5000aGetChannelInformation.argTypes = [
             c_int16,
@@ -619,7 +616,7 @@ class PicoScope5000aWrapper:
             PS5000A_CHANNEL_T,
         ]
 
-        self._ps5000aEnumerateUnits = getattr(self.lib, "ps5000aEnumerateUnits")
+        self._ps5000aEnumerateUnits = self.lib.ps5000aEnumerateUnits
         self._ps5000aEnumerateUnits.resType = PICO_STATUS_T
         self._ps5000aEnumerateUnits.argTypes = [
             POINTER(c_int16),
@@ -627,19 +624,19 @@ class PicoScope5000aWrapper:
             POINTER(c_int16),
         ]
 
-        self._ps5000aPingUnit = getattr(self.lib, "ps5000aPingUnit")
+        self._ps5000aPingUnit = self.lib.ps5000aPingUnit
         self._ps5000aPingUnit.resType = PICO_STATUS_T
         self._ps5000aPingUnit.argTypes = [c_int16]
 
-        self._ps5000aMaximumValue = getattr(self.lib, "ps5000aMaximumValue")
+        self._ps5000aMaximumValue = self.lib.ps5000aMaximumValue
         self._ps5000aMaximumValue.resType = PICO_STATUS_T
         self._ps5000aMaximumValue.argTypes = [c_int16, POINTER(c_int16)]
 
-        self._ps5000aMinimumValue = getattr(self.lib, "ps5000aMinimumValue")
+        self._ps5000aMinimumValue = self.lib.ps5000aMinimumValue
         self._ps5000aMinimumValue.resType = PICO_STATUS_T
         self._ps5000aMinimumValue.argTypes = [c_int16, POINTER(c_int16)]
 
-        self._ps5000aGetAnalogueOffset = getattr(self.lib, "ps5000aGetAnalogueOffset")
+        self._ps5000aGetAnalogueOffset = self.lib.ps5000aGetAnalogueOffset
         self._ps5000aGetAnalogueOffset.resType = PICO_STATUS_T
         self._ps5000aGetAnalogueOffset.argTypes = [
             c_int16,
@@ -649,15 +646,15 @@ class PicoScope5000aWrapper:
             POINTER(c_float),
         ]
 
-        self._ps5000aGetMaxSegments = getattr(self.lib, "ps5000aGetMaxSegments")
+        self._ps5000aGetMaxSegments = self.lib.ps5000aGetMaxSegments
         self._ps5000aGetMaxSegments.resType = PICO_STATUS_T
         self._ps5000aGetMaxSegments.argTypes = [c_int16, POINTER(c_uint32)]
 
-        self._ps5000aChangePowerSource = getattr(self.lib, "ps5000aChangePowerSource")
+        self._ps5000aChangePowerSource = self.lib.ps5000aChangePowerSource
         self._ps5000aChangePowerSource.resType = PICO_STATUS_T
         self._ps5000aChangePowerSource.argTypes = [c_int16, PICO_STATUS_T]
 
-        self._ps5000aCurrentPowerSource = getattr(self.lib, "ps5000aCurrentPowerSource")
+        self._ps5000aCurrentPowerSource = self.lib.ps5000aCurrentPowerSource
         self._ps5000aCurrentPowerSource.resType = PICO_STATUS_T
         self._ps5000aCurrentPowerSource.argTypes = [c_int16]
 
@@ -905,46 +902,46 @@ class PicoScope5000aWrapper:
 
 
 __all__ = (
-    "PicoScope5000aWrapper",
-    "PS5000A_DEVICE_RESOLUTION",
-    "PS5000A_EXTRA_OPERATIONS",
     "PS5000A_BANDWIDTH_LIMITER",
-    "PS5000A_COUPLING",
     "PS5000A_CHANNEL",
     "PS5000A_CHANNEL_FLAGS",
-    "PS5000A_DIGITAL_CHANNEL",
-    "PS5000A_DIGITAL_DIRECTION",
-    "PS5000A_RANGE",
-    "PS5000A_ETS_MODE",
-    "PS5000A_TIME_UNITS",
-    "PS5000A_SWEEP_TYPE",
-    "PS5000A_WAVE_TYPE",
-    "PS5000A_CONDITIONS_INFO",
-    "PS5000A_SIGGEN_TRIG_TYPE",
-    "PS5000A_SIGGEN_TRIG_SOURCE",
-    "PS5000A_INDEX_MODE",
-    "PS5000A_THRESHOLD_MODE",
-    "PS5000A_THRESHOLD_DIRECTION",
-    "PS5000A_TRIGGER_STATE",
-    "PS5000A_TRIGGER_WITHIN_PRE_TRIGGER",
-    "PS5000A_RATIO_MODE",
-    "PS5000A_PULSE_WIDTH_TYPE",
     "PS5000A_CHANNEL_INFO",
-    "PS5000A_TRIGGER_INFO",
-    "PS5000A_TRIGGER_CONDITIONS",
     "PS5000A_CONDITION",
-    "PS5000A_DIRECTION",
-    "PS5000A_PWQ_CONDITIONS",
-    "PS5000A_SCALING_FACTORS_VALUES",
-    "PS5000A_TRIGGER_CHANNEL_PROPERTIES",
-    "PS5000A_TRIGGER_CHANNEL_PROPERTIES_V2",
+    "PS5000A_CONDITIONS_INFO",
+    "PS5000A_COUPLING",
+    "PS5000A_DEVICE_RESOLUTION",
+    "PS5000A_DIGITAL_CHANNEL",
     "PS5000A_DIGITAL_CHANNEL_DIRECTIONS",
+    "PS5000A_DIGITAL_DIRECTION",
+    "PS5000A_DIRECTION",
+    "PS5000A_ETS_MODE",
+    "PS5000A_EXTRA_OPERATIONS",
+    "PS5000A_GAUSSIAN_MAX_FREQUENCY",
+    "PS5000A_HALF_SINE_MAX_FREQUENCY",
+    "PS5000A_INDEX_MODE",
+    "PS5000A_MIN_FREQUENCY",
+    "PS5000A_PULSE_WIDTH_TYPE",
+    "PS5000A_PWQ_CONDITIONS",
+    "PS5000A_RAMP_MAX_FREQUENCY",
+    "PS5000A_RANGE",
+    "PS5000A_RATIO_MODE",
+    "PS5000A_SCALING_FACTORS_VALUES",
+    "PS5000A_SIGGEN_TRIG_SOURCE",
+    "PS5000A_SIGGEN_TRIG_TYPE",
+    "PS5000A_SINC_MAX_FREQUENCY",
     "PS5000A_SINE_MAX_FREQUENCY",
     "PS5000A_SQUARE_MAX_FREQUENCY",
+    "PS5000A_SWEEP_TYPE",
+    "PS5000A_THRESHOLD_DIRECTION",
+    "PS5000A_THRESHOLD_MODE",
+    "PS5000A_TIME_UNITS",
     "PS5000A_TRIANGLE_MAX_FREQUENCY",
-    "PS5000A_SINC_MAX_FREQUENCY",
-    "PS5000A_RAMP_MAX_FREQUENCY",
-    "PS5000A_HALF_SINE_MAX_FREQUENCY",
-    "PS5000A_GAUSSIAN_MAX_FREQUENCY",
-    "PS5000A_MIN_FREQUENCY",
+    "PS5000A_TRIGGER_CHANNEL_PROPERTIES",
+    "PS5000A_TRIGGER_CHANNEL_PROPERTIES_V2",
+    "PS5000A_TRIGGER_CONDITIONS",
+    "PS5000A_TRIGGER_INFO",
+    "PS5000A_TRIGGER_STATE",
+    "PS5000A_TRIGGER_WITHIN_PRE_TRIGGER",
+    "PS5000A_WAVE_TYPE",
+    "PicoScope5000aWrapper",
 )

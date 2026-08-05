@@ -1,5 +1,6 @@
 # pyright: reportAny=false, reportUnannotatedClassAttribute=false
 import sys
+from collections.abc import Callable
 from ctypes import (
     CFUNCTYPE,
     POINTER,
@@ -20,7 +21,7 @@ from ctypes import (
 )
 from ctypes.util import find_library
 from enum import IntEnum
-from typing import Callable, final
+from typing import final
 
 from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
 
@@ -374,15 +375,15 @@ class PicoScope6000Wrapper:
         loader = LibraryLoader(loadercls)
         self.lib = loader[library_path]
 
-        self._ps6000OpenUnit = getattr(self.lib, "ps6000OpenUnit")
+        self._ps6000OpenUnit = self.lib.ps6000OpenUnit
         self._ps6000OpenUnit.resType = PICO_STATUS_T
         self._ps6000OpenUnit.argTypes = [POINTER(c_int16), c_char_p]
 
-        self._ps6000OpenUnitAsync = getattr(self.lib, "ps6000OpenUnitAsync")
+        self._ps6000OpenUnitAsync = self.lib.ps6000OpenUnitAsync
         self._ps6000OpenUnitAsync.resType = PICO_STATUS_T
         self._ps6000OpenUnitAsync.argTypes = [POINTER(c_int16), c_char_p]
 
-        self._ps6000OpenUnitProgress = getattr(self.lib, "ps6000OpenUnitProgress")
+        self._ps6000OpenUnitProgress = self.lib.ps6000OpenUnitProgress
         self._ps6000OpenUnitProgress.resType = PICO_STATUS_T
         self._ps6000OpenUnitProgress.argTypes = [
             POINTER(c_int16),
@@ -390,7 +391,7 @@ class PicoScope6000Wrapper:
             POINTER(c_int16),
         ]
 
-        self._ps6000GetUnitInfo = getattr(self.lib, "ps6000GetUnitInfo")
+        self._ps6000GetUnitInfo = self.lib.ps6000GetUnitInfo
         self._ps6000GetUnitInfo.resType = PICO_STATUS_T
         self._ps6000GetUnitInfo.argTypes = [
             c_int16,
@@ -400,21 +401,21 @@ class PicoScope6000Wrapper:
             PICO_INFO_T,
         ]
 
-        self._ps6000FlashLed = getattr(self.lib, "ps6000FlashLed")
+        self._ps6000FlashLed = self.lib.ps6000FlashLed
         self._ps6000FlashLed.resType = PICO_STATUS_T
         self._ps6000FlashLed.argTypes = [c_int16, c_int16]
 
-        self._ps6000CloseUnit = getattr(self.lib, "ps6000CloseUnit")
+        self._ps6000CloseUnit = self.lib.ps6000CloseUnit
         self._ps6000CloseUnit.resType = PICO_STATUS_T
         self._ps6000CloseUnit.argTypes = [
             c_int16,
         ]
 
-        self._ps6000MemorySegments = getattr(self.lib, "ps6000MemorySegments")
+        self._ps6000MemorySegments = self.lib.ps6000MemorySegments
         self._ps6000MemorySegments.resType = PICO_STATUS_T
         self._ps6000MemorySegments.argTypes = [c_int16, c_uint32, POINTER(c_uint32)]
 
-        self._ps6000SetChannel = getattr(self.lib, "ps6000SetChannel")
+        self._ps6000SetChannel = self.lib.ps6000SetChannel
         self._ps6000SetChannel.resType = PICO_STATUS_T
         self._ps6000SetChannel.argTypes = [
             c_int16,
@@ -426,7 +427,7 @@ class PicoScope6000Wrapper:
             PS6000_BANDWIDTH_LIMITER_T,
         ]
 
-        self._ps6000GetTimebase = getattr(self.lib, "ps6000GetTimebase")
+        self._ps6000GetTimebase = self.lib.ps6000GetTimebase
         self._ps6000GetTimebase.resType = PICO_STATUS_T
         self._ps6000GetTimebase.argTypes = [
             c_int16,
@@ -438,7 +439,7 @@ class PicoScope6000Wrapper:
             c_uint32,
         ]
 
-        self._ps6000GetTimebase2 = getattr(self.lib, "ps6000GetTimebase2")
+        self._ps6000GetTimebase2 = self.lib.ps6000GetTimebase2
         self._ps6000GetTimebase2.resType = PICO_STATUS_T
         self._ps6000GetTimebase2.argTypes = [
             c_int16,
@@ -450,7 +451,7 @@ class PicoScope6000Wrapper:
             c_uint32,
         ]
 
-        self._ps6000SetSigGenArbitrary = getattr(self.lib, "ps6000SetSigGenArbitrary")
+        self._ps6000SetSigGenArbitrary = self.lib.ps6000SetSigGenArbitrary
         self._ps6000SetSigGenArbitrary.resType = PICO_STATUS_T
         self._ps6000SetSigGenArbitrary.argTypes = [
             c_int16,
@@ -472,7 +473,7 @@ class PicoScope6000Wrapper:
             c_int16,
         ]
 
-        self._ps6000SetSigGenBuiltIn = getattr(self.lib, "ps6000SetSigGenBuiltIn")
+        self._ps6000SetSigGenBuiltIn = self.lib.ps6000SetSigGenBuiltIn
         self._ps6000SetSigGenBuiltIn.resType = PICO_STATUS_T
         self._ps6000SetSigGenBuiltIn.argTypes = [
             c_int16,
@@ -492,7 +493,7 @@ class PicoScope6000Wrapper:
             c_int16,
         ]
 
-        self._ps6000SetSigGenBuiltInV2 = getattr(self.lib, "ps6000SetSigGenBuiltInV2")
+        self._ps6000SetSigGenBuiltInV2 = self.lib.ps6000SetSigGenBuiltInV2
         self._ps6000SetSigGenBuiltInV2.resType = PICO_STATUS_T
         self._ps6000SetSigGenBuiltInV2.argTypes = [
             c_int16,
@@ -512,9 +513,7 @@ class PicoScope6000Wrapper:
             c_int16,
         ]
 
-        self._ps6000SetSigGenPropertiesArbitrary = getattr(
-            self.lib, "ps6000SetSigGenPropertiesArbitrary"
-        )
+        self._ps6000SetSigGenPropertiesArbitrary = self.lib.ps6000SetSigGenPropertiesArbitrary
         self._ps6000SetSigGenPropertiesArbitrary.resType = PICO_STATUS_T
         self._ps6000SetSigGenPropertiesArbitrary.argTypes = [
             c_int16,
@@ -532,9 +531,7 @@ class PicoScope6000Wrapper:
             c_int16,
         ]
 
-        self._ps6000SetSigGenPropertiesBuiltIn = getattr(
-            self.lib, "ps6000SetSigGenPropertiesBuiltIn"
-        )
+        self._ps6000SetSigGenPropertiesBuiltIn = self.lib.ps6000SetSigGenPropertiesBuiltIn
         self._ps6000SetSigGenPropertiesBuiltIn.resType = PICO_STATUS_T
         self._ps6000SetSigGenPropertiesBuiltIn.argTypes = [
             c_int16,
@@ -552,9 +549,7 @@ class PicoScope6000Wrapper:
             c_int16,
         ]
 
-        self._ps6000SigGenFrequencyToPhase = getattr(
-            self.lib, "ps6000SigGenFrequencyToPhase"
-        )
+        self._ps6000SigGenFrequencyToPhase = self.lib.ps6000SigGenFrequencyToPhase
         self._ps6000SigGenFrequencyToPhase.resType = PICO_STATUS_T
         self._ps6000SigGenFrequencyToPhase.argTypes = [
             c_int16,
@@ -564,9 +559,7 @@ class PicoScope6000Wrapper:
             POINTER(c_uint32),
         ]
 
-        self._ps6000SigGenArbitraryMinMaxValues = getattr(
-            self.lib, "ps6000SigGenArbitraryMinMaxValues"
-        )
+        self._ps6000SigGenArbitraryMinMaxValues = self.lib.ps6000SigGenArbitraryMinMaxValues
         self._ps6000SigGenArbitraryMinMaxValues.resType = PICO_STATUS_T
         self._ps6000SigGenArbitraryMinMaxValues.argTypes = [
             c_int16,
@@ -576,13 +569,11 @@ class PicoScope6000Wrapper:
             POINTER(c_uint32),
         ]
 
-        self._ps6000SigGenSoftwareControl = getattr(
-            self.lib, "ps6000SigGenSoftwareControl"
-        )
+        self._ps6000SigGenSoftwareControl = self.lib.ps6000SigGenSoftwareControl
         self._ps6000SigGenSoftwareControl.resType = PICO_STATUS_T
         self._ps6000SigGenSoftwareControl.argTypes = [c_int16, c_int16]
 
-        self._ps6000SetSimpleTrigger = getattr(self.lib, "ps6000SetSimpleTrigger")
+        self._ps6000SetSimpleTrigger = self.lib.ps6000SetSimpleTrigger
         self._ps6000SetSimpleTrigger.resType = PICO_STATUS_T
         self._ps6000SetSimpleTrigger.argTypes = [
             c_int16,
@@ -594,7 +585,7 @@ class PicoScope6000Wrapper:
             c_int16,
         ]
 
-        self._ps6000SetEts = getattr(self.lib, "ps6000SetEts")
+        self._ps6000SetEts = self.lib.ps6000SetEts
         self._ps6000SetEts.resType = PICO_STATUS_T
         self._ps6000SetEts.argTypes = [
             c_int16,
@@ -604,9 +595,7 @@ class PicoScope6000Wrapper:
             POINTER(c_int32),
         ]
 
-        self._ps6000SetTriggerChannelProperties = getattr(
-            self.lib, "ps6000SetTriggerChannelProperties"
-        )
+        self._ps6000SetTriggerChannelProperties = self.lib.ps6000SetTriggerChannelProperties
         self._ps6000SetTriggerChannelProperties.resType = PICO_STATUS_T
         self._ps6000SetTriggerChannelProperties.argTypes = [
             c_int16,
@@ -616,9 +605,7 @@ class PicoScope6000Wrapper:
             c_uint32,
         ]
 
-        self._ps6000SetTriggerChannelConditions = getattr(
-            self.lib, "ps6000SetTriggerChannelConditions"
-        )
+        self._ps6000SetTriggerChannelConditions = self.lib.ps6000SetTriggerChannelConditions
         self._ps6000SetTriggerChannelConditions.resType = PICO_STATUS_T
         self._ps6000SetTriggerChannelConditions.argTypes = [
             c_int16,
@@ -626,9 +613,7 @@ class PicoScope6000Wrapper:
             c_int16,
         ]
 
-        self._ps6000SetTriggerChannelDirections = getattr(
-            self.lib, "ps6000SetTriggerChannelDirections"
-        )
+        self._ps6000SetTriggerChannelDirections = self.lib.ps6000SetTriggerChannelDirections
         self._ps6000SetTriggerChannelDirections.resType = PICO_STATUS_T
         self._ps6000SetTriggerChannelDirections.argTypes = [
             c_int16,
@@ -640,13 +625,11 @@ class PicoScope6000Wrapper:
             PS6000_THRESHOLD_DIRECTION_T,
         ]
 
-        self._ps6000SetTriggerDelay = getattr(self.lib, "ps6000SetTriggerDelay")
+        self._ps6000SetTriggerDelay = self.lib.ps6000SetTriggerDelay
         self._ps6000SetTriggerDelay.resType = PICO_STATUS_T
         self._ps6000SetTriggerDelay.argTypes = [c_int16, c_uint32]
 
-        self._ps6000SetPulseWidthQualifier = getattr(
-            self.lib, "ps6000SetPulseWidthQualifier"
-        )
+        self._ps6000SetPulseWidthQualifier = self.lib.ps6000SetPulseWidthQualifier
         self._ps6000SetPulseWidthQualifier.resType = PICO_STATUS_T
         self._ps6000SetPulseWidthQualifier.argTypes = [
             c_int16,
@@ -658,9 +641,7 @@ class PicoScope6000Wrapper:
             PS6000_PULSE_WIDTH_TYPE_T,
         ]
 
-        self._ps6000IsTriggerOrPulseWidthQualifierEnabled = getattr(
-            self.lib, "ps6000IsTriggerOrPulseWidthQualifierEnabled"
-        )
+        self._ps6000IsTriggerOrPulseWidthQualifierEnabled = self.lib.ps6000IsTriggerOrPulseWidthQualifierEnabled
         self._ps6000IsTriggerOrPulseWidthQualifierEnabled.resType = PICO_STATUS_T
         self._ps6000IsTriggerOrPulseWidthQualifierEnabled.argTypes = [
             c_int16,
@@ -668,9 +649,7 @@ class PicoScope6000Wrapper:
             POINTER(c_int16),
         ]
 
-        self._ps6000GetTriggerTimeOffset = getattr(
-            self.lib, "ps6000GetTriggerTimeOffset"
-        )
+        self._ps6000GetTriggerTimeOffset = self.lib.ps6000GetTriggerTimeOffset
         self._ps6000GetTriggerTimeOffset.resType = PICO_STATUS_T
         self._ps6000GetTriggerTimeOffset.argTypes = [
             c_int16,
@@ -680,9 +659,7 @@ class PicoScope6000Wrapper:
             c_uint32,
         ]
 
-        self._ps6000GetTriggerTimeOffset64 = getattr(
-            self.lib, "ps6000GetTriggerTimeOffset64"
-        )
+        self._ps6000GetTriggerTimeOffset64 = self.lib.ps6000GetTriggerTimeOffset64
         self._ps6000GetTriggerTimeOffset64.resType = PICO_STATUS_T
         self._ps6000GetTriggerTimeOffset64.argTypes = [
             c_int16,
@@ -691,9 +668,7 @@ class PicoScope6000Wrapper:
             c_uint32,
         ]
 
-        self._ps6000GetValuesTriggerTimeOffsetBulk = getattr(
-            self.lib, "ps6000GetValuesTriggerTimeOffsetBulk"
-        )
+        self._ps6000GetValuesTriggerTimeOffsetBulk = self.lib.ps6000GetValuesTriggerTimeOffsetBulk
         self._ps6000GetValuesTriggerTimeOffsetBulk.resType = PICO_STATUS_T
         self._ps6000GetValuesTriggerTimeOffsetBulk.argTypes = [
             c_int16,
@@ -704,9 +679,7 @@ class PicoScope6000Wrapper:
             c_uint32,
         ]
 
-        self._ps6000GetValuesTriggerTimeOffsetBulk64 = getattr(
-            self.lib, "ps6000GetValuesTriggerTimeOffsetBulk64"
-        )
+        self._ps6000GetValuesTriggerTimeOffsetBulk64 = self.lib.ps6000GetValuesTriggerTimeOffsetBulk64
         self._ps6000GetValuesTriggerTimeOffsetBulk64.resType = PICO_STATUS_T
         self._ps6000GetValuesTriggerTimeOffsetBulk64.argTypes = [
             c_int16,
@@ -716,7 +689,7 @@ class PicoScope6000Wrapper:
             c_uint32,
         ]
 
-        self._ps6000SetDataBuffers = getattr(self.lib, "ps6000SetDataBuffers")
+        self._ps6000SetDataBuffers = self.lib.ps6000SetDataBuffers
         self._ps6000SetDataBuffers.resType = PICO_STATUS_T
         self._ps6000SetDataBuffers.argTypes = [
             c_int16,
@@ -727,7 +700,7 @@ class PicoScope6000Wrapper:
             PS6000_RATIO_MODE_T,
         ]
 
-        self._ps6000SetDataBuffer = getattr(self.lib, "ps6000SetDataBuffer")
+        self._ps6000SetDataBuffer = self.lib.ps6000SetDataBuffer
         self._ps6000SetDataBuffer.resType = PICO_STATUS_T
         self._ps6000SetDataBuffer.argTypes = [
             c_int16,
@@ -737,7 +710,7 @@ class PicoScope6000Wrapper:
             PS6000_RATIO_MODE_T,
         ]
 
-        self._ps6000SetDataBufferBulk = getattr(self.lib, "ps6000SetDataBufferBulk")
+        self._ps6000SetDataBufferBulk = self.lib.ps6000SetDataBufferBulk
         self._ps6000SetDataBufferBulk.resType = PICO_STATUS_T
         self._ps6000SetDataBufferBulk.argTypes = [
             c_int16,
@@ -748,7 +721,7 @@ class PicoScope6000Wrapper:
             PS6000_RATIO_MODE_T,
         ]
 
-        self._ps6000SetDataBuffersBulk = getattr(self.lib, "ps6000SetDataBuffersBulk")
+        self._ps6000SetDataBuffersBulk = self.lib.ps6000SetDataBuffersBulk
         self._ps6000SetDataBuffersBulk.resType = PICO_STATUS_T
         self._ps6000SetDataBuffersBulk.argTypes = [
             c_int16,
@@ -760,11 +733,11 @@ class PicoScope6000Wrapper:
             PS6000_RATIO_MODE_T,
         ]
 
-        self._ps6000SetEtsTimeBuffer = getattr(self.lib, "ps6000SetEtsTimeBuffer")
+        self._ps6000SetEtsTimeBuffer = self.lib.ps6000SetEtsTimeBuffer
         self._ps6000SetEtsTimeBuffer.resType = PICO_STATUS_T
         self._ps6000SetEtsTimeBuffer.argTypes = [c_int16, POINTER(c_int64), c_uint32]
 
-        self._ps6000SetEtsTimeBuffers = getattr(self.lib, "ps6000SetEtsTimeBuffers")
+        self._ps6000SetEtsTimeBuffers = self.lib.ps6000SetEtsTimeBuffers
         self._ps6000SetEtsTimeBuffers.resType = PICO_STATUS_T
         self._ps6000SetEtsTimeBuffers.argTypes = [
             c_int16,
@@ -773,7 +746,7 @@ class PicoScope6000Wrapper:
             c_uint32,
         ]
 
-        self._ps6000RunBlock = getattr(self.lib, "ps6000RunBlock")
+        self._ps6000RunBlock = self.lib.ps6000RunBlock
         self._ps6000RunBlock.resType = PICO_STATUS_T
         self._ps6000RunBlock.argTypes = [
             c_int16,
@@ -787,11 +760,11 @@ class PicoScope6000Wrapper:
             c_void_p,
         ]
 
-        self._ps6000IsReady = getattr(self.lib, "ps6000IsReady")
+        self._ps6000IsReady = self.lib.ps6000IsReady
         self._ps6000IsReady.resType = PICO_STATUS_T
         self._ps6000IsReady.argTypes = [c_int16, POINTER(c_int16)]
 
-        self._ps6000RunStreaming = getattr(self.lib, "ps6000RunStreaming")
+        self._ps6000RunStreaming = self.lib.ps6000RunStreaming
         self._ps6000RunStreaming.resType = PICO_STATUS_T
         self._ps6000RunStreaming.argTypes = [
             c_int16,
@@ -805,9 +778,7 @@ class PicoScope6000Wrapper:
             c_uint32,
         ]
 
-        self._ps6000GetStreamingLatestValues = getattr(
-            self.lib, "ps6000GetStreamingLatestValues"
-        )
+        self._ps6000GetStreamingLatestValues = self.lib.ps6000GetStreamingLatestValues
         self._ps6000GetStreamingLatestValues.resType = PICO_STATUS_T
         self._ps6000GetStreamingLatestValues.argTypes = [
             c_int16,
@@ -815,13 +786,11 @@ class PicoScope6000Wrapper:
             c_void_p,
         ]
 
-        self._ps6000NoOfStreamingValues = getattr(self.lib, "ps6000NoOfStreamingValues")
+        self._ps6000NoOfStreamingValues = self.lib.ps6000NoOfStreamingValues
         self._ps6000NoOfStreamingValues.resType = PICO_STATUS_T
         self._ps6000NoOfStreamingValues.argTypes = [c_int16, POINTER(c_uint32)]
 
-        self._ps6000GetMaxDownSampleRatio = getattr(
-            self.lib, "ps6000GetMaxDownSampleRatio"
-        )
+        self._ps6000GetMaxDownSampleRatio = self.lib.ps6000GetMaxDownSampleRatio
         self._ps6000GetMaxDownSampleRatio.resType = PICO_STATUS_T
         self._ps6000GetMaxDownSampleRatio.argTypes = [
             c_int16,
@@ -831,7 +800,7 @@ class PicoScope6000Wrapper:
             c_uint32,
         ]
 
-        self._ps6000GetValues = getattr(self.lib, "ps6000GetValues")
+        self._ps6000GetValues = self.lib.ps6000GetValues
         self._ps6000GetValues.resType = PICO_STATUS_T
         self._ps6000GetValues.argTypes = [
             c_int16,
@@ -843,7 +812,7 @@ class PicoScope6000Wrapper:
             POINTER(c_int16),
         ]
 
-        self._ps6000GetValuesBulk = getattr(self.lib, "ps6000GetValuesBulk")
+        self._ps6000GetValuesBulk = self.lib.ps6000GetValuesBulk
         self._ps6000GetValuesBulk.resType = PICO_STATUS_T
         self._ps6000GetValuesBulk.argTypes = [
             c_int16,
@@ -855,7 +824,7 @@ class PicoScope6000Wrapper:
             POINTER(c_int16),
         ]
 
-        self._ps6000GetValuesAsync = getattr(self.lib, "ps6000GetValuesAsync")
+        self._ps6000GetValuesAsync = self.lib.ps6000GetValuesAsync
         self._ps6000GetValuesAsync.resType = PICO_STATUS_T
         self._ps6000GetValuesAsync.argTypes = [
             c_int16,
@@ -868,7 +837,7 @@ class PicoScope6000Wrapper:
             c_void_p,
         ]
 
-        self._ps6000GetValuesOverlapped = getattr(self.lib, "ps6000GetValuesOverlapped")
+        self._ps6000GetValuesOverlapped = self.lib.ps6000GetValuesOverlapped
         self._ps6000GetValuesOverlapped.resType = PICO_STATUS_T
         self._ps6000GetValuesOverlapped.argTypes = [
             c_int16,
@@ -880,9 +849,7 @@ class PicoScope6000Wrapper:
             POINTER(c_int16),
         ]
 
-        self._ps6000GetValuesOverlappedBulk = getattr(
-            self.lib, "ps6000GetValuesOverlappedBulk"
-        )
+        self._ps6000GetValuesOverlappedBulk = self.lib.ps6000GetValuesOverlappedBulk
         self._ps6000GetValuesOverlappedBulk.resType = PICO_STATUS_T
         self._ps6000GetValuesOverlappedBulk.argTypes = [
             c_int16,
@@ -895,7 +862,7 @@ class PicoScope6000Wrapper:
             POINTER(c_int16),
         ]
 
-        self._ps6000GetValuesBulkAsyc = getattr(self.lib, "ps6000GetValuesBulkAsyc")
+        self._ps6000GetValuesBulkAsyc = self.lib.ps6000GetValuesBulkAsyc
         self._ps6000GetValuesBulkAsyc.resType = PICO_STATUS_T
         self._ps6000GetValuesBulkAsyc.argTypes = [
             c_int16,
@@ -908,31 +875,29 @@ class PicoScope6000Wrapper:
             POINTER(c_int16),
         ]
 
-        self._ps6000GetNoOfCaptures = getattr(self.lib, "ps6000GetNoOfCaptures")
+        self._ps6000GetNoOfCaptures = self.lib.ps6000GetNoOfCaptures
         self._ps6000GetNoOfCaptures.resType = PICO_STATUS_T
         self._ps6000GetNoOfCaptures.argTypes = [c_int16, POINTER(c_uint32)]
 
-        self._ps6000GetNoOfProcessedCaptures = getattr(
-            self.lib, "ps6000GetNoOfProcessedCaptures"
-        )
+        self._ps6000GetNoOfProcessedCaptures = self.lib.ps6000GetNoOfProcessedCaptures
         self._ps6000GetNoOfProcessedCaptures.resType = PICO_STATUS_T
         self._ps6000GetNoOfProcessedCaptures.argTypes = [c_int16, POINTER(c_uint32)]
 
-        self._ps6000Stop = getattr(self.lib, "ps6000Stop")
+        self._ps6000Stop = self.lib.ps6000Stop
         self._ps6000Stop.resType = PICO_STATUS_T
         self._ps6000Stop.argTypes = [
             c_int16,
         ]
 
-        self._ps6000SetNoOfCaptures = getattr(self.lib, "ps6000SetNoOfCaptures")
+        self._ps6000SetNoOfCaptures = self.lib.ps6000SetNoOfCaptures
         self._ps6000SetNoOfCaptures.resType = PICO_STATUS_T
         self._ps6000SetNoOfCaptures.argTypes = [c_int16, c_uint32]
 
-        self._ps6000SetWaveformLimiter = getattr(self.lib, "ps6000SetWaveformLimiter")
+        self._ps6000SetWaveformLimiter = self.lib.ps6000SetWaveformLimiter
         self._ps6000SetWaveformLimiter.resType = PICO_STATUS_T
         self._ps6000SetWaveformLimiter.argTypes = [c_int16, c_uint32]
 
-        self._ps6000EnumerateUnits = getattr(self.lib, "ps6000EnumerateUnits")
+        self._ps6000EnumerateUnits = self.lib.ps6000EnumerateUnits
         self._ps6000EnumerateUnits.resType = PICO_STATUS_T
         self._ps6000EnumerateUnits.argTypes = [
             POINTER(c_int16),
@@ -940,7 +905,7 @@ class PicoScope6000Wrapper:
             POINTER(c_int16),
         ]
 
-        self._ps6000SetExternalClock = getattr(self.lib, "ps6000SetExternalClock")
+        self._ps6000SetExternalClock = self.lib.ps6000SetExternalClock
         self._ps6000SetExternalClock.resType = PICO_STATUS_T
         self._ps6000SetExternalClock.argTypes = [
             c_int16,
@@ -948,13 +913,13 @@ class PicoScope6000Wrapper:
             c_int16,
         ]
 
-        self._ps6000PingUnit = getattr(self.lib, "ps6000PingUnit")
+        self._ps6000PingUnit = self.lib.ps6000PingUnit
         self._ps6000PingUnit.resType = PICO_STATUS_T
         self._ps6000PingUnit.argTypes = [
             c_int16,
         ]
 
-        self._ps6000GetAnalogueOffset = getattr(self.lib, "ps6000GetAnalogueOffset")
+        self._ps6000GetAnalogueOffset = self.lib.ps6000GetAnalogueOffset
         self._ps6000GetAnalogueOffset.resType = PICO_STATUS_T
         self._ps6000GetAnalogueOffset.argTypes = [
             c_int16,
@@ -964,7 +929,7 @@ class PicoScope6000Wrapper:
             POINTER(c_float),
         ]
 
-        self._ps6000GetTriggerInfoBulk = getattr(self.lib, "ps6000GetTriggerInfoBulk")
+        self._ps6000GetTriggerInfoBulk = self.lib.ps6000GetTriggerInfoBulk
         self._ps6000GetTriggerInfoBulk.resType = PICO_STATUS_T
         self._ps6000GetTriggerInfoBulk.argTypes = [
             c_int16,
@@ -1241,7 +1206,7 @@ class PicoScope6000Wrapper:
         self,
         handle: c_int16,
         frequency: PS6000_EXTERNAL_FREQUENCY,
-        threshold: int | float,
+        threshold: float,
     ) -> PICO_STATUS:
         if isinstance(threshold, float):
             assert threshold >= -1.0 and threshold <= 1.0, (
@@ -1256,56 +1221,56 @@ class PicoScope6000Wrapper:
 
 
 __all__ = (
-    "PS6000_EXTERNAL_FREQUENCY",
+    "PS640X_C_D_MAX_SIG_GEN_BUFFER_SIZE",
     "PS6000_BANDWIDTH_LIMITER",
     "PS6000_CHANNEL",
     "PS6000_CHANNEL_BUFFER_INDEX",
-    "PS6000_RANGE",
     "PS6000_COUPLING",
     "PS6000_ETS_MODE",
-    "PS6000_TIME_UNITS",
-    "PS6000_SWEEP_TYPE",
-    "PS6000_WAVE_TYPE",
+    "PS6000_EXTERNAL_FREQUENCY",
     "PS6000_EXTRA_OPERATIONS",
-    "PS6000_SIGGEN_TRIG_TYPE",
-    "PS6000_SIGGEN_TRIG_SOURCE",
+    "PS6000_GAUSSIAN_MAX_FREQUENCY",
+    "PS6000_HALF_SINE_MAX_FREQUENCY",
     "PS6000_INDEX_MODE",
-    "PS6000_THRESHOLD_MODE",
-    "PS6000_THRESHOLD_DIRECTION",
-    "PS6000_TRIGGER_STATE",
-    "PS6000_RATIO_MODE",
-    "PS6000_PULSE_WIDTH_TYPE",
-    "PS6000_TEMPERATURES",
-    "PS6000_TRIGGER_INFO",
-    "PS6000_TRIGGER_CONDITIONS",
-    "PS6000_PWQ_CONDITIONS",
-    "PS6000_TRIGGER_CHANNEL_PROPERTIES",
-    "PS6000_MAX_OVERSAMPLE_8BIT",
-    "PS6000_MAX_VALUE",
-    "PS6000_MIN_VALUE",
-    "PS6000_MAX_PULSE_WIDTH_QUALIFIER_COUNT",
-    "PS6000_MAX_SIG_GEN_BUFFER_SIZE",
-    "PS640X_C_D_MAX_SIG_GEN_BUFFER_SIZE",
-    "PS6000_MIN_SIG_GEN_BUFFER_SIZE",
-    "PS6000_MIN_DWELL_COUNT",
-    "PS6000_MAX_SWEEPS_SHOTS",
-    "PS6000_MAX_WAVEFORMS_PER_SECOND",
-    "PS6000_MAX_ANALOGUE_OFFSET_50MV_200MV",
-    "PS6000_MIN_ANALOGUE_OFFSET_50MV_200MV",
-    "PS6000_MAX_ANALOGUE_OFFSET_500MV_2V",
-    "PS6000_MIN_ANALOGUE_OFFSET_500MV_2V",
     "PS6000_MAX_ANALOGUE_OFFSET_5V_20V",
-    "PS6000_MIN_ANALOGUE_OFFSET_5V_20V",
+    "PS6000_MAX_ANALOGUE_OFFSET_50MV_200MV",
+    "PS6000_MAX_ANALOGUE_OFFSET_500MV_2V",
     "PS6000_MAX_ETS_CYCLES",
     "PS6000_MAX_INTERLEAVE",
-    "PicoScope6000Wrapper",
+    "PS6000_MAX_OVERSAMPLE_8BIT",
+    "PS6000_MAX_PULSE_WIDTH_QUALIFIER_COUNT",
+    "PS6000_MAX_SIG_GEN_BUFFER_SIZE",
+    "PS6000_MAX_SWEEPS_SHOTS",
+    "PS6000_MAX_VALUE",
+    "PS6000_MAX_WAVEFORMS_PER_SECOND",
+    "PS6000_MIN_ANALOGUE_OFFSET_5V_20V",
+    "PS6000_MIN_ANALOGUE_OFFSET_50MV_200MV",
+    "PS6000_MIN_ANALOGUE_OFFSET_500MV_2V",
+    "PS6000_MIN_DWELL_COUNT",
+    "PS6000_MIN_FREQUENCY",
+    "PS6000_MIN_SIG_GEN_BUFFER_SIZE",
+    "PS6000_MIN_VALUE",
     "PS6000_PRBS_MAX_FREQUENCY",
+    "PS6000_PULSE_WIDTH_TYPE",
+    "PS6000_PWQ_CONDITIONS",
+    "PS6000_RAMP_MAX_FREQUENCY",
+    "PS6000_RANGE",
+    "PS6000_RATIO_MODE",
+    "PS6000_SIGGEN_TRIG_SOURCE",
+    "PS6000_SIGGEN_TRIG_TYPE",
+    "PS6000_SINC_MAX_FREQUENCY",
     "PS6000_SINE_MAX_FREQUENCY",
     "PS6000_SQUARE_MAX_FREQUENCY",
+    "PS6000_SWEEP_TYPE",
+    "PS6000_TEMPERATURES",
+    "PS6000_THRESHOLD_DIRECTION",
+    "PS6000_THRESHOLD_MODE",
+    "PS6000_TIME_UNITS",
     "PS6000_TRIANGLE_MAX_FREQUENCY",
-    "PS6000_SINC_MAX_FREQUENCY",
-    "PS6000_RAMP_MAX_FREQUENCY",
-    "PS6000_HALF_SINE_MAX_FREQUENCY",
-    "PS6000_GAUSSIAN_MAX_FREQUENCY",
-    "PS6000_MIN_FREQUENCY",
+    "PS6000_TRIGGER_CHANNEL_PROPERTIES",
+    "PS6000_TRIGGER_CONDITIONS",
+    "PS6000_TRIGGER_INFO",
+    "PS6000_TRIGGER_STATE",
+    "PS6000_WAVE_TYPE",
+    "PicoScope6000Wrapper",
 )

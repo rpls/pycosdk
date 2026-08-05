@@ -1,5 +1,6 @@
 # pyright: reportAny=false, reportUnannotatedClassAttribute=false
 import sys
+from collections.abc import Callable
 from ctypes import (
     CFUNCTYPE,
     POINTER,
@@ -20,7 +21,7 @@ from ctypes import (
 )
 from ctypes.util import find_library
 from enum import IntEnum
-from typing import Callable, final, Any
+from typing import Any, final
 
 from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
 
@@ -499,11 +500,11 @@ class PicoScope3000aWrapper:
         loader = LibraryLoader(loadercls)
         self.lib = loader[library_path]
 
-        self._ps3000aOpenUnit = getattr(self.lib, "ps3000aOpenUnit")
+        self._ps3000aOpenUnit = self.lib.ps3000aOpenUnit
         self._ps3000aOpenUnit.resType = PICO_STATUS_T
         self._ps3000aOpenUnit.argTypes = [POINTER(c_int16), c_char_p]
 
-        self._ps3000aGetUnitInfo = getattr(self.lib, "ps3000aGetUnitInfo")
+        self._ps3000aGetUnitInfo = self.lib.ps3000aGetUnitInfo
         self._ps3000aGetUnitInfo.resType = PICO_STATUS_T
         self._ps3000aGetUnitInfo.argTypes = [
             c_int16,
@@ -513,15 +514,15 @@ class PicoScope3000aWrapper:
             PICO_INFO_T,
         ]
 
-        self._ps3000aCloseUnit = getattr(self.lib, "ps3000aCloseUnit")
+        self._ps3000aCloseUnit = self.lib.ps3000aCloseUnit
         self._ps3000aCloseUnit.resType = PICO_STATUS_T
         self._ps3000aCloseUnit.argTypes = [c_int16]
 
-        self._ps3000aMemorySegments = getattr(self.lib, "ps3000aMemorySegments")
+        self._ps3000aMemorySegments = self.lib.ps3000aMemorySegments
         self._ps3000aMemorySegments.resType = PICO_STATUS_T
         self._ps3000aMemorySegments.argTypes = [c_int16, c_uint32, POINTER(c_uint32)]
 
-        self._ps3000aSetChannel = getattr(self.lib, "ps3000aSetChannel")
+        self._ps3000aSetChannel = self.lib.ps3000aSetChannel
         self._ps3000aSetChannel.resType = PICO_STATUS_T
         self._ps3000aSetChannel.argTypes = [
             c_int16,
@@ -532,7 +533,7 @@ class PicoScope3000aWrapper:
             c_float,
         ]
 
-        self._ps3000aSetDigitalPort = getattr(self.lib, "ps3000aSetDigitalPort")
+        self._ps3000aSetDigitalPort = self.lib.ps3000aSetDigitalPort
         self._ps3000aSetDigitalPort.resType = PICO_STATUS_T
         self._ps3000aSetDigitalPort.argTypes = [
             c_int16,
@@ -541,7 +542,7 @@ class PicoScope3000aWrapper:
             c_int16,
         ]
 
-        self._ps3000aSetBandwidthFilter = getattr(self.lib, "ps3000aSetBandwidthFilter")
+        self._ps3000aSetBandwidthFilter = self.lib.ps3000aSetBandwidthFilter
         self._ps3000aSetBandwidthFilter.resType = PICO_STATUS_T
         self._ps3000aSetBandwidthFilter.argTypes = [
             c_int16,
@@ -549,11 +550,11 @@ class PicoScope3000aWrapper:
             PS3000A_BANDWIDTH_LIMITER_T,
         ]
 
-        self._ps3000aSetNoOfCaptures = getattr(self.lib, "ps3000aSetNoOfCaptures")
+        self._ps3000aSetNoOfCaptures = self.lib.ps3000aSetNoOfCaptures
         self._ps3000aSetNoOfCaptures.resType = PICO_STATUS_T
         self._ps3000aSetNoOfCaptures.argTypes = [c_int16, c_uint32]
 
-        self._ps3000aGetTimebase2 = getattr(self.lib, "ps3000aGetTimebase2")
+        self._ps3000aGetTimebase2 = self.lib.ps3000aGetTimebase2
         self._ps3000aGetTimebase2.resType = PICO_STATUS_T
         self._ps3000aGetTimebase2.argTypes = [
             c_int16,
@@ -565,7 +566,7 @@ class PicoScope3000aWrapper:
             c_uint32,
         ]
 
-        self._ps3000aSetSimpleTrigger = getattr(self.lib, "ps3000aSetSimpleTrigger")
+        self._ps3000aSetSimpleTrigger = self.lib.ps3000aSetSimpleTrigger
         self._ps3000aSetSimpleTrigger.resType = PICO_STATUS_T
         self._ps3000aSetSimpleTrigger.argTypes = [
             c_int16,
@@ -577,21 +578,19 @@ class PicoScope3000aWrapper:
             c_int16,
         ]
 
-        self._ps3000aSetTriggerDelay = getattr(self.lib, "ps3000aSetTriggerDelay")
+        self._ps3000aSetTriggerDelay = self.lib.ps3000aSetTriggerDelay
         self._ps3000aSetTriggerDelay.resType = PICO_STATUS_T
         self._ps3000aSetTriggerDelay.argTypes = [c_int16, c_uint32]
 
-        self._ps3000aGetNoOfCaptures = getattr(self.lib, "ps3000aGetNoOfCaptures")
+        self._ps3000aGetNoOfCaptures = self.lib.ps3000aGetNoOfCaptures
         self._ps3000aGetNoOfCaptures.resType = PICO_STATUS_T
         self._ps3000aGetNoOfCaptures.argTypes = [c_int16, POINTER(c_uint32)]
 
-        self._ps3000aGetNoOfProcessedCaptures = getattr(
-            self.lib, "ps3000aGetNoOfProcessedCaptures"
-        )
+        self._ps3000aGetNoOfProcessedCaptures = self.lib.ps3000aGetNoOfProcessedCaptures
         self._ps3000aGetNoOfProcessedCaptures.resType = PICO_STATUS_T
         self._ps3000aGetNoOfProcessedCaptures.argTypes = [c_int16, POINTER(c_uint32)]
 
-        self._ps3000aSetDataBuffer = getattr(self.lib, "ps3000aSetDataBuffer")
+        self._ps3000aSetDataBuffer = self.lib.ps3000aSetDataBuffer
         self._ps3000aSetDataBuffer.resType = PICO_STATUS_T
         self._ps3000aSetDataBuffer.argTypes = [
             c_int16,
@@ -602,7 +601,7 @@ class PicoScope3000aWrapper:
             PS3000A_RATIO_MODE_T,
         ]
 
-        self._ps3000aSetDataBuffers = getattr(self.lib, "ps3000aSetDataBuffers")
+        self._ps3000aSetDataBuffers = self.lib.ps3000aSetDataBuffers
         self._ps3000aSetDataBuffers.resType = PICO_STATUS_T
         self._ps3000aSetDataBuffers.argTypes = [
             c_int16,
@@ -614,11 +613,11 @@ class PicoScope3000aWrapper:
             PS3000A_RATIO_MODE_T,
         ]
 
-        self._ps3000aIsReady = getattr(self.lib, "ps3000aIsReady")
+        self._ps3000aIsReady = self.lib.ps3000aIsReady
         self._ps3000aIsReady.resType = PICO_STATUS_T
         self._ps3000aIsReady.argTypes = [c_int16, POINTER(c_int16)]
 
-        self._ps3000aRunBlock = getattr(self.lib, "ps3000aRunBlock")
+        self._ps3000aRunBlock = self.lib.ps3000aRunBlock
         self._ps3000aRunBlock.resType = PICO_STATUS_T
         self._ps3000aRunBlock.argTypes = [
             c_int16,
@@ -633,7 +632,7 @@ class PicoScope3000aWrapper:
         ]
         self._lpReady: Any | None = None  # pyright: ignore[reportExplicitAny]
 
-        self._ps3000aGetValues = getattr(self.lib, "ps3000aGetValues")
+        self._ps3000aGetValues = self.lib.ps3000aGetValues
         self._ps3000aGetValues.resType = PICO_STATUS_T
         self._ps3000aGetValues.argTypes = [
             c_int16,
@@ -645,7 +644,7 @@ class PicoScope3000aWrapper:
             POINTER(c_int16),
         ]
 
-        self._ps3000aGetValuesBulk = getattr(self.lib, "ps3000aGetValuesBulk")
+        self._ps3000aGetValuesBulk = self.lib.ps3000aGetValuesBulk
         self._ps3000aGetValuesBulk.resType = PICO_STATUS_T
         self._ps3000aGetValuesBulk.argTypes = [
             c_int16,
@@ -657,17 +656,15 @@ class PicoScope3000aWrapper:
             POINTER(c_int16),
         ]
 
-        self._ps3000aStop = getattr(self.lib, "ps3000aStop")
+        self._ps3000aStop = self.lib.ps3000aStop
         self._ps3000aStop.resType = PICO_STATUS_T
         self._ps3000aStop.argTypes = [c_int16]
 
-        self._ps3000aHoldOff = getattr(self.lib, "ps3000aHoldOff")
+        self._ps3000aHoldOff = self.lib.ps3000aHoldOff
         self._ps3000aHoldOff.resType = PICO_STATUS_T
         self._ps3000aHoldOff.argTypes = [c_int16, c_uint64, PS3000A_HOLDOFF_TYPE_T]
 
-        self._ps3000aGetChannelInformation = getattr(
-            self.lib, "ps3000aGetChannelInformation"
-        )
+        self._ps3000aGetChannelInformation = self.lib.ps3000aGetChannelInformation
         self._ps3000aGetChannelInformation.resType = PICO_STATUS_T
         self._ps3000aGetChannelInformation.argTypes = [
             c_int16,
@@ -678,7 +675,7 @@ class PicoScope3000aWrapper:
             c_int32,
         ]
 
-        self._ps3000aEnumerateUnits = getattr(self.lib, "ps3000aEnumerateUnits")
+        self._ps3000aEnumerateUnits = self.lib.ps3000aEnumerateUnits
         self._ps3000aEnumerateUnits.resType = PICO_STATUS_T
         self._ps3000aEnumerateUnits.argTypes = [
             POINTER(c_int16),
@@ -686,19 +683,19 @@ class PicoScope3000aWrapper:
             POINTER(c_int16),
         ]
 
-        self._ps3000aPingUnit = getattr(self.lib, "ps3000aPingUnit")
+        self._ps3000aPingUnit = self.lib.ps3000aPingUnit
         self._ps3000aPingUnit.resType = PICO_STATUS_T
         self._ps3000aPingUnit.argTypes = [c_int16]
 
-        self._ps3000aMaximumValue = getattr(self.lib, "ps3000aMaximumValue")
+        self._ps3000aMaximumValue = self.lib.ps3000aMaximumValue
         self._ps3000aMaximumValue.resType = PICO_STATUS_T
         self._ps3000aMaximumValue.argTypes = [c_int16, POINTER(c_int16)]
 
-        self._ps3000aMinimumValue = getattr(self.lib, "ps3000aMinimumValue")
+        self._ps3000aMinimumValue = self.lib.ps3000aMinimumValue
         self._ps3000aMinimumValue.resType = PICO_STATUS_T
         self._ps3000aMinimumValue.argTypes = [c_int16, POINTER(c_int16)]
 
-        self._ps3000aGetAnalogueOffset = getattr(self.lib, "ps3000aGetAnalogueOffset")
+        self._ps3000aGetAnalogueOffset = self.lib.ps3000aGetAnalogueOffset
         self._ps3000aGetAnalogueOffset.resType = PICO_STATUS_T
         self._ps3000aGetAnalogueOffset.argTypes = [
             c_int16,
@@ -708,15 +705,15 @@ class PicoScope3000aWrapper:
             POINTER(c_float),
         ]
 
-        self._ps3000aGetMaxSegments = getattr(self.lib, "ps3000aGetMaxSegments")
+        self._ps3000aGetMaxSegments = self.lib.ps3000aGetMaxSegments
         self._ps3000aGetMaxSegments.resType = PICO_STATUS_T
         self._ps3000aGetMaxSegments.argTypes = [c_int16, POINTER(c_uint32)]
 
-        self._ps3000aChangePowerSource = getattr(self.lib, "ps3000aChangePowerSource")
+        self._ps3000aChangePowerSource = self.lib.ps3000aChangePowerSource
         self._ps3000aChangePowerSource.resType = PICO_STATUS_T
         self._ps3000aChangePowerSource.argTypes = [c_int16, PICO_STATUS_T]
 
-        self._ps3000aCurrentPowerSource = getattr(self.lib, "ps3000aCurrentPowerSource")
+        self._ps3000aCurrentPowerSource = self.lib.ps3000aCurrentPowerSource
         self._ps3000aCurrentPowerSource.resType = PICO_STATUS_T
         self._ps3000aCurrentPowerSource.argTypes = [c_int16]
 
@@ -964,67 +961,67 @@ class PicoScope3000aWrapper:
 
 
 __all__ = (
-    "PicoScope3000aWrapper",
     "PS3000A_BANDWIDTH_LIMITER",
-    "PS3000A_CHANNEL_BUFFER_INDEX",
     "PS3000A_CHANNEL",
-    "PS3000A_DIGITAL_PORT",
-    "PS3000A_DIGITAL_CHANNEL",
-    "PS3000A_RANGE",
-    "PS3000A_COUPLING",
+    "PS3000A_CHANNEL_BUFFER_INDEX",
     "PS3000A_CHANNEL_INFO",
-    "PS3000A_ETS_MODE",
-    "PS3000A_TIME_UNITS",
-    "PS3000A_SWEEP_TYPE",
-    "PS3000A_WAVE_TYPE",
-    "PS3000A_EXTRA_OPERATIONS",
-    "PS3000A_SIGGEN_TRIG_TYPE",
-    "PS3000A_SIGGEN_TRIG_SOURCE",
-    "PS3000A_INDEX_MODE",
-    "PS3000A_THRESHOLD_MODE",
-    "PS3000A_THRESHOLD_DIRECTION",
+    "PS3000A_COUPLING",
+    "PS3000A_DIGITAL_CHANNEL",
+    "PS3000A_DIGITAL_CHANNEL_DIRECTIONS",
     "PS3000A_DIGITAL_DIRECTION",
-    "PS3000A_TRIGGER_STATE",
-    "PS3000A_RATIO_MODE",
-    "PS3000A_PULSE_WIDTH_TYPE",
+    "PS3000A_DIGITAL_PORT",
+    "PS3000A_ETS_MODE",
+    "PS3000A_EXTRA_OPERATIONS",
+    "PS3000A_EXT_MAX_VALUE",
+    "PS3000A_EXT_MIN_VALUE",
     "PS3000A_HOLDOFF_TYPE",
-    "PS3000A_TRIGGER_CONDITIONS",
-    "PS3000A_TRIGGER_CONDITIONS_V2",
+    "PS3000A_INDEX_MODE",
+    "PS3000A_MAX_ANALOGUE_OFFSET_5V_20V",
+    "PS3000A_MAX_ANALOGUE_OFFSET_50MV_200MV",
+    "PS3000A_MAX_ANALOGUE_OFFSET_500MV_2V",
+    "PS3000A_MAX_LOGIC_LEVEL",
+    "PS3000A_MAX_OVERSAMPLE",
+    "PS3000A_MAX_SIG_GEN_BUFFER_SIZE",
+    "PS3000A_MAX_SIG_GEN_FREQ",
+    "PS3000A_MAX_SWEEPS_SHOTS",
+    "PS3000A_MIN_ANALOGUE_OFFSET_5V_20V",
+    "PS3000A_MIN_ANALOGUE_OFFSET_50MV_200MV",
+    "PS3000A_MIN_ANALOGUE_OFFSET_500MV_2V",
+    "PS3000A_MIN_DWELL_COUNT",
+    "PS3000A_MIN_LOGIC_LEVEL",
+    "PS3000A_MIN_SIG_GEN_BUFFER_SIZE",
+    "PS3000A_MIN_SIG_GEN_FREQ",
+    "PS3000A_PULSE_WIDTH_TYPE",
     "PS3000A_PWQ_CONDITIONS",
     "PS3000A_PWQ_CONDITIONS_V2",
-    "PS3000A_DIGITAL_CHANNEL_DIRECTIONS",
-    "PS3000A_TRIGGER_CHANNEL_PROPERTIES",
-    "PS3000A_TRIGGER_INFO",
+    "PS3000A_RANGE",
+    "PS3000A_RATIO_MODE",
     "PS3000A_SCALING_FACTORS_VALUES",
-    "PS3000A_MAX_OVERSAMPLE",
-    "PS3207A_MAX_ETS_CYCLES",
-    "PS3207A_MAX_INTERLEAVE",
-    "PS3206A_MAX_ETS_CYCLES",
-    "PS3206A_MAX_INTERLEAVE",
-    "PS3206MSO_MAX_INTERLEAVE",
-    "PS3205A_MAX_ETS_CYCLES",
-    "PS3205A_MAX_INTERLEAVE",
-    "PS3205MSO_MAX_INTERLEAVE",
+    "PS3000A_SHOT_SWEEP_TRIGGER_CONTINUOUS_RUN",
+    "PS3000A_SIGGEN_TRIG_SOURCE",
+    "PS3000A_SIGGEN_TRIG_TYPE",
+    "PS3000A_SWEEP_TYPE",
+    "PS3000A_THRESHOLD_DIRECTION",
+    "PS3000A_THRESHOLD_MODE",
+    "PS3000A_TIME_UNITS",
+    "PS3000A_TRIGGER_CHANNEL_PROPERTIES",
+    "PS3000A_TRIGGER_CONDITIONS",
+    "PS3000A_TRIGGER_CONDITIONS_V2",
+    "PS3000A_TRIGGER_INFO",
+    "PS3000A_TRIGGER_STATE",
+    "PS3000A_WAVE_TYPE",
     "PS3204A_MAX_ETS_CYCLES",
     "PS3204A_MAX_INTERLEAVE",
     "PS3204MSO_MAX_INTERLEAVE",
-    "PS3000A_EXT_MAX_VALUE",
-    "PS3000A_EXT_MIN_VALUE",
-    "PS3000A_MAX_LOGIC_LEVEL",
-    "PS3000A_MIN_LOGIC_LEVEL",
-    "PS3000A_MIN_SIG_GEN_FREQ",
-    "PS3000A_MAX_SIG_GEN_FREQ",
-    "PS3207B_MAX_SIG_GEN_BUFFER_SIZE",
+    "PS3205A_MAX_ETS_CYCLES",
+    "PS3205A_MAX_INTERLEAVE",
+    "PS3205MSO_MAX_INTERLEAVE",
+    "PS3206A_MAX_ETS_CYCLES",
+    "PS3206A_MAX_INTERLEAVE",
     "PS3206B_MAX_SIG_GEN_BUFFER_SIZE",
-    "PS3000A_MAX_SIG_GEN_BUFFER_SIZE",
-    "PS3000A_MIN_SIG_GEN_BUFFER_SIZE",
-    "PS3000A_MIN_DWELL_COUNT",
-    "PS3000A_MAX_SWEEPS_SHOTS",
-    "PS3000A_MAX_ANALOGUE_OFFSET_50MV_200MV",
-    "PS3000A_MIN_ANALOGUE_OFFSET_50MV_200MV",
-    "PS3000A_MAX_ANALOGUE_OFFSET_500MV_2V",
-    "PS3000A_MIN_ANALOGUE_OFFSET_500MV_2V",
-    "PS3000A_MAX_ANALOGUE_OFFSET_5V_20V",
-    "PS3000A_MIN_ANALOGUE_OFFSET_5V_20V",
-    "PS3000A_SHOT_SWEEP_TRIGGER_CONTINUOUS_RUN",
+    "PS3206MSO_MAX_INTERLEAVE",
+    "PS3207A_MAX_ETS_CYCLES",
+    "PS3207A_MAX_INTERLEAVE",
+    "PS3207B_MAX_SIG_GEN_BUFFER_SIZE",
+    "PicoScope3000aWrapper",
 )

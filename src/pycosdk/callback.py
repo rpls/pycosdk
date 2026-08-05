@@ -29,10 +29,10 @@ PicoTemperatureSensorInteractions = CFUNCTYPE(
 )
 
 __all__ = (
-    "PicoUpdateFirmwareProgress",
-    "PicoProbeInteractions",
+    "PicoAWGOverrangeInteractions",
     "PicoDataReadyUsingReads",
     "PicoExternalReferenceInteractions",
-    "PicoAWGOverrangeInteractions",
+    "PicoProbeInteractions",
     "PicoTemperatureSensorInteractions",
+    "PicoUpdateFirmwareProgress",
 )

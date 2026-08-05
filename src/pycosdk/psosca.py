@@ -1,4 +1,5 @@
 import sys
+from collections.abc import Callable
 from ctypes import (
     CFUNCTYPE,
     POINTER,
@@ -16,7 +17,7 @@ from ctypes import (
     create_string_buffer,
 )
 from ctypes.util import find_library
-from typing import Any, Callable
+from typing import Any
 
 from .connectprobe import (
     PICO_PROBE_RANGE_INFO,
@@ -71,7 +72,7 @@ class PicoScope3000eWrapper:
         loader = LibraryLoader(loadercls)
         self.lib = loader[library_path]
 
-        self._psospaOpenUnit = getattr(self.lib, "psospaOpenUnit")
+        self._psospaOpenUnit = self.lib.psospaOpenUnit
         self._psospaOpenUnit.resType = PICO_STATUS_T
         self._psospaOpenUnit.argTypes = [
             POINTER(c_int16),
@@ -80,11 +81,11 @@ class PicoScope3000eWrapper:
             POINTER(PICO_USB_POWER_DETAILS),
         ]
 
-        self._psospaCloseUnit = getattr(self.lib, "psospaCloseUnit")
+        self._psospaCloseUnit = self.lib.psospaCloseUnit
         self._psospaCloseUnit.resType = PICO_STATUS_T
         self._psospaCloseUnit.argTypes = [c_int16]
 
-        self._psospaGetUnitInfo = getattr(self.lib, "psospaGetUnitInfo")
+        self._psospaGetUnitInfo = self.lib.psospaGetUnitInfo
         self._psospaGetUnitInfo.resType = PICO_STATUS_T
         self._psospaGetUnitInfo.argTypes = [
             c_int16,
@@ -94,13 +95,11 @@ class PicoScope3000eWrapper:
             PICO_INFO_T,
         ]
 
-        self._psospaMemorySegments = getattr(self.lib, "psospaMemorySegments")
+        self._psospaMemorySegments = self.lib.psospaMemorySegments
         self._psospaMemorySegments.resType = PICO_STATUS_T
         self._psospaMemorySegments.argTypes = [c_int16, c_uint64, POINTER(c_uint64)]
 
-        self._psospaMemorySegmentsBySamples = getattr(
-            self.lib, "psospaMemorySegmentsBySamples"
-        )
+        self._psospaMemorySegmentsBySamples = self.lib.psospaMemorySegmentsBySamples
         self._psospaMemorySegmentsBySamples.resType = PICO_STATUS_T
         self._psospaMemorySegmentsBySamples.argTypes = [
             c_int16,
@@ -108,9 +107,7 @@ class PicoScope3000eWrapper:
             POINTER(c_uint64),
         ]
 
-        self._psospaQueryMaxSegmentsBySamples = getattr(
-            self.lib, "psospaQueryMaxSegmentsBySamples"
-        )
+        self._psospaQueryMaxSegmentsBySamples = self.lib.psospaQueryMaxSegmentsBySamples
         self._psospaQueryMaxSegmentsBySamples.resType = PICO_STATUS_T
         self._psospaQueryMaxSegmentsBySamples.argTypes = [
             c_int16,
@@ -120,11 +117,11 @@ class PicoScope3000eWrapper:
             PICO_DEVICE_RESOLUTION_T,
         ]
 
-        self._psospaSetNoOfCaptures = getattr(self.lib, "psospaSetNoOfCaptures")
+        self._psospaSetNoOfCaptures = self.lib.psospaSetNoOfCaptures
         self._psospaSetNoOfCaptures.resType = PICO_STATUS_T
         self._psospaSetNoOfCaptures.argTypes = [c_int16, c_uint64]
 
-        self._psospaSetChannelOn = getattr(self.lib, "psospaSetChannelOn")
+        self._psospaSetChannelOn = self.lib.psospaSetChannelOn
         self._psospaSetChannelOn.resType = PICO_STATUS_T
         self._psospaSetChannelOn.argTypes = [
             c_int16,
@@ -137,19 +134,19 @@ class PicoScope3000eWrapper:
             PICO_BANDWIDTH_LIMITER_T,
         ]
 
-        self._psospaSetChannelOff = getattr(self.lib, "psospaSetChannelOff")
+        self._psospaSetChannelOff = self.lib.psospaSetChannelOff
         self._psospaSetChannelOff.resType = PICO_STATUS_T
         self._psospaSetChannelOff.argTypes = [c_int16, PICO_CHANNEL_T]
 
-        self._psospaSetDigitalPortOff = getattr(self.lib, "psospaSetDigitalPortOff")
+        self._psospaSetDigitalPortOff = self.lib.psospaSetDigitalPortOff
         self._psospaSetDigitalPortOff.resType = PICO_STATUS_T
         self._psospaSetDigitalPortOff.argTypes = [c_int16, PICO_CHANNEL_T]
 
-        self._psospaSetDigitalPortOn = getattr(self.lib, "psospaSetDigitalPortOn")
+        self._psospaSetDigitalPortOn = self.lib.psospaSetDigitalPortOn
         self._psospaSetDigitalPortOn.resType = PICO_STATUS_T
         self._psospaSetDigitalPortOn.argTypes = [c_int16, PICO_CHANNEL_T, c_double]
 
-        self._psospaGetTimebase = getattr(self.lib, "psospaGetTimebase")
+        self._psospaGetTimebase = self.lib.psospaGetTimebase
         self._psospaGetTimebase.resType = PICO_STATUS_T
         self._psospaGetTimebase.argTypes = [
             c_int16,
@@ -160,9 +157,7 @@ class PicoScope3000eWrapper:
             c_uint64,
         ]
 
-        self._psospaGetMinimumTimebaseStateless = getattr(
-            self.lib, "psospaGetMinimumTimebaseStateless"
-        )
+        self._psospaGetMinimumTimebaseStateless = self.lib.psospaGetMinimumTimebaseStateless
         self._psospaGetMinimumTimebaseStateless.resType = PICO_STATUS_T
         self._psospaGetMinimumTimebaseStateless.argTypes = [
             c_int16,
@@ -172,9 +167,7 @@ class PicoScope3000eWrapper:
             PICO_DEVICE_RESOLUTION_T,
         ]
 
-        self._psospaNearestSampleIntervalStateless = getattr(
-            self.lib, "psospaNearestSampleIntervalStateless"
-        )
+        self._psospaNearestSampleIntervalStateless = self.lib.psospaNearestSampleIntervalStateless
         self._psospaNearestSampleIntervalStateless.resType = PICO_STATUS_T
         self._psospaNearestSampleIntervalStateless.argTypes = [
             c_int16,
@@ -186,7 +179,7 @@ class PicoScope3000eWrapper:
             POINTER(c_double),
         ]
 
-        self._psospaSetSimpleTrigger = getattr(self.lib, "psospaSetSimpleTrigger")
+        self._psospaSetSimpleTrigger = self.lib.psospaSetSimpleTrigger
         self._psospaSetSimpleTrigger.resType = PICO_STATUS_T
         self._psospaSetSimpleTrigger.argTypes = [
             c_int16,
@@ -198,11 +191,11 @@ class PicoScope3000eWrapper:
             c_uint32,
         ]
 
-        self._psospaSetTriggerDelay = getattr(self.lib, "psospaSetTriggerDelay")
+        self._psospaSetTriggerDelay = self.lib.psospaSetTriggerDelay
         self._psospaSetTriggerDelay.resType = PICO_STATUS_T
         self._psospaSetTriggerDelay.argTypes = [c_int16, c_uint64]
 
-        self._psospaSetDataBuffer = getattr(self.lib, "psospaSetDataBuffer")
+        self._psospaSetDataBuffer = self.lib.psospaSetDataBuffer
         self._psospaSetDataBuffer.resType = PICO_STATUS_T
         self._psospaSetDataBuffer.argTypes = [
             c_int16,
@@ -215,7 +208,7 @@ class PicoScope3000eWrapper:
             PICO_ACTION_T,
         ]
 
-        self._psospaRunBlock = getattr(self.lib, "psospaRunBlock")
+        self._psospaRunBlock = self.lib.psospaRunBlock
         self._psospaRunBlock.resType = PICO_STATUS_T
         self._psospaRunBlock.argTypes = [
             c_int16,
@@ -229,11 +222,11 @@ class PicoScope3000eWrapper:
         ]
         self._lpReady: Any | None = None  # pyright: ignore[reportExplicitAny]
 
-        self._psospaIsReady = getattr(self.lib, "psospaIsReady")
+        self._psospaIsReady = self.lib.psospaIsReady
         self._psospaIsReady.resType = PICO_STATUS_T
         self._psospaIsReady.argTypes = [c_int16, POINTER(c_int16)]
 
-        self._psospaGetValues = getattr(self.lib, "psospaGetValues")
+        self._psospaGetValues = self.lib.psospaGetValues
         self._psospaGetValues.resType = PICO_STATUS_T
         self._psospaGetValues.argTypes = [
             c_int16,
@@ -245,7 +238,7 @@ class PicoScope3000eWrapper:
             POINTER(c_int16),
         ]
 
-        self._psospaGetValuesBulk = getattr(self.lib, "psospaGetValuesBulk")
+        self._psospaGetValuesBulk = self.lib.psospaGetValuesBulk
         self._psospaGetValuesBulk.resType = PICO_STATUS_T
         self._psospaGetValuesBulk.argTypes = [
             c_int16,
@@ -258,7 +251,7 @@ class PicoScope3000eWrapper:
             POINTER(c_int16),
         ]
 
-        self._psospaGetTriggerInfo = getattr(self.lib, "psospaGetTriggerInfo")
+        self._psospaGetTriggerInfo = self.lib.psospaGetTriggerInfo
         self._psospaGetTriggerInfo.resType = PICO_STATUS_T
         self._psospaGetTriggerInfo.argTypes = [
             c_int16,
@@ -267,18 +260,18 @@ class PicoScope3000eWrapper:
             c_uint64,
         ]
 
-        self._psospaSetDeviceResolution = getattr(self.lib, "psospaSetDeviceResolution")
+        self._psospaSetDeviceResolution = self.lib.psospaSetDeviceResolution
         self._psospaSetDeviceResolution.resType = PICO_STATUS_T
         self._psospaSetDeviceResolution.argTypes = [c_int16, PICO_DEVICE_RESOLUTION_T]
 
-        self._psospaGetDeviceResolution = getattr(self.lib, "psospaGetDeviceResolution")
+        self._psospaGetDeviceResolution = self.lib.psospaGetDeviceResolution
         self._psospaGetDeviceResolution.resType = PICO_STATUS_T
         self._psospaGetDeviceResolution.argTypes = [
             c_int16,
             POINTER(PICO_DEVICE_RESOLUTION_T),
         ]
 
-        self._psospaStop = getattr(self.lib, "psospaStop")
+        self._psospaStop = self.lib.psospaStop
         self._psospaStop.resType = PICO_STATUS_T
         self._psospaStop.argTypes = [c_int16]
 
@@ -370,8 +363,8 @@ class PicoScope3000eWrapper:
         handle: c_int16,
         channel: PICO_CHANNEL,
         coupling: PICO_COUPLING,
-        rangeMin: int | float,
-        rangeMax: int | float,
+        rangeMin: float,
+        rangeMax: float,
         rangeType: PICO_PROBE_RANGE_INFO,
         analog_offset: float,
         bandwidth: PICO_BANDWIDTH_LIMITER,
