@@ -1,10 +1,8 @@
 # pyright: reportAny=false, reportUnannotatedClassAttribute=false
-import sys
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from ctypes import (
-    CFUNCTYPE,
     POINTER,
-    LibraryLoader,
+    Array,
     Structure,
     byref,
     c_char_p,
@@ -19,11 +17,10 @@ from ctypes import (
     c_void_p,
     create_string_buffer,
 )
-from ctypes.util import find_library
 from enum import IntEnum
 from typing import final
 
-from .exceptions import MissingLibraryException
+from ._base import CALLBACK_FUNCTYPE, PicoScopeWrapperBase
 from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
 
 PS6000_MAX_OVERSAMPLE_8BIT = 256
@@ -175,6 +172,9 @@ class PS6000_WAVE_TYPE(IntEnum):
     PS6000_MAX_WAVE_TYPES = 9
 
 
+PS6000_WAVE_TYPE_T = c_int32
+
+
 class PS6000_EXTRA_OPERATIONS(IntEnum):
     PS6000_ES_OFF = 0
     PS6000_WHITENOISE = 1
@@ -295,6 +295,9 @@ class PS6000_TEMPERATURES(IntEnum):
     PS6000_INTERNAL_TEMPERATURE = 1
 
 
+PS6000_TEMPERATURES_T = c_int32
+
+
 @final
 class PS6000_TRIGGER_INFO(Structure):
     _pack_ = 1
@@ -349,606 +352,532 @@ class PS6000_TRIGGER_CHANNEL_PROPERTIES(Structure):
     ]
 
 
-ps6000BlockReady = CFUNCTYPE(None, c_int16, PICO_STATUS_T, c_void_p)
+ps6000BlockReady = CALLBACK_FUNCTYPE(None, c_int16, PICO_STATUS_T, c_void_p)
 
-ps6000StreamingReady = CFUNCTYPE(
+ps6000StreamingReady = CALLBACK_FUNCTYPE(
     None, c_int16, c_uint32, c_uint32, c_int16, c_uint32, c_int16, c_int16, c_void_p
 )
 
-ps6000DataReady = CFUNCTYPE(None, c_int16, PICO_STATUS_T, c_uint32, c_int16, c_void_p)
+ps6000DataReady = CALLBACK_FUNCTYPE(
+    None, c_int16, PICO_STATUS_T, c_uint32, c_int16, c_void_p
+)
+
+_TIME_UNIT_SECONDS = {
+    PS6000_TIME_UNITS.PS6000_FS: 1e-15,
+    PS6000_TIME_UNITS.PS6000_PS: 1e-12,
+    PS6000_TIME_UNITS.PS6000_NS: 1e-9,
+    PS6000_TIME_UNITS.PS6000_US: 1e-6,
+    PS6000_TIME_UNITS.PS6000_MS: 1e-3,
+    PS6000_TIME_UNITS.PS6000_S: 1.0,
+}
 
 
-class PicoScope6000Wrapper:
+class PicoScope6000Wrapper(PicoScopeWrapperBase):
+    _library_name = "ps6000"
+
     def __init__(self, library_path: str | None = None):
-        if library_path is None:
-            library_path = find_library("ps6000")
-        if library_path is None:
-            raise MissingLibraryException("Library not found")
+        super().__init__(library_path)
 
-        if sys.platform == "win32":
-            from ctypes import WinDLL
-
-            loadercls = WinDLL
-        else:
-            from ctypes import CDLL
-
-            loadercls = CDLL
-        loader = LibraryLoader(loadercls)
-        self.lib = loader[library_path]
-
-        self._ps6000OpenUnit = self.lib.ps6000OpenUnit
-        self._ps6000OpenUnit.resType = PICO_STATUS_T
-        self._ps6000OpenUnit.argTypes = [POINTER(c_int16), c_char_p]
-
-        self._ps6000OpenUnitAsync = self.lib.ps6000OpenUnitAsync
-        self._ps6000OpenUnitAsync.resType = PICO_STATUS_T
-        self._ps6000OpenUnitAsync.argTypes = [POINTER(c_int16), c_char_p]
-
-        self._ps6000OpenUnitProgress = self.lib.ps6000OpenUnitProgress
-        self._ps6000OpenUnitProgress.resType = PICO_STATUS_T
-        self._ps6000OpenUnitProgress.argTypes = [
-            POINTER(c_int16),
-            POINTER(c_int16),
-            POINTER(c_int16),
-        ]
-
-        self._ps6000GetUnitInfo = self.lib.ps6000GetUnitInfo
-        self._ps6000GetUnitInfo.resType = PICO_STATUS_T
-        self._ps6000GetUnitInfo.argTypes = [
-            c_int16,
-            c_char_p,
-            c_int16,
-            POINTER(c_int16),
-            PICO_INFO_T,
-        ]
-
-        self._ps6000FlashLed = self.lib.ps6000FlashLed
-        self._ps6000FlashLed.resType = PICO_STATUS_T
-        self._ps6000FlashLed.argTypes = [c_int16, c_int16]
-
-        self._ps6000CloseUnit = self.lib.ps6000CloseUnit
-        self._ps6000CloseUnit.resType = PICO_STATUS_T
-        self._ps6000CloseUnit.argTypes = [
-            c_int16,
-        ]
-
-        self._ps6000MemorySegments = self.lib.ps6000MemorySegments
-        self._ps6000MemorySegments.resType = PICO_STATUS_T
-        self._ps6000MemorySegments.argTypes = [c_int16, c_uint32, POINTER(c_uint32)]
-
-        self._ps6000SetChannel = self.lib.ps6000SetChannel
-        self._ps6000SetChannel.resType = PICO_STATUS_T
-        self._ps6000SetChannel.argTypes = [
-            c_int16,
-            PS6000_CHANNEL_T,
-            c_int16,
-            PS6000_COUPLING_T,
-            PS6000_RANGE_T,
-            c_float,
-            PS6000_BANDWIDTH_LIMITER_T,
-        ]
-
-        self._ps6000GetTimebase = self.lib.ps6000GetTimebase
-        self._ps6000GetTimebase.resType = PICO_STATUS_T
-        self._ps6000GetTimebase.argTypes = [
-            c_int16,
-            c_uint32,
-            c_uint32,
-            POINTER(c_int32),
-            c_int16,
-            POINTER(c_uint32),
-            c_uint32,
-        ]
-
-        self._ps6000GetTimebase2 = self.lib.ps6000GetTimebase2
-        self._ps6000GetTimebase2.resType = PICO_STATUS_T
-        self._ps6000GetTimebase2.argTypes = [
-            c_int16,
-            c_uint32,
-            c_uint32,
-            POINTER(c_float),
-            c_int16,
-            POINTER(c_uint32),
-            c_uint32,
-        ]
-
-        self._ps6000SetSigGenArbitrary = self.lib.ps6000SetSigGenArbitrary
-        self._ps6000SetSigGenArbitrary.resType = PICO_STATUS_T
-        self._ps6000SetSigGenArbitrary.argTypes = [
-            c_int16,
-            c_int32,
-            c_uint32,
-            c_uint32,
-            c_uint32,
-            c_uint32,
-            c_uint32,
-            c_void_p,
-            c_int32,
-            c_int32,
-            c_int32,
-            c_int32,
-            c_uint32,
-            c_uint32,
-            c_int32,
-            c_int32,
-            c_int16,
-        ]
-
-        self._ps6000SetSigGenBuiltIn = self.lib.ps6000SetSigGenBuiltIn
-        self._ps6000SetSigGenBuiltIn.resType = PICO_STATUS_T
-        self._ps6000SetSigGenBuiltIn.argTypes = [
-            c_int16,
-            c_int32,
-            c_uint32,
-            c_int16,
-            c_float,
-            c_float,
-            c_float,
-            c_float,
-            PS6000_SWEEP_TYPE_T,
-            PS6000_EXTRA_OPERATIONS_T,
-            c_uint32,
-            c_uint32,
-            PS6000_SIGGEN_TRIG_TYPE_T,
-            PS6000_SIGGEN_TRIG_SOURCE_T,
-            c_int16,
-        ]
-
-        self._ps6000SetSigGenBuiltInV2 = self.lib.ps6000SetSigGenBuiltInV2
-        self._ps6000SetSigGenBuiltInV2.resType = PICO_STATUS_T
-        self._ps6000SetSigGenBuiltInV2.argTypes = [
-            c_int16,
-            c_int32,
-            c_uint32,
-            c_int16,
-            c_double,
-            c_double,
-            c_double,
-            c_double,
-            PS6000_SWEEP_TYPE_T,
-            PS6000_EXTRA_OPERATIONS_T,
-            c_uint32,
-            c_uint32,
-            PS6000_SIGGEN_TRIG_TYPE_T,
-            PS6000_SIGGEN_TRIG_SOURCE_T,
-            c_int16,
-        ]
-
-        self._ps6000SetSigGenPropertiesArbitrary = self.lib.ps6000SetSigGenPropertiesArbitrary
-        self._ps6000SetSigGenPropertiesArbitrary.resType = PICO_STATUS_T
-        self._ps6000SetSigGenPropertiesArbitrary.argTypes = [
-            c_int16,
-            c_int32,
-            c_uint32,
-            c_uint32,
-            c_uint32,
-            c_uint32,
-            c_uint32,
-            c_int32,
-            c_uint32,
-            c_uint32,
-            c_int32,
-            c_int32,
-            c_int16,
-        ]
-
-        self._ps6000SetSigGenPropertiesBuiltIn = self.lib.ps6000SetSigGenPropertiesBuiltIn
-        self._ps6000SetSigGenPropertiesBuiltIn.resType = PICO_STATUS_T
-        self._ps6000SetSigGenPropertiesBuiltIn.argTypes = [
-            c_int16,
-            c_int32,
-            c_uint32,
-            c_double,
-            c_double,
-            c_double,
-            c_double,
-            c_int32,
-            c_uint32,
-            c_uint32,
-            c_int32,
-            c_int32,
-            c_int16,
-        ]
-
-        self._ps6000SigGenFrequencyToPhase = self.lib.ps6000SigGenFrequencyToPhase
-        self._ps6000SigGenFrequencyToPhase.resType = PICO_STATUS_T
-        self._ps6000SigGenFrequencyToPhase.argTypes = [
-            c_int16,
-            c_double,
-            PS6000_INDEX_MODE_T,
-            c_uint32,
-            POINTER(c_uint32),
-        ]
-
-        self._ps6000SigGenArbitraryMinMaxValues = self.lib.ps6000SigGenArbitraryMinMaxValues
-        self._ps6000SigGenArbitraryMinMaxValues.resType = PICO_STATUS_T
-        self._ps6000SigGenArbitraryMinMaxValues.argTypes = [
-            c_int16,
-            POINTER(c_int16),
-            POINTER(c_int16),
-            POINTER(c_uint32),
-            POINTER(c_uint32),
-        ]
-
-        self._ps6000SigGenSoftwareControl = self.lib.ps6000SigGenSoftwareControl
-        self._ps6000SigGenSoftwareControl.resType = PICO_STATUS_T
-        self._ps6000SigGenSoftwareControl.argTypes = [c_int16, c_int16]
-
-        self._ps6000SetSimpleTrigger = self.lib.ps6000SetSimpleTrigger
-        self._ps6000SetSimpleTrigger.resType = PICO_STATUS_T
-        self._ps6000SetSimpleTrigger.argTypes = [
-            c_int16,
-            c_int16,
-            PS6000_CHANNEL_T,
-            c_int16,
-            PS6000_THRESHOLD_DIRECTION_T,
-            c_uint32,
-            c_int16,
-        ]
-
-        self._ps6000SetEts = self.lib.ps6000SetEts
-        self._ps6000SetEts.resType = PICO_STATUS_T
-        self._ps6000SetEts.argTypes = [
-            c_int16,
-            PS6000_ETS_MODE_T,
-            c_int16,
-            c_int16,
-            POINTER(c_int32),
-        ]
-
-        self._ps6000SetTriggerChannelProperties = self.lib.ps6000SetTriggerChannelProperties
-        self._ps6000SetTriggerChannelProperties.resType = PICO_STATUS_T
-        self._ps6000SetTriggerChannelProperties.argTypes = [
-            c_int16,
-            POINTER(PS6000_TRIGGER_CHANNEL_PROPERTIES),
-            c_int16,
-            c_int16,
-            c_uint32,
-        ]
-
-        self._ps6000SetTriggerChannelConditions = self.lib.ps6000SetTriggerChannelConditions
-        self._ps6000SetTriggerChannelConditions.resType = PICO_STATUS_T
-        self._ps6000SetTriggerChannelConditions.argTypes = [
-            c_int16,
-            POINTER(PS6000_TRIGGER_CONDITIONS),
-            c_int16,
-        ]
-
-        self._ps6000SetTriggerChannelDirections = self.lib.ps6000SetTriggerChannelDirections
-        self._ps6000SetTriggerChannelDirections.resType = PICO_STATUS_T
-        self._ps6000SetTriggerChannelDirections.argTypes = [
-            c_int16,
-            PS6000_THRESHOLD_DIRECTION_T,
-            PS6000_THRESHOLD_DIRECTION_T,
-            PS6000_THRESHOLD_DIRECTION_T,
-            PS6000_THRESHOLD_DIRECTION_T,
-            PS6000_THRESHOLD_DIRECTION_T,
-            PS6000_THRESHOLD_DIRECTION_T,
-        ]
-
-        self._ps6000SetTriggerDelay = self.lib.ps6000SetTriggerDelay
-        self._ps6000SetTriggerDelay.resType = PICO_STATUS_T
-        self._ps6000SetTriggerDelay.argTypes = [c_int16, c_uint32]
-
-        self._ps6000SetPulseWidthQualifier = self.lib.ps6000SetPulseWidthQualifier
-        self._ps6000SetPulseWidthQualifier.resType = PICO_STATUS_T
-        self._ps6000SetPulseWidthQualifier.argTypes = [
-            c_int16,
-            POINTER(PS6000_PWQ_CONDITIONS),
-            c_int16,
-            PS6000_THRESHOLD_DIRECTION_T,
-            c_uint32,
-            c_uint32,
-            PS6000_PULSE_WIDTH_TYPE_T,
-        ]
-
-        self._ps6000IsTriggerOrPulseWidthQualifierEnabled = self.lib.ps6000IsTriggerOrPulseWidthQualifierEnabled
-        self._ps6000IsTriggerOrPulseWidthQualifierEnabled.resType = PICO_STATUS_T
-        self._ps6000IsTriggerOrPulseWidthQualifierEnabled.argTypes = [
-            c_int16,
-            POINTER(c_int16),
-            POINTER(c_int16),
-        ]
-
-        self._ps6000GetTriggerTimeOffset = self.lib.ps6000GetTriggerTimeOffset
-        self._ps6000GetTriggerTimeOffset.resType = PICO_STATUS_T
-        self._ps6000GetTriggerTimeOffset.argTypes = [
-            c_int16,
-            POINTER(c_uint32),
-            POINTER(c_uint32),
-            POINTER(PS6000_TIME_UNITS_T),
-            c_uint32,
-        ]
-
-        self._ps6000GetTriggerTimeOffset64 = self.lib.ps6000GetTriggerTimeOffset64
-        self._ps6000GetTriggerTimeOffset64.resType = PICO_STATUS_T
-        self._ps6000GetTriggerTimeOffset64.argTypes = [
-            c_int16,
-            POINTER(c_int64),
-            POINTER(PS6000_TIME_UNITS_T),
-            c_uint32,
-        ]
-
-        self._ps6000GetValuesTriggerTimeOffsetBulk = self.lib.ps6000GetValuesTriggerTimeOffsetBulk
-        self._ps6000GetValuesTriggerTimeOffsetBulk.resType = PICO_STATUS_T
-        self._ps6000GetValuesTriggerTimeOffsetBulk.argTypes = [
-            c_int16,
-            POINTER(c_uint32),
-            POINTER(c_uint32),
-            POINTER(PS6000_TIME_UNITS_T),
-            c_uint32,
-            c_uint32,
-        ]
-
-        self._ps6000GetValuesTriggerTimeOffsetBulk64 = self.lib.ps6000GetValuesTriggerTimeOffsetBulk64
-        self._ps6000GetValuesTriggerTimeOffsetBulk64.resType = PICO_STATUS_T
-        self._ps6000GetValuesTriggerTimeOffsetBulk64.argTypes = [
-            c_int16,
-            POINTER(c_int64),
-            POINTER(PS6000_TIME_UNITS_T),
-            c_uint32,
-            c_uint32,
-        ]
-
-        self._ps6000SetDataBuffers = self.lib.ps6000SetDataBuffers
-        self._ps6000SetDataBuffers.resType = PICO_STATUS_T
-        self._ps6000SetDataBuffers.argTypes = [
-            c_int16,
-            PS6000_CHANNEL_T,
-            POINTER(c_int16),
-            POINTER(c_int16),
-            c_uint32,
-            PS6000_RATIO_MODE_T,
-        ]
-
-        self._ps6000SetDataBuffer = self.lib.ps6000SetDataBuffer
-        self._ps6000SetDataBuffer.resType = PICO_STATUS_T
-        self._ps6000SetDataBuffer.argTypes = [
-            c_int16,
-            PS6000_CHANNEL_T,
-            POINTER(c_int16),
-            c_uint32,
-            PS6000_RATIO_MODE_T,
-        ]
-
-        self._ps6000SetDataBufferBulk = self.lib.ps6000SetDataBufferBulk
-        self._ps6000SetDataBufferBulk.resType = PICO_STATUS_T
-        self._ps6000SetDataBufferBulk.argTypes = [
-            c_int16,
-            PS6000_CHANNEL_T,
-            POINTER(c_int16),
-            c_uint32,
-            c_uint32,
-            PS6000_RATIO_MODE_T,
-        ]
-
-        self._ps6000SetDataBuffersBulk = self.lib.ps6000SetDataBuffersBulk
-        self._ps6000SetDataBuffersBulk.resType = PICO_STATUS_T
-        self._ps6000SetDataBuffersBulk.argTypes = [
-            c_int16,
-            PS6000_CHANNEL_T,
-            POINTER(c_int16),
-            POINTER(c_int16),
-            c_uint32,
-            c_uint32,
-            PS6000_RATIO_MODE_T,
-        ]
-
-        self._ps6000SetEtsTimeBuffer = self.lib.ps6000SetEtsTimeBuffer
-        self._ps6000SetEtsTimeBuffer.resType = PICO_STATUS_T
-        self._ps6000SetEtsTimeBuffer.argTypes = [c_int16, POINTER(c_int64), c_uint32]
-
-        self._ps6000SetEtsTimeBuffers = self.lib.ps6000SetEtsTimeBuffers
-        self._ps6000SetEtsTimeBuffers.resType = PICO_STATUS_T
-        self._ps6000SetEtsTimeBuffers.argTypes = [
-            c_int16,
-            POINTER(c_uint32),
-            POINTER(c_uint32),
-            c_uint32,
-        ]
-
-        self._ps6000RunBlock = self.lib.ps6000RunBlock
-        self._ps6000RunBlock.resType = PICO_STATUS_T
-        self._ps6000RunBlock.argTypes = [
-            c_int16,
-            c_uint32,
-            c_uint32,
-            c_uint32,
-            c_int16,
-            POINTER(c_int32),
-            c_uint32,
-            ps6000BlockReady,
-            c_void_p,
-        ]
-
-        self._ps6000IsReady = self.lib.ps6000IsReady
-        self._ps6000IsReady.resType = PICO_STATUS_T
-        self._ps6000IsReady.argTypes = [c_int16, POINTER(c_int16)]
-
-        self._ps6000RunStreaming = self.lib.ps6000RunStreaming
-        self._ps6000RunStreaming.resType = PICO_STATUS_T
-        self._ps6000RunStreaming.argTypes = [
-            c_int16,
-            POINTER(c_uint32),
-            PS6000_TIME_UNITS_T,
-            c_uint32,
-            c_uint32,
-            c_int16,
-            c_uint32,
-            PS6000_RATIO_MODE_T,
-            c_uint32,
-        ]
-
-        self._ps6000GetStreamingLatestValues = self.lib.ps6000GetStreamingLatestValues
-        self._ps6000GetStreamingLatestValues.resType = PICO_STATUS_T
-        self._ps6000GetStreamingLatestValues.argTypes = [
-            c_int16,
-            ps6000StreamingReady,
-            c_void_p,
-        ]
-
-        self._ps6000NoOfStreamingValues = self.lib.ps6000NoOfStreamingValues
-        self._ps6000NoOfStreamingValues.resType = PICO_STATUS_T
-        self._ps6000NoOfStreamingValues.argTypes = [c_int16, POINTER(c_uint32)]
-
-        self._ps6000GetMaxDownSampleRatio = self.lib.ps6000GetMaxDownSampleRatio
-        self._ps6000GetMaxDownSampleRatio.resType = PICO_STATUS_T
-        self._ps6000GetMaxDownSampleRatio.argTypes = [
-            c_int16,
-            c_uint32,
-            POINTER(c_uint32),
-            PS6000_RATIO_MODE_T,
-            c_uint32,
-        ]
-
-        self._ps6000GetValues = self.lib.ps6000GetValues
-        self._ps6000GetValues.resType = PICO_STATUS_T
-        self._ps6000GetValues.argTypes = [
-            c_int16,
-            c_uint32,
-            POINTER(c_uint32),
-            c_uint32,
-            PS6000_RATIO_MODE_T,
-            c_uint32,
-            POINTER(c_int16),
-        ]
-
-        self._ps6000GetValuesBulk = self.lib.ps6000GetValuesBulk
-        self._ps6000GetValuesBulk.resType = PICO_STATUS_T
-        self._ps6000GetValuesBulk.argTypes = [
-            c_int16,
-            POINTER(c_uint32),
-            c_uint32,
-            c_uint32,
-            c_uint32,
-            PS6000_RATIO_MODE_T,
-            POINTER(c_int16),
-        ]
-
-        self._ps6000GetValuesAsync = self.lib.ps6000GetValuesAsync
-        self._ps6000GetValuesAsync.resType = PICO_STATUS_T
-        self._ps6000GetValuesAsync.argTypes = [
-            c_int16,
-            c_uint32,
-            c_uint32,
-            c_uint32,
-            PS6000_RATIO_MODE_T,
-            c_uint32,
-            ps6000DataReady,
-            c_void_p,
-        ]
-
-        self._ps6000GetValuesOverlapped = self.lib.ps6000GetValuesOverlapped
-        self._ps6000GetValuesOverlapped.resType = PICO_STATUS_T
-        self._ps6000GetValuesOverlapped.argTypes = [
-            c_int16,
-            c_uint32,
-            POINTER(c_uint32),
-            c_uint32,
-            PS6000_RATIO_MODE_T,
-            c_uint32,
-            POINTER(c_int16),
-        ]
-
-        self._ps6000GetValuesOverlappedBulk = self.lib.ps6000GetValuesOverlappedBulk
-        self._ps6000GetValuesOverlappedBulk.resType = PICO_STATUS_T
-        self._ps6000GetValuesOverlappedBulk.argTypes = [
-            c_int16,
-            c_uint32,
-            POINTER(c_uint32),
-            c_uint32,
-            PS6000_RATIO_MODE_T,
-            c_uint32,
-            c_uint32,
-            POINTER(c_int16),
-        ]
-
-        self._ps6000GetValuesBulkAsyc = self.lib.ps6000GetValuesBulkAsyc
-        self._ps6000GetValuesBulkAsyc.resType = PICO_STATUS_T
-        self._ps6000GetValuesBulkAsyc.argTypes = [
-            c_int16,
-            c_uint32,
-            POINTER(c_uint32),
-            c_uint32,
-            PS6000_RATIO_MODE_T,
-            c_uint32,
-            c_uint32,
-            POINTER(c_int16),
-        ]
-
-        self._ps6000GetNoOfCaptures = self.lib.ps6000GetNoOfCaptures
-        self._ps6000GetNoOfCaptures.resType = PICO_STATUS_T
-        self._ps6000GetNoOfCaptures.argTypes = [c_int16, POINTER(c_uint32)]
-
-        self._ps6000GetNoOfProcessedCaptures = self.lib.ps6000GetNoOfProcessedCaptures
-        self._ps6000GetNoOfProcessedCaptures.resType = PICO_STATUS_T
-        self._ps6000GetNoOfProcessedCaptures.argTypes = [c_int16, POINTER(c_uint32)]
-
-        self._ps6000Stop = self.lib.ps6000Stop
-        self._ps6000Stop.resType = PICO_STATUS_T
-        self._ps6000Stop.argTypes = [
-            c_int16,
-        ]
-
-        self._ps6000SetNoOfCaptures = self.lib.ps6000SetNoOfCaptures
-        self._ps6000SetNoOfCaptures.resType = PICO_STATUS_T
-        self._ps6000SetNoOfCaptures.argTypes = [c_int16, c_uint32]
-
-        self._ps6000SetWaveformLimiter = self.lib.ps6000SetWaveformLimiter
-        self._ps6000SetWaveformLimiter.resType = PICO_STATUS_T
-        self._ps6000SetWaveformLimiter.argTypes = [c_int16, c_uint32]
-
-        self._ps6000EnumerateUnits = self.lib.ps6000EnumerateUnits
-        self._ps6000EnumerateUnits.resType = PICO_STATUS_T
-        self._ps6000EnumerateUnits.argTypes = [
-            POINTER(c_int16),
-            c_char_p,
-            POINTER(c_int16),
-        ]
-
-        self._ps6000SetExternalClock = self.lib.ps6000SetExternalClock
-        self._ps6000SetExternalClock.resType = PICO_STATUS_T
-        self._ps6000SetExternalClock.argTypes = [
-            c_int16,
-            PS6000_EXTERNAL_FREQUENCY_T,
-            c_int16,
-        ]
-
-        self._ps6000PingUnit = self.lib.ps6000PingUnit
-        self._ps6000PingUnit.resType = PICO_STATUS_T
-        self._ps6000PingUnit.argTypes = [
-            c_int16,
-        ]
-
-        self._ps6000GetAnalogueOffset = self.lib.ps6000GetAnalogueOffset
-        self._ps6000GetAnalogueOffset.resType = PICO_STATUS_T
-        self._ps6000GetAnalogueOffset.argTypes = [
-            c_int16,
-            PS6000_RANGE_T,
-            PS6000_COUPLING_T,
-            POINTER(c_float),
-            POINTER(c_float),
-        ]
-
-        self._ps6000GetTriggerInfoBulk = self.lib.ps6000GetTriggerInfoBulk
-        self._ps6000GetTriggerInfoBulk.resType = PICO_STATUS_T
-        self._ps6000GetTriggerInfoBulk.argTypes = [
-            c_int16,
-            c_void_p,
-            c_uint32,
-            c_uint32,
-        ]
+        self._ps6000OpenUnit = self._bind(
+            "ps6000OpenUnit", [POINTER(c_int16), c_char_p]
+        )
+        self._ps6000OpenUnitAsync = self._bind(
+            "ps6000OpenUnitAsync", [POINTER(c_int16), c_char_p]
+        )
+        self._ps6000OpenUnitProgress = self._bind(
+            "ps6000OpenUnitProgress",
+            [POINTER(c_int16), POINTER(c_int16), POINTER(c_int16)],
+        )
+        self._ps6000GetUnitInfo = self._bind(
+            "ps6000GetUnitInfo",
+            [c_int16, c_char_p, c_int16, POINTER(c_int16), PICO_INFO_T],
+        )
+        self._ps6000FlashLed = self._bind("ps6000FlashLed", [c_int16, c_int16])
+        self._ps6000CloseUnit = self._bind("ps6000CloseUnit", [c_int16])
+        self._ps6000MemorySegments = self._bind(
+            "ps6000MemorySegments", [c_int16, c_uint32, POINTER(c_uint32)]
+        )
+        self._ps6000SetChannel = self._bind(
+            "ps6000SetChannel",
+            [
+                c_int16,
+                PS6000_CHANNEL_T,
+                c_int16,
+                PS6000_COUPLING_T,
+                PS6000_RANGE_T,
+                c_float,
+                PS6000_BANDWIDTH_LIMITER_T,
+            ],
+        )
+        self._ps6000GetTimebase = self._bind(
+            "ps6000GetTimebase",
+            [
+                c_int16,
+                c_uint32,
+                c_uint32,
+                POINTER(c_int32),
+                c_int16,
+                POINTER(c_uint32),
+                c_uint32,
+            ],
+        )
+        self._ps6000GetTimebase2 = self._bind(
+            "ps6000GetTimebase2",
+            [
+                c_int16,
+                c_uint32,
+                c_uint32,
+                POINTER(c_float),
+                c_int16,
+                POINTER(c_uint32),
+                c_uint32,
+            ],
+        )
+        self._ps6000SetSigGenArbitrary = self._bind(
+            "ps6000SetSigGenArbitrary",
+            [
+                c_int16,
+                c_int32,
+                c_uint32,
+                c_uint32,
+                c_uint32,
+                c_uint32,
+                c_uint32,
+                c_void_p,
+                c_int32,
+                PS6000_SWEEP_TYPE_T,
+                PS6000_EXTRA_OPERATIONS_T,
+                PS6000_INDEX_MODE_T,
+                c_uint32,
+                c_uint32,
+                PS6000_SIGGEN_TRIG_TYPE_T,
+                PS6000_SIGGEN_TRIG_SOURCE_T,
+                c_int16,
+            ],
+        )
+        self._ps6000SetSigGenBuiltIn = self._bind(
+            "ps6000SetSigGenBuiltIn",
+            [
+                c_int16,
+                c_int32,
+                c_uint32,
+                c_int16,
+                c_float,
+                c_float,
+                c_float,
+                c_float,
+                PS6000_SWEEP_TYPE_T,
+                PS6000_EXTRA_OPERATIONS_T,
+                c_uint32,
+                c_uint32,
+                PS6000_SIGGEN_TRIG_TYPE_T,
+                PS6000_SIGGEN_TRIG_SOURCE_T,
+                c_int16,
+            ],
+        )
+        self._ps6000SetSigGenBuiltInV2 = self._bind(
+            "ps6000SetSigGenBuiltInV2",
+            [
+                c_int16,
+                c_int32,
+                c_uint32,
+                c_int16,
+                c_double,
+                c_double,
+                c_double,
+                c_double,
+                PS6000_SWEEP_TYPE_T,
+                PS6000_EXTRA_OPERATIONS_T,
+                c_uint32,
+                c_uint32,
+                PS6000_SIGGEN_TRIG_TYPE_T,
+                PS6000_SIGGEN_TRIG_SOURCE_T,
+                c_int16,
+            ],
+        )
+        self._ps6000SetSigGenPropertiesArbitrary = self._bind(
+            "ps6000SetSigGenPropertiesArbitrary",
+            [
+                c_int16,
+                c_int32,
+                c_uint32,
+                c_uint32,
+                c_uint32,
+                c_uint32,
+                c_uint32,
+                PS6000_SWEEP_TYPE_T,
+                c_uint32,
+                c_uint32,
+                PS6000_SIGGEN_TRIG_TYPE_T,
+                PS6000_SIGGEN_TRIG_SOURCE_T,
+                c_int16,
+            ],
+        )
+        self._ps6000SetSigGenPropertiesBuiltIn = self._bind(
+            "ps6000SetSigGenPropertiesBuiltIn",
+            [
+                c_int16,
+                c_int32,
+                c_uint32,
+                c_double,
+                c_double,
+                c_double,
+                c_double,
+                PS6000_SWEEP_TYPE_T,
+                c_uint32,
+                c_uint32,
+                PS6000_SIGGEN_TRIG_TYPE_T,
+                PS6000_SIGGEN_TRIG_SOURCE_T,
+                c_int16,
+            ],
+        )
+        self._ps6000SigGenFrequencyToPhase = self._bind(
+            "ps6000SigGenFrequencyToPhase",
+            [c_int16, c_double, PS6000_INDEX_MODE_T, c_uint32, POINTER(c_uint32)],
+        )
+        self._ps6000SigGenArbitraryMinMaxValues = self._bind(
+            "ps6000SigGenArbitraryMinMaxValues",
+            [
+                c_int16,
+                POINTER(c_int16),
+                POINTER(c_int16),
+                POINTER(c_uint32),
+                POINTER(c_uint32),
+            ],
+        )
+        self._ps6000SigGenSoftwareControl = self._bind(
+            "ps6000SigGenSoftwareControl", [c_int16, c_int16]
+        )
+        self._ps6000SetSimpleTrigger = self._bind(
+            "ps6000SetSimpleTrigger",
+            [
+                c_int16,
+                c_int16,
+                PS6000_CHANNEL_T,
+                c_int16,
+                PS6000_THRESHOLD_DIRECTION_T,
+                c_uint32,
+                c_int16,
+            ],
+        )
+        self._ps6000SetEts = self._bind(
+            "ps6000SetEts",
+            [c_int16, PS6000_ETS_MODE_T, c_int16, c_int16, POINTER(c_int32)],
+        )
+        self._ps6000SetTriggerChannelProperties = self._bind(
+            "ps6000SetTriggerChannelProperties",
+            [
+                c_int16,
+                POINTER(PS6000_TRIGGER_CHANNEL_PROPERTIES),
+                c_int16,
+                c_int16,
+                c_int32,
+            ],
+        )
+        self._ps6000SetTriggerChannelConditions = self._bind(
+            "ps6000SetTriggerChannelConditions",
+            [c_int16, POINTER(PS6000_TRIGGER_CONDITIONS), c_int16],
+        )
+        self._ps6000SetTriggerChannelDirections = self._bind(
+            "ps6000SetTriggerChannelDirections",
+            [
+                c_int16,
+                PS6000_THRESHOLD_DIRECTION_T,
+                PS6000_THRESHOLD_DIRECTION_T,
+                PS6000_THRESHOLD_DIRECTION_T,
+                PS6000_THRESHOLD_DIRECTION_T,
+                PS6000_THRESHOLD_DIRECTION_T,
+                PS6000_THRESHOLD_DIRECTION_T,
+            ],
+        )
+        self._ps6000SetTriggerDelay = self._bind(
+            "ps6000SetTriggerDelay", [c_int16, c_uint32]
+        )
+        self._ps6000SetPulseWidthQualifier = self._bind(
+            "ps6000SetPulseWidthQualifier",
+            [
+                c_int16,
+                POINTER(PS6000_PWQ_CONDITIONS),
+                c_int16,
+                PS6000_THRESHOLD_DIRECTION_T,
+                c_uint32,
+                c_uint32,
+                PS6000_PULSE_WIDTH_TYPE_T,
+            ],
+        )
+        self._ps6000IsTriggerOrPulseWidthQualifierEnabled = self._bind(
+            "ps6000IsTriggerOrPulseWidthQualifierEnabled",
+            [c_int16, POINTER(c_int16), POINTER(c_int16)],
+        )
+        self._ps6000GetTriggerTimeOffset = self._bind(
+            "ps6000GetTriggerTimeOffset",
+            [
+                c_int16,
+                POINTER(c_uint32),
+                POINTER(c_uint32),
+                POINTER(PS6000_TIME_UNITS_T),
+                c_uint32,
+            ],
+        )
+        self._ps6000GetTriggerTimeOffset64 = self._bind(
+            "ps6000GetTriggerTimeOffset64",
+            [c_int16, POINTER(c_int64), POINTER(PS6000_TIME_UNITS_T), c_uint32],
+        )
+        self._ps6000GetValuesTriggerTimeOffsetBulk = self._bind(
+            "ps6000GetValuesTriggerTimeOffsetBulk",
+            [
+                c_int16,
+                POINTER(c_uint32),
+                POINTER(c_uint32),
+                POINTER(PS6000_TIME_UNITS_T),
+                c_uint32,
+                c_uint32,
+            ],
+        )
+        self._ps6000GetValuesTriggerTimeOffsetBulk64 = self._bind(
+            "ps6000GetValuesTriggerTimeOffsetBulk64",
+            [
+                c_int16,
+                POINTER(c_int64),
+                POINTER(PS6000_TIME_UNITS_T),
+                c_uint32,
+                c_uint32,
+            ],
+        )
+        self._ps6000SetDataBuffers = self._bind(
+            "ps6000SetDataBuffers",
+            [
+                c_int16,
+                PS6000_CHANNEL_T,
+                c_void_p,
+                c_void_p,
+                c_uint32,
+                PS6000_RATIO_MODE_T,
+            ],
+        )
+        self._ps6000SetDataBuffer = self._bind(
+            "ps6000SetDataBuffer",
+            [c_int16, PS6000_CHANNEL_T, c_void_p, c_uint32, PS6000_RATIO_MODE_T],
+        )
+        self._ps6000SetDataBufferBulk = self._bind(
+            "ps6000SetDataBufferBulk",
+            [
+                c_int16,
+                PS6000_CHANNEL_T,
+                c_void_p,
+                c_uint32,
+                c_uint32,
+                PS6000_RATIO_MODE_T,
+            ],
+        )
+        self._ps6000SetDataBuffersBulk = self._bind(
+            "ps6000SetDataBuffersBulk",
+            [
+                c_int16,
+                PS6000_CHANNEL_T,
+                c_void_p,
+                c_void_p,
+                c_uint32,
+                c_uint32,
+                PS6000_RATIO_MODE_T,
+            ],
+        )
+        self._ps6000SetEtsTimeBuffer = self._bind(
+            "ps6000SetEtsTimeBuffer", [c_int16, c_void_p, c_uint32]
+        )
+        self._ps6000SetEtsTimeBuffers = self._bind(
+            "ps6000SetEtsTimeBuffers", [c_int16, c_void_p, c_void_p, c_uint32]
+        )
+        self._ps6000RunBlock = self._bind(
+            "ps6000RunBlock",
+            [
+                c_int16,
+                c_uint32,
+                c_uint32,
+                c_uint32,
+                c_int16,
+                POINTER(c_int32),
+                c_uint32,
+                ps6000BlockReady,
+                c_void_p,
+            ],
+        )
+        self._ps6000IsReady = self._bind("ps6000IsReady", [c_int16, POINTER(c_int16)])
+        self._ps6000RunStreaming = self._bind(
+            "ps6000RunStreaming",
+            [
+                c_int16,
+                POINTER(c_uint32),
+                PS6000_TIME_UNITS_T,
+                c_uint32,
+                c_uint32,
+                c_int16,
+                c_uint32,
+                PS6000_RATIO_MODE_T,
+                c_uint32,
+            ],
+        )
+        self._ps6000GetStreamingLatestValues = self._bind(
+            "ps6000GetStreamingLatestValues",
+            [c_int16, ps6000StreamingReady, c_void_p],
+            # PICO_BUSY: no new streaming data yet / previous call still being
+            # processed. The caller is expected to simply poll again.
+            info=(PICO_STATUS.PICO_BUSY,),
+        )
+        self._ps6000NoOfStreamingValues = self._bind(
+            "ps6000NoOfStreamingValues", [c_int16, POINTER(c_uint32)]
+        )
+        self._ps6000GetMaxDownSampleRatio = self._bind(
+            "ps6000GetMaxDownSampleRatio",
+            [c_int16, c_uint32, POINTER(c_uint32), PS6000_RATIO_MODE_T, c_uint32],
+        )
+        self._ps6000GetValues = self._bind(
+            "ps6000GetValues",
+            [
+                c_int16,
+                c_uint32,
+                POINTER(c_uint32),
+                c_uint32,
+                PS6000_RATIO_MODE_T,
+                c_uint32,
+                POINTER(c_int16),
+            ],
+        )
+        self._ps6000GetValuesBulk = self._bind(
+            "ps6000GetValuesBulk",
+            [
+                c_int16,
+                POINTER(c_uint32),
+                c_uint32,
+                c_uint32,
+                c_uint32,
+                PS6000_RATIO_MODE_T,
+                POINTER(c_int16),
+            ],
+        )
+        self._ps6000GetValuesAsync = self._bind(
+            "ps6000GetValuesAsync",
+            [
+                c_int16,
+                c_uint32,
+                c_uint32,
+                c_uint32,
+                PS6000_RATIO_MODE_T,
+                c_uint32,
+                ps6000DataReady,
+                c_void_p,
+            ],
+        )
+        self._ps6000GetValuesOverlapped = self._bind(
+            "ps6000GetValuesOverlapped",
+            [
+                c_int16,
+                c_uint32,
+                POINTER(c_uint32),
+                c_uint32,
+                PS6000_RATIO_MODE_T,
+                c_uint32,
+                POINTER(c_int16),
+            ],
+        )
+        self._ps6000GetValuesOverlappedBulk = self._bind(
+            "ps6000GetValuesOverlappedBulk",
+            [
+                c_int16,
+                c_uint32,
+                POINTER(c_uint32),
+                c_uint32,
+                PS6000_RATIO_MODE_T,
+                c_uint32,
+                c_uint32,
+                POINTER(c_int16),
+            ],
+        )
+        self._ps6000GetValuesBulkAsyc = self._bind(
+            "ps6000GetValuesBulkAsyc",
+            [
+                c_int16,
+                c_uint32,
+                POINTER(c_uint32),
+                c_uint32,
+                PS6000_RATIO_MODE_T,
+                c_uint32,
+                c_uint32,
+                POINTER(c_int16),
+            ],
+        )
+        self._ps6000GetNoOfCaptures = self._bind(
+            "ps6000GetNoOfCaptures", [c_int16, POINTER(c_uint32)]
+        )
+        self._ps6000GetNoOfProcessedCaptures = self._bind(
+            "ps6000GetNoOfProcessedCaptures", [c_int16, POINTER(c_uint32)]
+        )
+        self._ps6000Stop = self._bind("ps6000Stop", [c_int16])
+        self._ps6000SetNoOfCaptures = self._bind(
+            "ps6000SetNoOfCaptures", [c_int16, c_uint32]
+        )
+        self._ps6000SetWaveformLimiter = self._bind(
+            "ps6000SetWaveformLimiter", [c_int16, c_uint32]
+        )
+        self._ps6000GetTriggerInfoBulk = self._bind(
+            "ps6000GetTriggerInfoBulk",
+            [c_int16, POINTER(PS6000_TRIGGER_INFO), c_uint32, c_uint32],
+        )
+        self._ps6000EnumerateUnits = self._bind(
+            "ps6000EnumerateUnits",
+            [POINTER(c_int16), c_char_p, POINTER(c_int16)],
+            # PICO_NOT_FOUND: no units connected, which is a valid enumeration
+            # result (count is 0).
+            info=(PICO_STATUS.PICO_NOT_FOUND,),
+        )
+        self._ps6000SetExternalClock = self._bind(
+            "ps6000SetExternalClock",
+            [c_int16, PS6000_EXTERNAL_FREQUENCY_T, c_int16],
+        )
+        self._ps6000PingUnit = self._bind("ps6000PingUnit", [c_int16])
+        self._ps6000GetAnalogueOffset = self._bind(
+            "ps6000GetAnalogueOffset",
+            [
+                c_int16,
+                PS6000_RANGE_T,
+                PS6000_COUPLING_T,
+                POINTER(c_float),
+                POINTER(c_float),
+            ],
+        )
+        self._ps6000QueryTemperatures = self._bind(
+            "ps6000QueryTemperatures",
+            [c_int16, POINTER(PS6000_TEMPERATURES_T), POINTER(c_float)],
+        )
+        self._ps6000QueryOutputEdgeDetect = self._bind(
+            "ps6000QueryOutputEdgeDetect", [c_int16, POINTER(c_int16)]
+        )
+        self._ps6000SetOutputEdgeDetect = self._bind(
+            "ps6000SetOutputEdgeDetect", [c_int16, c_int16]
+        )
 
     def ps6000OpenUnit(self, serial: str | None):
         handle = c_int16(0)
-        ser = c_char_p(serial.encode()) if serial is not None else 0
-        return (
-            PICO_STATUS(self._ps6000OpenUnit(byref(handle), ser)),
-            handle,
+        ser = serial.encode() if serial is not None else None
+        return self._ps6000OpenUnit(byref(handle), ser), handle
+
+    def ps6000OpenUnitAsync(self, serial: str | None) -> tuple[PICO_STATUS, bool]:
+        started = c_int16(0)
+        ser = serial.encode() if serial is not None else None
+        status = self._ps6000OpenUnitAsync(byref(started), ser)
+        return status, started.value == 1
+
+    def ps6000OpenUnitProgress(self) -> tuple[PICO_STATUS, c_int16, int, bool]:
+        handle = c_int16(0)
+        progressPercent = c_int16(0)
+        complete = c_int16(0)
+        status = self._ps6000OpenUnitProgress(
+            byref(handle), byref(progressPercent), byref(complete)
         )
+        return status, handle, progressPercent.value, complete.value != 0
 
     def ps6000CloseUnit(self, handle: c_int16):
-        return PICO_STATUS(self._ps6000CloseUnit(handle))
+        return self._ps6000CloseUnit(handle)
 
     def ps6000GetUnitInfo(self, handle: c_int16, info: PICO_INFO):
         buf = create_string_buffer(bytes(255))
@@ -958,15 +887,16 @@ class PicoScope6000Wrapper:
             infostr = buf.raw[: size.value - 1].decode("utf-8")
         else:
             infostr = ""
-        return PICO_STATUS(status), infostr
+        return status, infostr
+
+    def ps6000FlashLed(self, handle: c_int16, start: int) -> PICO_STATUS:
+        return self._ps6000FlashLed(handle, start)
 
     def ps6000MemorySegments(self, handle: c_int16, nsegments: int):
         assert nsegments > 0
         maxSamples = c_uint32(0)
         return (
-            PICO_STATUS(
-                self._ps6000MemorySegments(handle, nsegments, byref(maxSamples))
-            ),
+            self._ps6000MemorySegments(handle, nsegments, byref(maxSamples)),
             maxSamples.value,
         )
 
@@ -980,21 +910,36 @@ class PicoScope6000Wrapper:
         analog_offset: float,
         bandwidth: PS6000_BANDWIDTH_LIMITER,
     ):
-        return PICO_STATUS(
-            self._ps6000SetChannel(
-                handle,
-                channel,
-                1 if enabled else 0,
-                coupling,
-                range,
-                c_float(analog_offset),
-                bandwidth,
-            )
+        return self._ps6000SetChannel(
+            handle,
+            channel,
+            1 if enabled else 0,
+            coupling,
+            range,
+            analog_offset,
+            bandwidth,
         )
 
-    def ps6000SetNoOfCaptures(self, handle: c_int16, ncaptures: int):
-        assert ncaptures > 0
-        return PICO_STATUS(self._ps6000SetNoOfCaptures(handle, ncaptures))
+    def ps6000GetTimebase(
+        self,
+        handle: c_int16,
+        timebase: int,
+        noSamples: int,
+        oversample: int,
+        segmentIndex: int,
+    ) -> tuple[PICO_STATUS, int, int]:
+        timeIntervalNanoseconds = c_int32(0)
+        maxSamples = c_uint32(0)
+        status = self._ps6000GetTimebase(
+            handle,
+            timebase,
+            noSamples,
+            byref(timeIntervalNanoseconds),
+            oversample,
+            byref(maxSamples),
+            segmentIndex,
+        )
+        return status, timeIntervalNanoseconds.value, maxSamples.value
 
     def ps6000GetTimebase2(
         self,
@@ -1008,20 +953,222 @@ class PicoScope6000Wrapper:
         timeIntervalNS = c_float(0)
         maxSamples = c_uint32(0)
         return (
-            PICO_STATUS(
-                self._ps6000GetTimebase2(
-                    handle,
-                    timebase,
-                    noSamples,
-                    byref(timeIntervalNS),
-                    oversample,
-                    byref(maxSamples),
-                    segmentIndex,
-                )
+            self._ps6000GetTimebase2(
+                handle,
+                timebase,
+                noSamples,
+                byref(timeIntervalNS),
+                oversample,
+                byref(maxSamples),
+                segmentIndex,
             ),
             timeIntervalNS.value,
             maxSamples.value,
         )
+
+    def ps6000SetSigGenArbitrary(
+        self,
+        handle: c_int16,
+        offsetVoltage: int,
+        pkToPk: int,
+        startDeltaPhase: int,
+        stopDeltaPhase: int,
+        deltaPhaseIncrement: int,
+        dwellCount: int,
+        arbitraryWaveform: Sequence[int],
+        sweepType: PS6000_SWEEP_TYPE,
+        operation: PS6000_EXTRA_OPERATIONS,
+        indexMode: PS6000_INDEX_MODE,
+        shots: int,
+        sweeps: int,
+        triggerType: PS6000_SIGGEN_TRIG_TYPE,
+        triggerSource: PS6000_SIGGEN_TRIG_SOURCE,
+        extInThreshold: int,
+    ) -> PICO_STATUS:
+        waveform = (c_int16 * len(arbitraryWaveform))(*arbitraryWaveform)
+        return self._ps6000SetSigGenArbitrary(
+            handle,
+            offsetVoltage,
+            pkToPk,
+            startDeltaPhase,
+            stopDeltaPhase,
+            deltaPhaseIncrement,
+            dwellCount,
+            waveform,
+            len(arbitraryWaveform),
+            sweepType,
+            operation,
+            indexMode,
+            shots,
+            sweeps,
+            triggerType,
+            triggerSource,
+            extInThreshold,
+        )
+
+    def ps6000SetSigGenBuiltIn(
+        self,
+        handle: c_int16,
+        offsetVoltage: int,
+        pkToPk: int,
+        waveType: PS6000_WAVE_TYPE,
+        startFrequency: float,
+        stopFrequency: float,
+        increment: float,
+        dwellTime: float,
+        sweepType: PS6000_SWEEP_TYPE,
+        operation: PS6000_EXTRA_OPERATIONS,
+        shots: int,
+        sweeps: int,
+        triggerType: PS6000_SIGGEN_TRIG_TYPE,
+        triggerSource: PS6000_SIGGEN_TRIG_SOURCE,
+        extInThreshold: int,
+    ) -> PICO_STATUS:
+        return self._ps6000SetSigGenBuiltIn(
+            handle,
+            offsetVoltage,
+            pkToPk,
+            waveType,
+            startFrequency,
+            stopFrequency,
+            increment,
+            dwellTime,
+            sweepType,
+            operation,
+            shots,
+            sweeps,
+            triggerType,
+            triggerSource,
+            extInThreshold,
+        )
+
+    def ps6000SetSigGenBuiltInV2(
+        self,
+        handle: c_int16,
+        offsetVoltage: int,
+        pkToPk: int,
+        waveType: PS6000_WAVE_TYPE,
+        startFrequency: float,
+        stopFrequency: float,
+        increment: float,
+        dwellTime: float,
+        sweepType: PS6000_SWEEP_TYPE,
+        operation: PS6000_EXTRA_OPERATIONS,
+        shots: int,
+        sweeps: int,
+        triggerType: PS6000_SIGGEN_TRIG_TYPE,
+        triggerSource: PS6000_SIGGEN_TRIG_SOURCE,
+        extInThreshold: int,
+    ) -> PICO_STATUS:
+        return self._ps6000SetSigGenBuiltInV2(
+            handle,
+            offsetVoltage,
+            pkToPk,
+            waveType,
+            startFrequency,
+            stopFrequency,
+            increment,
+            dwellTime,
+            sweepType,
+            operation,
+            shots,
+            sweeps,
+            triggerType,
+            triggerSource,
+            extInThreshold,
+        )
+
+    def ps6000SetSigGenPropertiesArbitrary(
+        self,
+        handle: c_int16,
+        offsetVoltage: int,
+        pkToPk: int,
+        startDeltaPhase: int,
+        stopDeltaPhase: int,
+        deltaPhaseIncrement: int,
+        dwellCount: int,
+        sweepType: PS6000_SWEEP_TYPE,
+        shots: int,
+        sweeps: int,
+        triggerType: PS6000_SIGGEN_TRIG_TYPE,
+        triggerSource: PS6000_SIGGEN_TRIG_SOURCE,
+        extInThreshold: int,
+    ) -> PICO_STATUS:
+        return self._ps6000SetSigGenPropertiesArbitrary(
+            handle,
+            offsetVoltage,
+            pkToPk,
+            startDeltaPhase,
+            stopDeltaPhase,
+            deltaPhaseIncrement,
+            dwellCount,
+            sweepType,
+            shots,
+            sweeps,
+            triggerType,
+            triggerSource,
+            extInThreshold,
+        )
+
+    def ps6000SetSigGenPropertiesBuiltIn(
+        self,
+        handle: c_int16,
+        offsetVoltage: int,
+        pkToPk: int,
+        startFrequency: float,
+        stopFrequency: float,
+        increment: float,
+        dwellTime: float,
+        sweepType: PS6000_SWEEP_TYPE,
+        shots: int,
+        sweeps: int,
+        triggerType: PS6000_SIGGEN_TRIG_TYPE,
+        triggerSource: PS6000_SIGGEN_TRIG_SOURCE,
+        extInThreshold: int,
+    ) -> PICO_STATUS:
+        return self._ps6000SetSigGenPropertiesBuiltIn(
+            handle,
+            offsetVoltage,
+            pkToPk,
+            startFrequency,
+            stopFrequency,
+            increment,
+            dwellTime,
+            sweepType,
+            shots,
+            sweeps,
+            triggerType,
+            triggerSource,
+            extInThreshold,
+        )
+
+    def ps6000SigGenFrequencyToPhase(
+        self,
+        handle: c_int16,
+        frequency: float,
+        indexMode: PS6000_INDEX_MODE,
+        bufferLength: int,
+    ) -> tuple[PICO_STATUS, int]:
+        phase = c_uint32(0)
+        status = self._ps6000SigGenFrequencyToPhase(
+            handle, frequency, indexMode, bufferLength, byref(phase)
+        )
+        return status, phase.value
+
+    def ps6000SigGenArbitraryMinMaxValues(
+        self, handle: c_int16
+    ) -> tuple[PICO_STATUS, int, int, int, int]:
+        minValue = c_int16(0)
+        maxValue = c_int16(0)
+        minSize = c_uint32(0)
+        maxSize = c_uint32(0)
+        status = self._ps6000SigGenArbitraryMinMaxValues(
+            handle, byref(minValue), byref(maxValue), byref(minSize), byref(maxSize)
+        )
+        return status, minValue.value, maxValue.value, minSize.value, maxSize.value
+
+    def ps6000SigGenSoftwareControl(self, handle: c_int16, state: bool) -> PICO_STATUS:
+        return self._ps6000SigGenSoftwareControl(handle, 1 if state else 0)
 
     def ps6000SetSimpleTrigger(
         self,
@@ -1034,33 +1181,172 @@ class PicoScope6000Wrapper:
         autoTriggerMS: int,
     ):
         assert autoTriggerMS >= 0
-        return PICO_STATUS(
-            self._ps6000SetSimpleTrigger(
-                handle,
-                1 if enable else 0,
-                source,
-                threshold,
-                direction,
-                delay,
-                autoTriggerMS,
-            )
+        return self._ps6000SetSimpleTrigger(
+            handle,
+            1 if enable else 0,
+            source,
+            threshold,
+            direction,
+            delay,
+            autoTriggerMS,
+        )
+
+    def ps6000SetEts(
+        self,
+        handle: c_int16,
+        mode: PS6000_ETS_MODE,
+        etsCycles: int,
+        etsInterleave: int,
+    ) -> tuple[PICO_STATUS, int]:
+        sampleTimePicoseconds = c_int32(0)
+        status = self._ps6000SetEts(
+            handle, mode, etsCycles, etsInterleave, byref(sampleTimePicoseconds)
+        )
+        return status, sampleTimePicoseconds.value
+
+    def ps6000SetTriggerChannelProperties(
+        self,
+        handle: c_int16,
+        channelProperties: Sequence[PS6000_TRIGGER_CHANNEL_PROPERTIES],
+        auxOutputEnable: bool,
+        autoTriggerMilliseconds: int,
+    ) -> PICO_STATUS:
+        n = len(channelProperties)
+        properties = (PS6000_TRIGGER_CHANNEL_PROPERTIES * n)(*channelProperties)
+        return self._ps6000SetTriggerChannelProperties(
+            handle,
+            properties if n else None,
+            n,
+            1 if auxOutputEnable else 0,
+            autoTriggerMilliseconds,
+        )
+
+    def ps6000SetTriggerChannelConditions(
+        self, handle: c_int16, conditions: Sequence[PS6000_TRIGGER_CONDITIONS]
+    ) -> PICO_STATUS:
+        n = len(conditions)
+        conds = (PS6000_TRIGGER_CONDITIONS * n)(*conditions)
+        return self._ps6000SetTriggerChannelConditions(handle, conds if n else None, n)
+
+    def ps6000SetTriggerChannelDirections(
+        self,
+        handle: c_int16,
+        channelA: PS6000_THRESHOLD_DIRECTION,
+        channelB: PS6000_THRESHOLD_DIRECTION,
+        channelC: PS6000_THRESHOLD_DIRECTION,
+        channelD: PS6000_THRESHOLD_DIRECTION,
+        ext: PS6000_THRESHOLD_DIRECTION,
+        aux: PS6000_THRESHOLD_DIRECTION,
+    ) -> PICO_STATUS:
+        return self._ps6000SetTriggerChannelDirections(
+            handle, channelA, channelB, channelC, channelD, ext, aux
         )
 
     def ps6000SetTriggerDelay(self, handle: c_int16, delay: int):
-        return PICO_STATUS(self._ps6000SetTriggerDelay(handle, delay))
+        return self._ps6000SetTriggerDelay(handle, delay)
 
-    def ps6000GetNoOfCaptures(self, handle: c_int16):
-        captures = c_uint32()
-        return (
-            PICO_STATUS(self._ps6000GetNoOfCaptures(handle, byref(captures))),
-            captures.value,
+    def ps6000SetPulseWidthQualifier(
+        self,
+        handle: c_int16,
+        conditions: Sequence[PS6000_PWQ_CONDITIONS],
+        direction: PS6000_THRESHOLD_DIRECTION,
+        lower: int,
+        upper: int,
+        type: PS6000_PULSE_WIDTH_TYPE,
+    ) -> PICO_STATUS:
+        n = len(conditions)
+        conds = (PS6000_PWQ_CONDITIONS * n)(*conditions)
+        return self._ps6000SetPulseWidthQualifier(
+            handle, conds if n else None, n, direction, lower, upper, type
         )
 
-    def ps6000GetNoOfProcessedCaptures(self, handle: c_int16):
-        captures = c_uint32()
+    def ps6000IsTriggerOrPulseWidthQualifierEnabled(
+        self, handle: c_int16
+    ) -> tuple[PICO_STATUS, bool, bool]:
+        triggerEnabled = c_int16(0)
+        pulseWidthQualifierEnabled = c_int16(0)
+        status = self._ps6000IsTriggerOrPulseWidthQualifierEnabled(
+            handle, byref(triggerEnabled), byref(pulseWidthQualifierEnabled)
+        )
         return (
-            PICO_STATUS(self._ps6000GetNoOfProcessedCaptures(handle, byref(captures))),
-            captures.value,
+            status,
+            triggerEnabled.value != 0,
+            pulseWidthQualifierEnabled.value != 0,
+        )
+
+    def ps6000GetTriggerTimeOffset(
+        self, handle: c_int16, segmentIndex: int
+    ) -> tuple[PICO_STATUS, int, int, PS6000_TIME_UNITS]:
+        timeUpper = c_uint32(0)
+        timeLower = c_uint32(0)
+        timeUnits = PS6000_TIME_UNITS_T(0)
+        status = self._ps6000GetTriggerTimeOffset(
+            handle, byref(timeUpper), byref(timeLower), byref(timeUnits), segmentIndex
+        )
+        return (
+            status,
+            timeUpper.value,
+            timeLower.value,
+            PS6000_TIME_UNITS(timeUnits.value),
+        )
+
+    def ps6000GetTriggerTimeOffset64(
+        self, handle: c_int16, segmentIndex: int
+    ) -> tuple[PICO_STATUS, int, PS6000_TIME_UNITS]:
+        time = c_int64(0)
+        timeUnits = PS6000_TIME_UNITS_T(0)
+        status = self._ps6000GetTriggerTimeOffset64(
+            handle, byref(time), byref(timeUnits), segmentIndex
+        )
+        return status, time.value, PS6000_TIME_UNITS(timeUnits.value)
+
+    def ps6000GetValuesTriggerTimeOffsetBulk(
+        self, handle: c_int16, fromSegmentIndex: int, toSegmentIndex: int
+    ) -> tuple[PICO_STATUS, list[int], list[int], list[PS6000_TIME_UNITS]]:
+        assert fromSegmentIndex <= toSegmentIndex
+        n = toSegmentIndex - fromSegmentIndex + 1
+        timesUpper = (c_uint32 * n)()
+        timesLower = (c_uint32 * n)()
+        timeUnits = (PS6000_TIME_UNITS_T * n)()
+        status = self._ps6000GetValuesTriggerTimeOffsetBulk(
+            handle, timesUpper, timesLower, timeUnits, fromSegmentIndex, toSegmentIndex
+        )
+        return (
+            status,
+            list(timesUpper),
+            list(timesLower),
+            [PS6000_TIME_UNITS(u) for u in timeUnits],
+        )
+
+    def ps6000GetValuesTriggerTimeOffsetBulk64(
+        self,
+        handle: c_int16,
+        fromSegment: int,
+        toSegment: int,
+    ):
+        assert fromSegment <= toSegment
+        n = toSegment - fromSegment + 1
+        times = (c_int64 * n)()
+        units = (PS6000_TIME_UNITS_T * n)()
+        status = self._ps6000GetValuesTriggerTimeOffsetBulk64(
+            handle, times, units, fromSegment, toSegment
+        )
+        times_sec = [
+            t * _TIME_UNIT_SECONDS[PS6000_TIME_UNITS(u)] for t, u in zip(times, units)
+        ]
+        return status, times_sec
+
+    def ps6000SetDataBuffers(
+        self,
+        handle: c_int16,
+        channel: PS6000_CHANNEL,
+        bufferMax: c_void_p | int | None,
+        bufferMin: c_void_p | int | None,
+        bufferLth: int,
+        downSampleRatioMode: PS6000_RATIO_MODE,
+    ) -> PICO_STATUS:
+        return self._ps6000SetDataBuffers(
+            handle, channel, bufferMax, bufferMin, bufferLth, downSampleRatioMode
         )
 
     def ps6000SetDataBuffer(
@@ -1071,9 +1357,7 @@ class PicoScope6000Wrapper:
         bufferLth: int,
         mode: PS6000_RATIO_MODE,
     ):
-        return PICO_STATUS(
-            self._ps6000SetDataBuffer(handle, channel, buffer, bufferLth, mode)
-        )
+        return self._ps6000SetDataBuffer(handle, channel, buffer, bufferLth, mode)
 
     def ps6000SetDataBufferBulk(
         self,
@@ -1084,15 +1368,49 @@ class PicoScope6000Wrapper:
         waveform: int,
         mode: PS6000_RATIO_MODE,
     ):
-        return PICO_STATUS(
-            self._ps6000SetDataBufferBulk(
-                handle, channel, buffer, bufferLth, waveform, mode
-            )
+        return self._ps6000SetDataBufferBulk(
+            handle, channel, buffer, bufferLth, waveform, mode
         )
+
+    def ps6000SetDataBuffersBulk(
+        self,
+        handle: c_int16,
+        channel: PS6000_CHANNEL,
+        bufferMax: c_void_p | int | None,
+        bufferMin: c_void_p | int | None,
+        bufferLth: int,
+        waveform: int,
+        downSampleRatioMode: PS6000_RATIO_MODE,
+    ) -> PICO_STATUS:
+        return self._ps6000SetDataBuffersBulk(
+            handle,
+            channel,
+            bufferMax,
+            bufferMin,
+            bufferLth,
+            waveform,
+            downSampleRatioMode,
+        )
+
+    def ps6000SetEtsTimeBuffer(
+        self, handle: c_int16, buffer: c_void_p | int | None, bufferLth: int
+    ) -> PICO_STATUS:
+        """``buffer`` must hold ``bufferLth`` int64 values and outlive the capture."""
+        return self._ps6000SetEtsTimeBuffer(handle, buffer, bufferLth)
+
+    def ps6000SetEtsTimeBuffers(
+        self,
+        handle: c_int16,
+        timeUpper: c_void_p | int | None,
+        timeLower: c_void_p | int | None,
+        bufferLth: int,
+    ) -> PICO_STATUS:
+        """The buffers must hold ``bufferLth`` uint32 values and outlive the capture."""
+        return self._ps6000SetEtsTimeBuffers(handle, timeUpper, timeLower, bufferLth)
 
     def ps6000IsReady(self, handle: c_int16):
         ready = c_int16(0)
-        return PICO_STATUS(self._ps6000IsReady(handle, byref(ready))), ready.value == 1
+        return self._ps6000IsReady(handle, byref(ready)), ready.value == 1
 
     def ps6000RunBlock(
         self,
@@ -1108,44 +1426,134 @@ class PicoScope6000Wrapper:
         assert postSamples >= 0
         assert oversample >= 0 and oversample <= PS6000_MAX_OVERSAMPLE_8BIT
         timeInd = c_int32(0)
-        lpReady = None
+        lpReady = ps6000BlockReady()  # NULL; ctypes rejects None here
         if callback is not None:
 
-            def cbwrapper(handle: c_int16, status: PICO_STATUS_T, _: c_void_p):
+            def cbwrapper(handle: c_int16, status: int, _: c_void_p):
                 callback(handle, PICO_STATUS(status))
 
             lpReady = ps6000BlockReady(cbwrapper)
-        return (
-            PICO_STATUS(
-                self._ps6000RunBlock(
-                    handle,
-                    preSamples,
-                    postSamples,
-                    timebase,
-                    oversample,
-                    byref(timeInd),
-                    segment,
-                    lpReady,
-                    None,
-                )
+        status = self._with_callback(
+            self._callback_key("ps6000RunBlock", handle),
+            lpReady,
+            lambda: self._ps6000RunBlock(
+                handle,
+                preSamples,
+                postSamples,
+                timebase,
+                oversample,
+                byref(timeInd),
+                segment,
+                lpReady,
+                None,
             ),
-            timeInd.value,
+        )
+        return status, timeInd.value
+
+    def ps6000RunStreaming(
+        self,
+        handle: c_int16,
+        sampleInterval: int,
+        sampleIntervalTimeUnits: PS6000_TIME_UNITS,
+        maxPreTriggerSamples: int,
+        maxPostPreTriggerSamples: int,
+        autoStop: bool,
+        downSampleRatio: int,
+        downSampleRatioMode: PS6000_RATIO_MODE,
+        overviewBufferSize: int,
+    ) -> tuple[PICO_STATUS, int]:
+        interval = c_uint32(sampleInterval)
+        status = self._ps6000RunStreaming(
+            handle,
+            byref(interval),
+            sampleIntervalTimeUnits,
+            maxPreTriggerSamples,
+            maxPostPreTriggerSamples,
+            1 if autoStop else 0,
+            downSampleRatio,
+            downSampleRatioMode,
+            overviewBufferSize,
+        )
+        return status, interval.value
+
+    def ps6000GetStreamingLatestValues(
+        self,
+        handle: c_int16,
+        callback: Callable[[int, int, int, int, int, bool, bool], None],
+    ) -> PICO_STATUS:
+        """Callback args: handle, noOfSamples, startIndex, overflow, triggerAt,
+        triggered, autoStop."""
+
+        def cbwrapper(
+            handle: int,
+            noOfSamples: int,
+            startIndex: int,
+            overflow: int,
+            triggerAt: int,
+            triggered: int,
+            autoStop: int,
+            _: c_void_p,
+        ):
+            callback(
+                handle,
+                noOfSamples,
+                startIndex,
+                overflow,
+                triggerAt,
+                triggered != 0,
+                autoStop != 0,
+            )
+
+        lpPs6000Ready = ps6000StreamingReady(cbwrapper)
+        return self._with_callback(
+            self._callback_key("ps6000GetStreamingLatestValues", handle),
+            lpPs6000Ready,
+            lambda: self._ps6000GetStreamingLatestValues(handle, lpPs6000Ready, None),
         )
 
-    def ps6000GetAnalogueOffset(
-        self, handle: c_int16, range: PS6000_RANGE, coupling: PS6000_COUPLING
-    ):
-        minv = c_float(0)
-        maxv = c_float(0)
-        return (
-            PICO_STATUS(
-                self._ps6000GetAnalogueOffset(
-                    handle, range, coupling, byref(maxv), byref(minv)
-                )
-            ),
-            minv.value,
-            maxv.value,
+    def ps6000NoOfStreamingValues(self, handle: c_int16) -> tuple[PICO_STATUS, int]:
+        noOfValues = c_uint32(0)
+        status = self._ps6000NoOfStreamingValues(handle, byref(noOfValues))
+        return status, noOfValues.value
+
+    def ps6000GetMaxDownSampleRatio(
+        self,
+        handle: c_int16,
+        noOfUnaggreatedSamples: int,
+        downSampleRatioMode: PS6000_RATIO_MODE,
+        segmentIndex: int,
+    ) -> tuple[PICO_STATUS, int]:
+        maxDownSampleRatio = c_uint32(0)
+        status = self._ps6000GetMaxDownSampleRatio(
+            handle,
+            noOfUnaggreatedSamples,
+            byref(maxDownSampleRatio),
+            downSampleRatioMode,
+            segmentIndex,
         )
+        return status, maxDownSampleRatio.value
+
+    def ps6000GetValues(
+        self,
+        handle: c_int16,
+        startIndex: int,
+        noOfSamples: int,
+        downSampleRatio: int,
+        downSampleRatioMode: PS6000_RATIO_MODE,
+        segmentIndex: int,
+    ) -> tuple[PICO_STATUS, int, int]:
+        samples = c_uint32(noOfSamples)
+        overflow = c_int16(0)
+        status = self._ps6000GetValues(
+            handle,
+            startIndex,
+            byref(samples),
+            downSampleRatio,
+            downSampleRatioMode,
+            segmentIndex,
+            byref(overflow),
+        )
+        return status, samples.value, overflow.value
 
     def ps6000GetValuesBulk(
         self,
@@ -1162,63 +1570,246 @@ class PicoScope6000Wrapper:
         nsegments = (toSegment - fromSegment) + 1
         overflow = (c_int16 * nsegments)(0)
         return (
-            PICO_STATUS(
-                self._ps6000GetValuesBulk(
-                    handle,
-                    byref(nosamples_),
-                    fromSegment,
-                    toSegment,
-                    downsampleRatio,
-                    downsampleMode,
-                    overflow,
-                )
+            self._ps6000GetValuesBulk(
+                handle,
+                byref(nosamples_),
+                fromSegment,
+                toSegment,
+                downsampleRatio,
+                downsampleMode,
+                overflow,
             ),
             nosamples_.value,
             [int(f) for f in overflow],
         )
 
-    def ps6000GetValuesTriggerTimeOffsetBulk64(
+    def ps6000GetValuesAsync(
         self,
         handle: c_int16,
-        fromSegment: int,
-        toSegment: int,
-    ):
-        assert fromSegment <= toSegment
-        n = toSegment - fromSegment + 1
-        times = (c_int64 * n)()
-        units = (PS6000_TIME_UNITS_T * n)()
-        status = PICO_STATUS(
-            self._ps6000GetValuesTriggerTimeOffsetBulk64(
-                handle, times, units, fromSegment, toSegment
-            )
+        startIndex: int,
+        noOfSamples: int,
+        downSampleRatio: int,
+        downSampleRatioMode: PS6000_RATIO_MODE,
+        segmentIndex: int,
+        callback: Callable[[int, PICO_STATUS, int, int], None],
+    ) -> PICO_STATUS:
+        """Callback args: handle, status, noOfSamples, overflow."""
+
+        def cbwrapper(
+            handle: int, status: int, noOfSamples: int, overflow: int, _: c_void_p
+        ):
+            callback(handle, PICO_STATUS(status), noOfSamples, overflow)
+
+        lpDataReady = ps6000DataReady(cbwrapper)
+        return self._with_callback(
+            self._callback_key("ps6000GetValuesAsync", handle),
+            lpDataReady,
+            lambda: self._ps6000GetValuesAsync(
+                handle,
+                startIndex,
+                noOfSamples,
+                downSampleRatio,
+                downSampleRatioMode,
+                segmentIndex,
+                lpDataReady,
+                None,
+            ),
         )
-        unitmap = {
-            PS6000_TIME_UNITS.PS6000_FS: 1e-15,
-            PS6000_TIME_UNITS.PS6000_PS: 1e-12,
-            PS6000_TIME_UNITS.PS6000_NS: 1e-9,
-            PS6000_TIME_UNITS.PS6000_US: 1e-6,
-            PS6000_TIME_UNITS.PS6000_MS: 1e-3,
-            PS6000_TIME_UNITS.PS6000_S: 1.0,
-        }
-        times_sec = [t * unitmap[PS6000_TIME_UNITS(u)] for t, u in zip(times, units)]
-        return status, times_sec
+
+    def ps6000GetValuesOverlapped(
+        self,
+        handle: c_int16,
+        startIndex: int,
+        noOfSamples: int,
+        downSampleRatio: int,
+        downSampleRatioMode: PS6000_RATIO_MODE,
+        segmentIndex: int,
+    ) -> tuple[PICO_STATUS, c_uint32, c_int16]:
+        """Deferred request executed by the next ``ps6000RunBlock``.
+
+        The driver fills in the returned ``noOfSamples`` and ``overflow`` ctypes
+        objects when the capture completes, so they are returned as is (read
+        their ``.value`` afterwards) and kept alive by the wrapper.
+        """
+        samples = c_uint32(noOfSamples)
+        overflow = c_int16(0)
+        status = self._with_callback(
+            self._callback_key("ps6000GetValuesOverlapped", handle),
+            (samples, overflow),
+            lambda: self._ps6000GetValuesOverlapped(
+                handle,
+                startIndex,
+                byref(samples),
+                downSampleRatio,
+                downSampleRatioMode,
+                segmentIndex,
+                byref(overflow),
+            ),
+        )
+        return status, samples, overflow
+
+    def ps6000GetValuesOverlappedBulk(
+        self,
+        handle: c_int16,
+        startIndex: int,
+        noOfSamples: int,
+        downSampleRatio: int,
+        downSampleRatioMode: PS6000_RATIO_MODE,
+        fromSegmentIndex: int,
+        toSegmentIndex: int,
+    ) -> tuple[PICO_STATUS, c_uint32, Array[c_int16]]:
+        """Deferred bulk request executed by the next ``ps6000RunBlock``.
+
+        As for :meth:`ps6000GetValuesOverlapped`, the returned ctypes objects
+        are filled in by the driver later and kept alive by the wrapper.
+        """
+        assert fromSegmentIndex <= toSegmentIndex
+        samples = c_uint32(noOfSamples)
+        overflow = (c_int16 * (toSegmentIndex - fromSegmentIndex + 1))()
+        status = self._with_callback(
+            self._callback_key("ps6000GetValuesOverlappedBulk", handle),
+            (samples, overflow),
+            lambda: self._ps6000GetValuesOverlappedBulk(
+                handle,
+                startIndex,
+                byref(samples),
+                downSampleRatio,
+                downSampleRatioMode,
+                fromSegmentIndex,
+                toSegmentIndex,
+                overflow,
+            ),
+        )
+        return status, samples, overflow
+
+    def ps6000GetValuesBulkAsyc(
+        self,
+        handle: c_int16,
+        startIndex: int,
+        noOfSamples: int,
+        downSampleRatio: int,
+        downSampleRatioMode: PS6000_RATIO_MODE,
+        fromSegmentIndex: int,
+        toSegmentIndex: int,
+    ) -> tuple[PICO_STATUS, c_uint32, Array[c_int16]]:
+        """Asynchronous bulk read (the C name is misspelled in the driver).
+
+        The returned ctypes objects may be filled in by the driver after this
+        call returns, so they are returned as is and kept alive by the wrapper.
+        """
+        assert fromSegmentIndex <= toSegmentIndex
+        samples = c_uint32(noOfSamples)
+        overflow = (c_int16 * (toSegmentIndex - fromSegmentIndex + 1))()
+        status = self._with_callback(
+            self._callback_key("ps6000GetValuesBulkAsyc", handle),
+            (samples, overflow),
+            lambda: self._ps6000GetValuesBulkAsyc(
+                handle,
+                startIndex,
+                byref(samples),
+                downSampleRatio,
+                downSampleRatioMode,
+                fromSegmentIndex,
+                toSegmentIndex,
+                overflow,
+            ),
+        )
+        return status, samples, overflow
+
+    def ps6000GetNoOfCaptures(self, handle: c_int16):
+        captures = c_uint32()
+        return self._ps6000GetNoOfCaptures(handle, byref(captures)), captures.value
+
+    def ps6000GetNoOfProcessedCaptures(self, handle: c_int16):
+        captures = c_uint32()
+        return (
+            self._ps6000GetNoOfProcessedCaptures(handle, byref(captures)),
+            captures.value,
+        )
+
+    def ps6000Stop(self, handle: c_int16) -> PICO_STATUS:
+        return self._ps6000Stop(handle)
+
+    def ps6000SetNoOfCaptures(self, handle: c_int16, ncaptures: int):
+        assert ncaptures > 0
+        return self._ps6000SetNoOfCaptures(handle, ncaptures)
+
+    def ps6000SetWaveformLimiter(
+        self, handle: c_int16, nWaveformsPerSecond: int
+    ) -> PICO_STATUS:
+        return self._ps6000SetWaveformLimiter(handle, nWaveformsPerSecond)
+
+    def ps6000GetTriggerInfoBulk(
+        self, handle: c_int16, fromSegmentIndex: int, toSegmentIndex: int
+    ) -> tuple[PICO_STATUS, list[PS6000_TRIGGER_INFO]]:
+        assert fromSegmentIndex <= toSegmentIndex
+        triggerInfo = (PS6000_TRIGGER_INFO * (toSegmentIndex - fromSegmentIndex + 1))()
+        status = self._ps6000GetTriggerInfoBulk(
+            handle, triggerInfo, fromSegmentIndex, toSegmentIndex
+        )
+        return status, list(triggerInfo)
+
+    def ps6000EnumerateUnits(self) -> tuple[PICO_STATUS, int, list[str]]:
+        count = c_int16(0)
+        serials = create_string_buffer(4096)
+        serialLth = c_int16(len(serials))
+        status = self._ps6000EnumerateUnits(byref(count), serials, byref(serialLth))
+        text = serials.value.decode("utf-8")
+        return status, count.value, [s for s in text.split(",") if s]
 
     def ps6000SetExternalClock(
         self,
         handle: c_int16,
         frequency: PS6000_EXTERNAL_FREQUENCY,
-        threshold: float,
+        threshold: float | int,
     ) -> PICO_STATUS:
         if isinstance(threshold, float):
             assert threshold >= -1.0 and threshold <= 1.0, (
                 "if threashold is a float it must bit in [-1.0, 1.0]"
             )
-            threshold: int = round(threshold * 32512)
+            threshold = round(threshold * PS6000_MAX_VALUE)
         else:
             assert threshold >= -32512 and threshold <= 32512, (
                 "if threashold is an int it must bit in [-32512, 32512]"
             )
-        return PICO_STATUS(self._ps6000SetExternalClock(handle, frequency, threshold))
+        return self._ps6000SetExternalClock(handle, frequency, threshold)
+
+    def ps6000PingUnit(self, handle: c_int16) -> PICO_STATUS:
+        return self._ps6000PingUnit(handle)
+
+    def ps6000GetAnalogueOffset(
+        self, handle: c_int16, range: PS6000_RANGE, coupling: PS6000_COUPLING
+    ):
+        minv = c_float(0)
+        maxv = c_float(0)
+        return (
+            self._ps6000GetAnalogueOffset(
+                handle, range, coupling, byref(maxv), byref(minv)
+            ),
+            minv.value,
+            maxv.value,
+        )
+
+    def ps6000QueryTemperatures(
+        self, handle: c_int16, types: PS6000_TEMPERATURES
+    ) -> tuple[PICO_STATUS, int, float]:
+        """Undocumented in the programmer's guide; returns (status, types, temperature).
+
+        ``types`` is passed by reference and returned as written back by the driver.
+        """
+        types_ = PS6000_TEMPERATURES_T(types)
+        # Over-allocate in case the driver writes more than one value.
+        temperatures = (c_float * 16)()
+        status = self._ps6000QueryTemperatures(handle, byref(types_), temperatures)
+        return status, types_.value, temperatures[0]
+
+    def ps6000QueryOutputEdgeDetect(self, handle: c_int16) -> tuple[PICO_STATUS, bool]:
+        state = c_int16(0)
+        status = self._ps6000QueryOutputEdgeDetect(handle, byref(state))
+        return status, state.value != 0
+
+    def ps6000SetOutputEdgeDetect(self, handle: c_int16, state: bool) -> PICO_STATUS:
+        return self._ps6000SetOutputEdgeDetect(handle, 1 if state else 0)
 
 
 __all__ = (
@@ -1274,4 +1865,7 @@ __all__ = (
     "PS6000_TRIGGER_STATE",
     "PS6000_WAVE_TYPE",
     "PicoScope6000Wrapper",
+    "ps6000BlockReady",
+    "ps6000DataReady",
+    "ps6000StreamingReady",
 )

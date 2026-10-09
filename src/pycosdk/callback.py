@@ -1,5 +1,6 @@
-from ctypes import CFUNCTYPE, POINTER, c_int16, c_uint16, c_uint32, c_uint64, c_void_p
+from ctypes import POINTER, c_int16, c_uint16, c_uint32, c_uint64, c_void_p
 
+from ._base import CALLBACK_FUNCTYPE
 from .deviceenums import (
     PICO_CLOCK_REFERENCE_T,
     PICO_READ_SELECTION_T,
@@ -8,23 +9,23 @@ from .deviceenums import (
 from .devicestructs import PICO_USER_PROBE_INTERACTIONS
 from .status import PICO_STATUS_T
 
-PicoUpdateFirmwareProgress = CFUNCTYPE(None, c_int16, c_uint16)
+PicoUpdateFirmwareProgress = CALLBACK_FUNCTYPE(None, c_int16, c_uint16)
 
-PicoProbeInteractions = CFUNCTYPE(
+PicoProbeInteractions = CALLBACK_FUNCTYPE(
     None, c_int16, PICO_STATUS_T, POINTER(PICO_USER_PROBE_INTERACTIONS), c_uint32
 )
 
-PicoDataReadyUsingReads = CFUNCTYPE(
+PicoDataReadyUsingReads = CALLBACK_FUNCTYPE(
     None, c_int16, PICO_READ_SELECTION_T, PICO_STATUS_T, c_uint64, c_uint64, c_void_p
 )
 
-PicoExternalReferenceInteractions = CFUNCTYPE(
+PicoExternalReferenceInteractions = CALLBACK_FUNCTYPE(
     None, c_int16, PICO_STATUS_T, PICO_CLOCK_REFERENCE_T
 )
 
-PicoAWGOverrangeInteractions = CFUNCTYPE(None, c_int16, PICO_STATUS_T)
+PicoAWGOverrangeInteractions = CALLBACK_FUNCTYPE(None, c_int16, PICO_STATUS_T)
 
-PicoTemperatureSensorInteractions = CFUNCTYPE(
+PicoTemperatureSensorInteractions = CALLBACK_FUNCTYPE(
     None, c_int16, PICO_TEMPERATURE_REFERENCE_T
 )
 

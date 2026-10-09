@@ -27,6 +27,16 @@ PICO_INFO_T = c_uint32
 
 
 class PICO_STATUS(IntEnum):
+    @classmethod
+    def _missing_(cls, value: object) -> "PICO_STATUS | None":
+        # Drivers may return codes newer than this list; do not fail on them.
+        if not isinstance(value, int):
+            return None
+        member = int.__new__(cls, value)
+        member._name_ = f"PICO_UNKNOWN_STATUS_0x{value:08X}"
+        member._value_ = value
+        return member
+
     # The PicoScope is functioning correctly.
     PICO_OK = 0x00000000
     # An attempt has been made to open more than <API>_MAX_UNITS.

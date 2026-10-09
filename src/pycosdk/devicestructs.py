@@ -41,6 +41,9 @@ from .deviceenums import (
 )
 from .status import PICO_STATUS_T
 
+DIGITAL_PORT_SERIAL_LENGTH = 10
+DIGITAL_PORT_CALIBRATION_DATE_LENGTH = 8
+
 
 @final
 class PICO_TRIGGER_INFO(Structure):
@@ -201,8 +204,8 @@ class PICO_DIGITAL_PORT_INTERACTIONS(Structure):
         ("channel_", PICO_CHANNEL_T),
         ("digitalPortName_", PICO_DIGITAL_PORT_T),
         ("status_", PICO_STATUS_T),
-        ("serial_[DIGITAL_PORT_SERIAL_LENGTH]", c_int8),
-        ("calibrationDate_[DIGITAL_PORT_CALIBRATION_DATE_LENGTH]", c_int8),
+        ("serial_", c_int8 * DIGITAL_PORT_SERIAL_LENGTH),
+        ("calibrationDate_", c_int8 * DIGITAL_PORT_CALIBRATION_DATE_LENGTH),
     ]
 
 
@@ -305,6 +308,8 @@ class PICO_LED_STATE_PROPERTIES(Structure):
 
 
 __all__ = (
+    "DIGITAL_PORT_CALIBRATION_DATE_LENGTH",
+    "DIGITAL_PORT_SERIAL_LENGTH",
     "PICO_CHANNEL_OVERVOLTAGE_TRIPPED",
     "PICO_CONDITION",
     "PICO_DATA_BUFFERS",

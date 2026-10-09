@@ -31,8 +31,10 @@ pip install pycosdk
 | `ps6000a` | `PicoScope6000aWrapper`  |
 | `psospa`  | `PicoScope3000eWrapper`  |
 
-Coverage is not exhaustive — each wrapper binds the subset of the driver API
-that has been needed so far.
+Each wrapper binds every function declared in the corresponding SDK header
+(for `ps6000a` including `ps6000aApiExperimental.h`). Functions that the
+installed driver does not export raise `MissingFunctionException` when called,
+so an older driver version does not prevent the wrapper from loading.
 
 ## Usage
 
@@ -41,7 +43,8 @@ explicit `library_path` if it is not on the default search path; otherwise a
 `MissingLibraryException` is raised when the library cannot be found.
 
 Methods return the driver's `PICO_STATUS` as an enum member, followed by any
-output parameters. Statuses are returned, not raised — check them yourself.
+output parameters. By default, a status other than `PICO_OK` raises a
+`StatusException` (see [Status handling](#status-handling)).
 
 ```python
 from pycosdk import (
@@ -50,16 +53,14 @@ from pycosdk import (
     PICO_CONNECT_PROBE_RANGE,
     PICO_COUPLING,
     PICO_DEVICE_RESOLUTION,
-    PICO_STATUS,
     PicoScope6000aWrapper,
 )
 
 scope = PicoScope6000aWrapper()
 
 status, handle = scope.ps6000aOpenUnit(None, PICO_DEVICE_RESOLUTION.PICO_DR_8BIT)
-assert status == PICO_STATUS.PICO_OK
 
-status = scope.ps6000aSetChannelOn(
+scope.ps6000aSetChannelOn(
     handle,
     PICO_CHANNEL.PICO_CHANNEL_A,
     PICO_COUPLING.PICO_DC_50OHM,
@@ -71,6 +72,49 @@ status = scope.ps6000aSetChannelOn(
 scope.ps6000aCloseUnit(handle)
 ```
 
+## Status handling
+
+Non-OK statuses fall into three categories, each handled by one of the actions
+`"raise"` (raise `StatusException`), `"warn"` (emit a `StatusWarning`) or
+`"ignore"`. Unless a method raises, it still returns the status.
+
+| Category  | Statuses                                                        | Default    |
+| --------- | --------------------------------------------------------------- | ---------- |
+| `error`   | everything not covered below                                    | `"raise"`  |
+| `warning` | `PICO_WARNING_*` and `PICO_SHOTS_SWEEPS_WARNING`                 | `"warn"`   |
+| `info`    | statuses a specific function uses to report a non-error condition | `"ignore"` |
+
+Examples for `info` statuses are the power-source statuses returned by
+`ps3000aOpenUnit` or `ps5000aCurrentPowerSource` (e.g.
+`PICO_POWER_SUPPLY_NOT_CONNECTED`) and `PICO_WAITING_FOR_DATA_BUFFERS` from
+`ps6000aGetStreamingLatestValues`.
+
+Like NumPy's `seterr`/`errstate`, the configuration is global rather than per
+wrapper instance:
+
+```python
+import pycosdk
+
+# Process-wide; returns the previous settings.
+old = pycosdk.seterr(error="warn", info="warn")
+pycosdk.seterr(**old)
+
+# Temporarily, as context manager or decorator. Overrides are local to the
+# current thread / asyncio task.
+with pycosdk.errstate(error="ignore"):
+    status = scope.ps6000aStop(handle)
+
+try:
+    scope.ps6000aSetChannelOn(handle, ...)
+except pycosdk.StatusException as e:
+    print(e.function, e.status)
+```
+
+Callbacks registered with the driver (e.g. via `RunBlock` or the
+`Set*InteractionCallback` functions) receive the status as a parameter and are
+not subject to this configuration. The wrappers keep references to the
+callback objects handed to the driver, so passing a lambda is safe.
+
 ## Type checking
 
 The package ships a `py.typed` marker, so annotations are visible to `mypy`,
@@ -78,4 +122,4 @@ The package ships a `py.typed` marker, so annotations are visible to `mypy`,
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE).
+MIT License — see [LICENSE](LICENSE).
