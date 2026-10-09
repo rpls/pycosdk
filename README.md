@@ -12,7 +12,9 @@ from the SDK headers as `IntEnum`/`IntFlag` and `ctypes.Structure` types.
 - Python 3.11+
 - The **PicoSDK drivers, installed separately**. `pycosdk` does not bundle or
   install them — it locates the shared libraries at runtime via
-  `ctypes.util.find_library`. Download them from
+  `ctypes.util.find_library`. On macOS, it additionally looks in the SDK's
+  default install location `/Library/Frameworks/PicoSDK.framework/Libraries`,
+  so setting `DYLD_LIBRARY_PATH` is not needed. Download them from
   [picotech.com/downloads](https://www.picotech.com/downloads).
 
 ## Installation

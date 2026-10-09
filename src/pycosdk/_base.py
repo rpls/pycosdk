@@ -4,6 +4,7 @@ from collections import deque
 from collections.abc import Callable, Collection
 from ctypes import LibraryLoader
 from ctypes.util import find_library
+from pathlib import Path
 from typing import Any, ClassVar
 
 from .exceptions import MissingFunctionException, MissingLibraryException
@@ -26,6 +27,30 @@ POWER_SOURCE_STATUSES: frozenset[PICO_STATUS] = frozenset(
     }
 )
 
+# Default install location of the PicoSDK on macOS. The installer puts each
+# driver into its own folder, which is not on the dyld search path.
+MACOS_SDK_LIBRARIES = Path("/Library/Frameworks/PicoSDK.framework/Libraries")
+
+
+def find_driver_library(name: str) -> str | None:
+    """Locate the shared library of the driver ``name`` (e.g. ``"ps6000a"``).
+
+    Uses :func:`ctypes.util.find_library`, falling back to the PicoSDK framework
+    folder on macOS.
+    """
+    path = find_library(name)
+    if path is None and sys.platform == "darwin":
+        folder = MACOS_SDK_LIBRARIES / f"lib{name}"
+        unversioned = folder / f"lib{name}.dylib"
+        if unversioned.is_file():
+            path = str(unversioned)
+        else:
+            versioned = sorted(folder.glob(f"lib{name}.*.dylib"))
+            if versioned:
+                path = str(versioned[-1])
+    return path
+
+
 # How many replaced callbacks are kept alive in addition to the current ones.
 # The driver may still be executing a callback when it gets replaced, e.g., when
 # the next block is started right after a BlockReady callback signalled the
@@ -38,7 +63,7 @@ class PicoScopeWrapperBase:
 
     def __init__(self, library_path: str | None = None):
         if library_path is None:
-            library_path = find_library(self._library_name)
+            library_path = find_driver_library(self._library_name)
         if library_path is None:
             raise MissingLibraryException(f"{self._library_name} library not found")
 
@@ -131,6 +156,8 @@ class PicoScopeWrapperBase:
 
 __all__ = (
     "CALLBACK_FUNCTYPE",
+    "MACOS_SDK_LIBRARIES",
     "POWER_SOURCE_STATUSES",
     "PicoScopeWrapperBase",
+    "find_driver_library",
 )
