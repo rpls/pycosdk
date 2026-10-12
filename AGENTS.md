@@ -45,6 +45,7 @@ The installed SDK (C headers and driver libraries) is the reference for the wrap
 ## Wrapper Conventions
 
 - Enums are `IntEnum`/`IntFlag` plus a `<NAME>_T` ctypes alias (`c_int32`, or `c_uint32` where the C type is unsigned). Structs are `ctypes.Structure`; keep `_pack_ = 1` where the header uses `#pragma pack(push, 1)`.
+- Driver-specific names that the header leaves unprefixed (or misspells) get the driver prefix: `PS5000_` for types, constants and enum members, `ps2000` for callback types. Note the C name in a `# C: <name>` comment. Names from the shared `Pico*.h` headers keep their C names.
 - Bind every driver function in `__init__` via `self._<Fn> = self._bind("<Fn>", [argtypes], info=...)`. `_bind` sets `restype`, `argtypes` and an `errcheck`, so the bound callable returns an already checked `PICO_STATUS`. Never set `restype`/`argtypes` by hand (note the lowercase spelling).
 - `argtypes` must match the C prototype exactly. Sample/AWG data buffers use `c_void_p` so ctypes arrays, numpy `.ctypes.data` and ints work.
 - `info=` lists statuses that are not errors *for that function* (e.g. power-source statuses from `OpenUnit`). Add a short comment explaining why. `PICO_WARNING_*` is handled globally, don't list it.

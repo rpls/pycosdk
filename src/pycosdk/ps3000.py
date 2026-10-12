@@ -81,10 +81,10 @@ PS3204_MAX_ETS_INTERLEAVE = 25
 
 PS3000_MAX_ETS_CYCLES_INTERLEAVE_RATIO = 10
 PS3000_MIN_ETS_CYCLES_INTERLEAVE_RATIO = 1
-PS300_MAX_ETS_SAMPLES = 100000  # sic, as in ps3000.h
+PS3000_MAX_ETS_SAMPLES = 100000  # C: PS300_MAX_ETS_SAMPLES (sic)
 
-MAX_PULSE_WIDTH_QUALIFIER_COUNT = 16777215
-MAX_HOLDOFF_COUNT = 8388607
+PS3000_MAX_PULSE_WIDTH_QUALIFIER_COUNT = 16777215  # C: MAX_PULSE_WIDTH_QUALIFIER_COUNT
+PS3000_MAX_HOLDOFF_COUNT = 8388607  # C: MAX_HOLDOFF_COUNT
 
 
 class PS3000_CHANNEL(IntEnum):
@@ -205,92 +205,99 @@ PS3000_ETS_MODE_T = c_int32
 
 
 # The advanced trigger types are not prefixed in ps3000.h.
-class THRESHOLD_DIRECTION(IntEnum):
-    ABOVE = 0
-    BELOW = 1
-    RISING = 2
-    FALLING = 3
-    RISING_OR_FALLING = 4
-    INSIDE = ABOVE
-    OUTSIDE = BELOW
-    ENTER = RISING
-    EXIT = FALLING
-    ENTER_OR_EXIT = RISING_OR_FALLING
-    NONE = RISING
+class PS3000_THRESHOLD_DIRECTION(IntEnum):
+    # C: THRESHOLD_DIRECTION with unprefixed members
+    PS3000_ABOVE = 0
+    PS3000_BELOW = 1
+    PS3000_RISING = 2
+    PS3000_FALLING = 3
+    PS3000_RISING_OR_FALLING = 4
+    PS3000_INSIDE = PS3000_ABOVE
+    PS3000_OUTSIDE = PS3000_BELOW
+    PS3000_ENTER = PS3000_RISING
+    PS3000_EXIT = PS3000_FALLING
+    PS3000_ENTER_OR_EXIT = PS3000_RISING_OR_FALLING
+    PS3000_NONE = PS3000_RISING
 
 
-THRESHOLD_DIRECTION_T = c_int32
+PS3000_THRESHOLD_DIRECTION_T = c_int32
 
 
-class THRESHOLD_MODE(IntEnum):
-    LEVEL = 0
-    WINDOW = 1
+class PS3000_THRESHOLD_MODE(IntEnum):
+    # C: THRESHOLD_MODE with unprefixed members
+    PS3000_LEVEL = 0
+    PS3000_WINDOW = 1
 
 
-THRESHOLD_MODE_T = c_int32
+PS3000_THRESHOLD_MODE_T = c_int32
 
 
-class TRIGGER_STATE(IntEnum):
-    CONDITION_DONT_CARE = 0
-    CONDITION_TRUE = 1
-    CONDITION_FALSE = 2
-    CONDITION_MAX = 3
+class PS3000_TRIGGER_STATE(IntEnum):
+    # C: TRIGGER_STATE with unprefixed members
+    PS3000_CONDITION_DONT_CARE = 0
+    PS3000_CONDITION_TRUE = 1
+    PS3000_CONDITION_FALSE = 2
+    PS3000_CONDITION_MAX = 3
 
 
-TRIGGER_STATE_T = c_int32
+PS3000_TRIGGER_STATE_T = c_int32
 
 
-class PULSE_WIDTH_TYPE(IntEnum):
-    PW_TYPE_NONE = 0
-    PW_TYPE_LESS_THAN = 1
-    PW_TYPE_GREATER_THAN = 2
-    PW_TYPE_IN_RANGE = 3
-    PW_TYPE_OUT_OF_RANGE = 4
+class PS3000_PULSE_WIDTH_TYPE(IntEnum):
+    # C: PULSE_WIDTH_TYPE with unprefixed members
+    PS3000_PW_TYPE_NONE = 0
+    PS3000_PW_TYPE_LESS_THAN = 1
+    PS3000_PW_TYPE_GREATER_THAN = 2
+    PS3000_PW_TYPE_IN_RANGE = 3
+    PS3000_PW_TYPE_OUT_OF_RANGE = 4
 
 
-PULSE_WIDTH_TYPE_T = c_int32
+PS3000_PULSE_WIDTH_TYPE_T = c_int32
 
 
 @final
-class TRIGGER_CHANNEL_PROPERTIES(Structure):
+class PS3000_TRIGGER_CHANNEL_PROPERTIES(Structure):
+    # C: TRIGGER_CHANNEL_PROPERTIES
     _pack_ = 1
     _fields_ = [
         ("thresholdMajor", c_int16),
         ("thresholdMinor", c_int16),
         ("hysteresis", c_uint16),
         ("channel", c_int16),
-        ("thresholdMode", THRESHOLD_MODE_T),
+        ("thresholdMode", PS3000_THRESHOLD_MODE_T),
     ]
 
 
 @final
-class TRIGGER_CONDITIONS(Structure):
+class PS3000_TRIGGER_CONDITIONS(Structure):
+    # C: TRIGGER_CONDITIONS
     _pack_ = 1
     _fields_ = [
-        ("channelA", TRIGGER_STATE_T),
-        ("channelB", TRIGGER_STATE_T),
-        ("channelC", TRIGGER_STATE_T),
-        ("channelD", TRIGGER_STATE_T),
-        ("external", TRIGGER_STATE_T),
-        ("pulseWidthQualifier", TRIGGER_STATE_T),
+        ("channelA", PS3000_TRIGGER_STATE_T),
+        ("channelB", PS3000_TRIGGER_STATE_T),
+        ("channelC", PS3000_TRIGGER_STATE_T),
+        ("channelD", PS3000_TRIGGER_STATE_T),
+        ("external", PS3000_TRIGGER_STATE_T),
+        ("pulseWidthQualifier", PS3000_TRIGGER_STATE_T),
     ]
 
 
 @final
-class PWQ_CONDITIONS(Structure):
+class PS3000_PWQ_CONDITIONS(Structure):
+    # C: PWQ_CONDITIONS
     _pack_ = 1
     _fields_ = [
-        ("channelA", TRIGGER_STATE_T),
-        ("channelB", TRIGGER_STATE_T),
-        ("channelC", TRIGGER_STATE_T),
-        ("channelD", TRIGGER_STATE_T),
-        ("external", TRIGGER_STATE_T),
+        ("channelA", PS3000_TRIGGER_STATE_T),
+        ("channelB", PS3000_TRIGGER_STATE_T),
+        ("channelC", PS3000_TRIGGER_STATE_T),
+        ("channelD", PS3000_TRIGGER_STATE_T),
+        ("external", PS3000_TRIGGER_STATE_T),
     ]
 
 
 PS3000_CALLBACK_FUNC = CALLBACK_FUNCTYPE(c_int16, POINTER(c_int16), c_int16)
 
-GetOverviewBuffersMaxMin = CALLBACK_FUNCTYPE(
+ps3000GetOverviewBuffersMaxMin = CALLBACK_FUNCTYPE(  # C: GetOverviewBuffersMaxMin
     None, POINTER(POINTER(c_int16)), c_int16, c_uint32, c_int16, c_int16, c_uint32
 )
 
@@ -492,7 +499,7 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         # error (no new data), so it is not checked.
         self._ps3000_get_streaming_last_values = self._bind_legacy(
             "ps3000_get_streaming_last_values",
-            [c_int16, GetOverviewBuffersMaxMin],
+            [c_int16, ps3000GetOverviewBuffersMaxMin],
             c_int16,
         )
         # Inverted: returns 0 on success and 1 for an invalid handle.
@@ -553,14 +560,14 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         )
         self._ps3000SetAdvTriggerChannelProperties = self._bind_legacy(
             "ps3000SetAdvTriggerChannelProperties",
-            [c_int16, POINTER(TRIGGER_CHANNEL_PROPERTIES), c_int16, c_int32],
+            [c_int16, POINTER(PS3000_TRIGGER_CHANNEL_PROPERTIES), c_int16, c_int32],
             c_int16,
             failed=_is_zero,
             error_code=unit_error,
         )
         self._ps3000SetAdvTriggerChannelConditions = self._bind_legacy(
             "ps3000SetAdvTriggerChannelConditions",
-            [c_int16, POINTER(TRIGGER_CONDITIONS), c_int16],
+            [c_int16, POINTER(PS3000_TRIGGER_CONDITIONS), c_int16],
             c_int16,
             failed=_is_zero,
             error_code=unit_error,
@@ -569,11 +576,11 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
             "ps3000SetAdvTriggerChannelDirections",
             [
                 c_int16,
-                THRESHOLD_DIRECTION_T,
-                THRESHOLD_DIRECTION_T,
-                THRESHOLD_DIRECTION_T,
-                THRESHOLD_DIRECTION_T,
-                THRESHOLD_DIRECTION_T,
+                PS3000_THRESHOLD_DIRECTION_T,
+                PS3000_THRESHOLD_DIRECTION_T,
+                PS3000_THRESHOLD_DIRECTION_T,
+                PS3000_THRESHOLD_DIRECTION_T,
+                PS3000_THRESHOLD_DIRECTION_T,
             ],
             c_int16,
             failed=_is_zero,
@@ -583,12 +590,12 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
             "ps3000SetPulseWidthQualifier",
             [
                 c_int16,
-                POINTER(PWQ_CONDITIONS),
+                POINTER(PS3000_PWQ_CONDITIONS),
                 c_int16,
-                THRESHOLD_DIRECTION_T,
+                PS3000_THRESHOLD_DIRECTION_T,
                 c_uint32,
                 c_uint32,
-                PULSE_WIDTH_TYPE_T,
+                PS3000_PULSE_WIDTH_TYPE_T,
             ],
             c_int16,
             failed=_is_zero,
@@ -911,7 +918,7 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         be accessed during the callback; as in C, only access the buffers of
         enabled channels. Returns whether the callback will be called.
         """
-        lpGetOverviewBuffersMaxMin = GetOverviewBuffersMaxMin(
+        lpGetOverviewBuffersMaxMin = ps3000GetOverviewBuffersMaxMin(
             _overview_callback(callback, _OVERVIEW_BUFFERS)
         )
         result = self._with_callback(
@@ -1048,20 +1055,20 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
     def ps3000SetAdvTriggerChannelProperties(
         self,
         handle: c_int16,
-        channelProperties: Sequence[TRIGGER_CHANNEL_PROPERTIES],
+        channelProperties: Sequence[PS3000_TRIGGER_CHANNEL_PROPERTIES],
         autoTriggerMilliseconds: int,
     ) -> int:
         n = len(channelProperties)
-        properties = (TRIGGER_CHANNEL_PROPERTIES * n)(*channelProperties)
+        properties = (PS3000_TRIGGER_CHANNEL_PROPERTIES * n)(*channelProperties)
         return self._ps3000SetAdvTriggerChannelProperties(
             handle, properties if n else None, n, autoTriggerMilliseconds
         )
 
     def ps3000SetAdvTriggerChannelConditions(
-        self, handle: c_int16, conditions: Sequence[TRIGGER_CONDITIONS]
+        self, handle: c_int16, conditions: Sequence[PS3000_TRIGGER_CONDITIONS]
     ) -> int:
         n = len(conditions)
-        conds = (TRIGGER_CONDITIONS * n)(*conditions)
+        conds = (PS3000_TRIGGER_CONDITIONS * n)(*conditions)
         return self._ps3000SetAdvTriggerChannelConditions(
             handle, conds if n else None, n
         )
@@ -1069,11 +1076,11 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
     def ps3000SetAdvTriggerChannelDirections(
         self,
         handle: c_int16,
-        channelA: THRESHOLD_DIRECTION,
-        channelB: THRESHOLD_DIRECTION,
-        channelC: THRESHOLD_DIRECTION,
-        channelD: THRESHOLD_DIRECTION,
-        ext: THRESHOLD_DIRECTION,
+        channelA: PS3000_THRESHOLD_DIRECTION,
+        channelB: PS3000_THRESHOLD_DIRECTION,
+        channelC: PS3000_THRESHOLD_DIRECTION,
+        channelD: PS3000_THRESHOLD_DIRECTION,
+        ext: PS3000_THRESHOLD_DIRECTION,
     ) -> int:
         return self._ps3000SetAdvTriggerChannelDirections(
             handle, channelA, channelB, channelC, channelD, ext
@@ -1082,14 +1089,14 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
     def ps3000SetPulseWidthQualifier(
         self,
         handle: c_int16,
-        conditions: Sequence[PWQ_CONDITIONS],
-        direction: THRESHOLD_DIRECTION,
+        conditions: Sequence[PS3000_PWQ_CONDITIONS],
+        direction: PS3000_THRESHOLD_DIRECTION,
         lower: int,
         upper: int,
-        type: PULSE_WIDTH_TYPE,
+        type: PS3000_PULSE_WIDTH_TYPE,
     ) -> int:
         n = len(conditions)
-        conds = (PWQ_CONDITIONS * n)(*conditions)
+        conds = (PS3000_PWQ_CONDITIONS * n)(*conditions)
         return self._ps3000SetPulseWidthQualifier(
             handle, conds if n else None, n, direction, lower, upper, type
         )
@@ -1104,9 +1111,9 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
 
 
 __all__ = (
-    "MAX_HOLDOFF_COUNT",
-    "MAX_PULSE_WIDTH_QUALIFIER_COUNT",
-    "PS300_MAX_ETS_SAMPLES",
+    "PS3000_MAX_HOLDOFF_COUNT",
+    "PS3000_MAX_PULSE_WIDTH_QUALIFIER_COUNT",
+    "PS3000_MAX_ETS_SAMPLES",
     "PS3000_CALLBACK_FUNC",
     "PS3000_CHANNEL",
     "PS3000_ERROR",
@@ -1145,14 +1152,14 @@ __all__ = (
     "PS3424_MAX_TIMEBASE",
     "PS3425_MAX_TIMEBASE",
     "PS3426_MAX_TIMEBASE",
-    "PULSE_WIDTH_TYPE",
-    "PWQ_CONDITIONS",
-    "THRESHOLD_DIRECTION",
-    "THRESHOLD_MODE",
-    "TRIGGER_CHANNEL_PROPERTIES",
-    "TRIGGER_CONDITIONS",
-    "TRIGGER_STATE",
-    "GetOverviewBuffersMaxMin",
+    "PS3000_PULSE_WIDTH_TYPE",
+    "PS3000_PWQ_CONDITIONS",
+    "PS3000_THRESHOLD_DIRECTION",
+    "PS3000_THRESHOLD_MODE",
+    "PS3000_TRIGGER_CHANNEL_PROPERTIES",
+    "PS3000_TRIGGER_CONDITIONS",
+    "PS3000_TRIGGER_STATE",
+    "ps3000GetOverviewBuffersMaxMin",
     "OverviewBuffersCallback",
     "PicoScope3000Wrapper",
 )

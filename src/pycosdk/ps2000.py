@@ -190,7 +190,7 @@ class PS2000_SWEEP_TYPE(IntEnum):
     PS2000_DOWN = 1
     PS2000_UPDOWN = 2
     PS2000_DOWNUP = 3
-    MAX_SWEEP_TYPES = 4
+    PS2000_MAX_SWEEP_TYPES = 4  # C: MAX_SWEEP_TYPES
 
 
 PS2000_SWEEP_TYPE_T = c_int32
@@ -294,11 +294,11 @@ class PS2000_PWQ_CONDITIONS(Structure):
     ]
 
 
-GetOverviewBuffersMaxMin = CALLBACK_FUNCTYPE(
+ps2000GetOverviewBuffersMaxMin = CALLBACK_FUNCTYPE(  # C: GetOverviewBuffersMaxMin
     None, POINTER(POINTER(c_int16)), c_int16, c_uint32, c_int16, c_int16, c_uint32
 )
 
-# Callback signature of the wrapper methods taking a GetOverviewBuffersMaxMin:
+# Callback signature of the wrapper methods taking a ps2000GetOverviewBuffersMaxMin:
 # (overviewBuffers, overflow, triggeredAt, triggered, auto_stop, nValues).
 OverviewBuffersCallback = Callable[
     [Sequence[list[int] | None], int, int, bool, bool, int], None
@@ -346,7 +346,7 @@ def _query_error_code(
 
 
 class _OverviewBuffers(Sequence[list[int] | None]):
-    """The ``int16_t **overviewBuffers`` of a ``GetOverviewBuffersMaxMin`` callback.
+    """The ``int16_t **overviewBuffers`` of a ``ps2000GetOverviewBuffersMaxMin`` callback.
 
     Item ``i`` is a copy of the ``nValues`` samples of overview buffer ``i``
     (channel A max, A min, B max, B min, ...), or ``None`` for a NULL buffer.
@@ -389,7 +389,7 @@ class _OverviewBuffers(Sequence[list[int] | None]):
 def _overview_callback(
     callback: OverviewBuffersCallback, count: int
 ) -> Callable[[Any, int, int, int, int, int], None]:
-    """Adapt ``callback`` to the raw ``GetOverviewBuffersMaxMin`` arguments."""
+    """Adapt ``callback`` to the raw ``ps2000GetOverviewBuffersMaxMin`` arguments."""
 
     def cbwrapper(
         overviewBuffers: Any,
@@ -602,7 +602,7 @@ class PicoScope2000Wrapper(PicoScopeWrapperBase):
         # error (no new data), so it is not checked.
         self._ps2000_get_streaming_last_values = self._bind_legacy(
             "ps2000_get_streaming_last_values",
-            [c_int16, GetOverviewBuffersMaxMin],
+            [c_int16, ps2000GetOverviewBuffersMaxMin],
             c_int16,
         )
         # Inverted: returns 0 on success and 1 for an invalid handle.
@@ -1017,7 +1017,7 @@ class PicoScope2000Wrapper(PicoScopeWrapperBase):
         be accessed during the callback; as in C, only access the buffers of
         enabled channels. Returns whether the callback will be called.
         """
-        lpGetOverviewBuffersMaxMin = GetOverviewBuffersMaxMin(
+        lpGetOverviewBuffersMaxMin = ps2000GetOverviewBuffersMaxMin(
             _overview_callback(callback, _OVERVIEW_BUFFERS)
         )
         result = self._with_callback(
@@ -1282,7 +1282,7 @@ __all__ = (
     "PS2204_MAX_ETS_INTERLEAVE",
     "PS2205_MAX_ETS_CYCLES",
     "PS2205_MAX_ETS_INTERLEAVE",
-    "GetOverviewBuffersMaxMin",
+    "ps2000GetOverviewBuffersMaxMin",
     "OverviewBuffersCallback",
     "PicoScope2000Wrapper",
 )
