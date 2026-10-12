@@ -147,6 +147,7 @@ from .ps3000a import (
     PS3207B_MAX_SIG_GEN_BUFFER_SIZE,
     PicoScope3000aWrapper,
 )
+from .ps5000 import PicoScope5000Wrapper
 from .ps5000a import (
     PS5000A_BANDWIDTH_LIMITER,
     PS5000A_CHANNEL,
@@ -512,6 +513,7 @@ __all__ = (
     "PicoScope2000aWrapper",
     "PicoScope3000aWrapper",
     "PicoScope3000eWrapper",
+    "PicoScope5000Wrapper",
     "PicoScope5000aWrapper",
     "PicoScope6000Wrapper",
     "PicoScope6000aWrapper",

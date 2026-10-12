@@ -20,7 +20,7 @@ All code lives in `src/pycosdk/`:
 - `exceptions.py`: `StatusException`, `StatusWarning`, `MissingLibraryException`, `MissingFunctionException`.
 - `status.py` (`PicoStatus.h`), `deviceenums.py` (`PicoDeviceEnums.h`), `devicestructs.py` (`PicoDeviceStructs.h`), `connectprobe.py` (`PicoConnectProbes.h`), `callback.py` (`PicoCallback.h`), `version.py` (`PicoVersion.h`): types shared by the newer drivers.
 - One module per driver, each with its driver-specific enums/structs/constants, callback types and the wrapper class:
-  - `ps2000a.py`, `ps3000a.py`, `ps5000a.py`, `ps6000.py`: legacy drivers, mostly own `PS<model>_*` types.
+  - `ps2000a.py`, `ps3000a.py`, `ps5000.py`, `ps5000a.py`, `ps6000.py`: legacy drivers, mostly own `PS<model>_*` types.
   - `ps6000a.py`: also covers `ps6000aApiExperimental.h` / `PicoDeviceDefinitionsExperimental.h`.
   - `psosca.py`: driver `psospa`, class `PicoScope3000eWrapper` (file name differs from the driver name).
 - `__init__.py`: re-exports wrappers, shared types and the `PS3000A_*` names; other driver-specific names are imported from their module.
