@@ -27,6 +27,7 @@ pip install pycosdk
 
 | Driver    | Wrapper class            |
 | --------- | ------------------------ |
+| `ps2000`  | `PicoScope2000Wrapper`   |
 | `ps2000a` | `PicoScope2000aWrapper`  |
 | `ps3000a` | `PicoScope3000aWrapper`  |
 | `ps5000`  | `PicoScope5000Wrapper`   |
