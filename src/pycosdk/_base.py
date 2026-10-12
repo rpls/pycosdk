@@ -1,11 +1,12 @@
 # pyright: reportAny=false, reportExplicitAny=false
 import sys
+import threading
 from collections import deque
 from collections.abc import Callable, Collection
 from ctypes import LibraryLoader
 from ctypes.util import find_library
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Self
 
 from .exceptions import MissingFunctionException, MissingLibraryException
 from .status import PICO_STATUS, PICO_STATUS_T
@@ -57,15 +58,40 @@ def find_driver_library(name: str) -> str | None:
 # previous one, so the old function pointer must not be freed immediately.
 _RETIRED_CALLBACKS = 32
 
+# Shared wrapper instances per wrapper class, see PicoScopeWrapperBase.instance.
+_instances: dict[type["PicoScopeWrapperBase"], "PicoScopeWrapperBase"] = {}
+_instances_lock = threading.Lock()
+
 
 class PicoScopeWrapperBase:
     _library_name: ClassVar[str]
+
+    @classmethod
+    def instance(cls, library_path: str | None = None) -> Self:
+        """Return the shared wrapper, loading the driver library on the first call.
+
+        The driver keeps its state per process, so one wrapper per driver is
+        enough. ``library_path`` only takes effect on the first call; passing a
+        different path once the library is loaded raises :class:`RuntimeError`.
+        If loading fails, nothing is cached and a later call tries again.
+        """
+        with _instances_lock:
+            inst = _instances.get(cls)
+            if inst is None:
+                inst = _instances[cls] = cls(library_path)
+            elif library_path is not None and library_path != inst.library_path:
+                raise RuntimeError(
+                    f"{cls.__name__} is already loaded from {inst.library_path!r}"
+                )
+            assert isinstance(inst, cls)
+            return inst
 
     def __init__(self, library_path: str | None = None) -> None:
         if library_path is None:
             library_path = find_driver_library(self._library_name)
         if library_path is None:
             raise MissingLibraryException(f"{self._library_name} library not found")
+        self.library_path: str = library_path
 
         if sys.platform == "win32":
             from ctypes import WinDLL

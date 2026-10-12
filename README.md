@@ -40,9 +40,12 @@ so an older driver version does not prevent the wrapper from loading.
 
 ## Usage
 
-Instantiating a wrapper loads the corresponding shared library. Pass an
-explicit `library_path` if it is not on the default search path; otherwise a
-`MissingLibraryException` is raised when the library cannot be found.
+Importing `pycosdk` does not load any driver library. Get a wrapper with
+`instance()`: the first call loads the corresponding shared library, later calls
+return the same wrapper. Pass an explicit `library_path` to the first call if
+the library is not on the default search path; otherwise a
+`MissingLibraryException` is raised when the library cannot be found. Once
+loaded, asking for a different `library_path` raises a `RuntimeError`.
 
 Methods return the driver's `PICO_STATUS` as an enum member, followed by any
 output parameters. By default, a status other than `PICO_OK` raises a
@@ -58,7 +61,7 @@ from pycosdk import (
     PicoScope6000aWrapper,
 )
 
-scope = PicoScope6000aWrapper()
+scope = PicoScope6000aWrapper.instance()
 
 status, handle = scope.ps6000aOpenUnit(None, PICO_DEVICE_RESOLUTION.PICO_DR_8BIT)
 

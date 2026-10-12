@@ -15,7 +15,7 @@
 
 All code lives in `src/pycosdk/`:
 
-- `_base.py`: `PicoScopeWrapperBase` (library loading, `_bind`, callback keep-alive), `CALLBACK_FUNCTYPE`, `POWER_SOURCE_STATUSES`.
+- `_base.py`: `PicoScopeWrapperBase` (library loading, shared instance via `instance()`, `_bind`, callback keep-alive), `CALLBACK_FUNCTYPE`, `POWER_SOURCE_STATUSES`.
 - `statusconfig.py`: `seterr`/`geterr`/`errstate` and `check_status` (status → error/warning/info handling).
 - `exceptions.py`: `StatusException`, `StatusWarning`, `MissingLibraryException`, `MissingFunctionException`.
 - `status.py` (`PicoStatus.h`), `deviceenums.py` (`PicoDeviceEnums.h`), `devicestructs.py` (`PicoDeviceStructs.h`), `connectprobe.py` (`PicoConnectProbes.h`), `callback.py` (`PicoCallback.h`), `version.py` (`PicoVersion.h`): types shared by the newer drivers.
