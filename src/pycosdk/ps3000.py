@@ -27,8 +27,9 @@ from ctypes import (
 )
 from enum import IntEnum
 from functools import partial
-from typing import Any, final
+from typing import Any, Self, final
 
+from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._base import CALLBACK_FUNCTYPE, PicoScopeWrapperBase
 from .ps2000 import (
     OverviewBuffersCallback,
@@ -1110,6 +1111,92 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         return self._ps3000PingUnit(handle)
 
 
+@final
+class PicoScope3000Device(PicoScopeDeviceBase[PicoScope3000Wrapper]):
+    """An opened ps3000 unit; the functions of :class:`PicoScope3000Wrapper` with its handle.
+
+    See :class:`~pycosdk.PicoScopeDeviceBase`.
+    """
+
+    _wrapper_type = PicoScope3000Wrapper
+
+    @classmethod
+    def ps3000_open_unit(cls) -> Self:
+        """Like :meth:`PicoScope3000Wrapper.ps3000_open_unit`, returning a device instead of the handle."""
+        return cls(cls.shared_wrapper().ps3000_open_unit())
+
+    @classmethod
+    def ps3000_open_unit_progress(cls) -> tuple[PS3000_OPEN_PROGRESS, Self | None, int]:
+        """Like :meth:`PicoScope3000Wrapper.ps3000_open_unit_progress`, with a device instead of the handle once opened."""
+        progress, handle, percent = cls.shared_wrapper().ps3000_open_unit_progress()
+        complete = progress == PS3000_OPEN_PROGRESS.PS3000_OPEN_PROGRESS_COMPLETE
+        return progress, cls(handle) if complete else None, percent
+
+    ps3000_open_unit_async = wrapper_function(
+        PicoScope3000Wrapper.ps3000_open_unit_async
+    )
+
+    ps3000_get_unit_info = handle_method(PicoScope3000Wrapper.ps3000_get_unit_info)
+    ps3000_flash_led = handle_method(PicoScope3000Wrapper.ps3000_flash_led)
+    ps3000_close_unit = handle_method(
+        PicoScope3000Wrapper.ps3000_close_unit, closes=True
+    )
+    ps3000_set_channel = handle_method(PicoScope3000Wrapper.ps3000_set_channel)
+    ps3000_get_timebase = handle_method(PicoScope3000Wrapper.ps3000_get_timebase)
+    ps3000_set_siggen = handle_method(PicoScope3000Wrapper.ps3000_set_siggen)
+    ps3000_set_ets = handle_method(PicoScope3000Wrapper.ps3000_set_ets)
+    ps3000_set_trigger = handle_method(PicoScope3000Wrapper.ps3000_set_trigger)
+    ps3000_set_trigger2 = handle_method(PicoScope3000Wrapper.ps3000_set_trigger2)
+    ps3000_run_block = handle_method(PicoScope3000Wrapper.ps3000_run_block)
+    ps3000_run_streaming_ns = handle_method(
+        PicoScope3000Wrapper.ps3000_run_streaming_ns
+    )
+    ps3000_run_streaming = handle_method(PicoScope3000Wrapper.ps3000_run_streaming)
+    ps3000_ready = handle_method(PicoScope3000Wrapper.ps3000_ready)
+    ps3000_stop = handle_method(PicoScope3000Wrapper.ps3000_stop)
+    ps3000_get_values = handle_method(PicoScope3000Wrapper.ps3000_get_values)
+    ps3000_release_stream_buffer = handle_method(
+        PicoScope3000Wrapper.ps3000_release_stream_buffer
+    )
+    ps3000_get_times_and_values = handle_method(
+        PicoScope3000Wrapper.ps3000_get_times_and_values
+    )
+    ps3000_streaming_ns_get_interval_stateless = handle_method(
+        PicoScope3000Wrapper.ps3000_streaming_ns_get_interval_stateless
+    )
+    ps3000_get_streaming_last_values = handle_method(
+        PicoScope3000Wrapper.ps3000_get_streaming_last_values
+    )
+    ps3000_overview_buffer_status = handle_method(
+        PicoScope3000Wrapper.ps3000_overview_buffer_status
+    )
+    ps3000_get_streaming_values = handle_method(
+        PicoScope3000Wrapper.ps3000_get_streaming_values
+    )
+    ps3000_get_streaming_values_no_aggregation = handle_method(
+        PicoScope3000Wrapper.ps3000_get_streaming_values_no_aggregation
+    )
+    ps3000_save_streaming_data = handle_method(
+        PicoScope3000Wrapper.ps3000_save_streaming_data
+    )
+    ps3000SetAdvTriggerChannelProperties = handle_method(
+        PicoScope3000Wrapper.ps3000SetAdvTriggerChannelProperties
+    )
+    ps3000SetAdvTriggerChannelConditions = handle_method(
+        PicoScope3000Wrapper.ps3000SetAdvTriggerChannelConditions
+    )
+    ps3000SetAdvTriggerChannelDirections = handle_method(
+        PicoScope3000Wrapper.ps3000SetAdvTriggerChannelDirections
+    )
+    ps3000SetPulseWidthQualifier = handle_method(
+        PicoScope3000Wrapper.ps3000SetPulseWidthQualifier
+    )
+    ps3000SetAdvTriggerDelay = handle_method(
+        PicoScope3000Wrapper.ps3000SetAdvTriggerDelay
+    )
+    ps3000PingUnit = handle_method(PicoScope3000Wrapper.ps3000PingUnit)
+
+
 __all__ = (
     "PS3000_MAX_HOLDOFF_COUNT",
     "PS3000_MAX_PULSE_WIDTH_QUALIFIER_COUNT",
@@ -1162,4 +1249,5 @@ __all__ = (
     "ps3000GetOverviewBuffersMaxMin",
     "OverviewBuffersCallback",
     "PicoScope3000Wrapper",
+    "PicoScope3000Device",
 )

@@ -1,3 +1,4 @@
+from ._device import PicoScopeDeviceBase
 from .connectprobe import (
     PICO_CONNECT_PROBE,
     PICO_CONNECT_PROBE_RANGE,
@@ -75,9 +76,9 @@ from .exceptions import (
     StatusException,
     StatusWarning,
 )
-from .ps2000 import PicoScope2000Wrapper
-from .ps2000a import PicoScope2000aWrapper
-from .ps3000 import PicoScope3000Wrapper
+from .ps2000 import PicoScope2000Device, PicoScope2000Wrapper
+from .ps2000a import PicoScope2000aDevice, PicoScope2000aWrapper
+from .ps3000 import PicoScope3000Device, PicoScope3000Wrapper
 from .ps3000a import (
     PS3000A_BANDWIDTH_LIMITER,
     PS3000A_CHANNEL,
@@ -152,8 +153,9 @@ from .ps3000a import (
     PS3207A_MAX_INTERLEAVE,
     PS3207B_MAX_SIG_GEN_BUFFER_SIZE,
     PicoScope3000aWrapper,
+    PicoScope3000aDevice,
 )
-from .ps5000 import PicoScope5000Wrapper
+from .ps5000 import PicoScope5000Device, PicoScope5000Wrapper
 from .ps5000a import (
     PS5000A_BANDWIDTH_LIMITER,
     PS5000A_CHANNEL,
@@ -197,6 +199,7 @@ from .ps5000a import (
     PS5000A_TRIGGER_WITHIN_PRE_TRIGGER,
     PS5000A_WAVE_TYPE,
     PicoScope5000aWrapper,
+    PicoScope5000aDevice,
 )
 from .ps6000 import (
     PS640X_C_D_MAX_SIG_GEN_BUFFER_SIZE,
@@ -251,14 +254,16 @@ from .ps6000 import (
     PS6000_TRIGGER_STATE,
     PS6000_WAVE_TYPE,
     PicoScope6000Wrapper,
+    PicoScope6000Device,
 )
 from .ps6000a import (
     PICO_PROBE_BUTTON_PRESS_PARAMETER,
     PICO_PROBE_BUTTON_PRESS_TYPE,
     PICO_PROBE_USER_ACTION,
     PicoScope6000aWrapper,
+    PicoScope6000aDevice,
 )
-from .psosca import PicoScope3000eWrapper
+from .psosca import PicoScope3000eDevice, PicoScope3000eWrapper
 from .status import PICO_INFO, PICO_STATUS
 from .statusconfig import (
     WARNING_STATUSES,
@@ -520,13 +525,23 @@ __all__ = (
     "errstate",
     "geterr",
     "seterr",
+    "PicoScopeDeviceBase",
+    "PicoScope2000Device",
     "PicoScope2000Wrapper",
+    "PicoScope2000aDevice",
     "PicoScope2000aWrapper",
+    "PicoScope3000Device",
     "PicoScope3000Wrapper",
+    "PicoScope3000aDevice",
     "PicoScope3000aWrapper",
+    "PicoScope3000eDevice",
     "PicoScope3000eWrapper",
+    "PicoScope5000Device",
     "PicoScope5000Wrapper",
+    "PicoScope5000aDevice",
     "PicoScope5000aWrapper",
+    "PicoScope6000Device",
     "PicoScope6000Wrapper",
+    "PicoScope6000aDevice",
     "PicoScope6000aWrapper",
 )

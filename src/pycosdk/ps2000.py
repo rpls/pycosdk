@@ -27,8 +27,9 @@ from ctypes import (
 )
 from enum import IntEnum
 from functools import partial
-from typing import Any, final, overload
+from typing import Any, Self, final, overload
 
+from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._base import CALLBACK_FUNCTYPE, PicoScopeWrapperBase
 from .statusconfig import check_result
 
@@ -1238,6 +1239,93 @@ class PicoScope2000Wrapper(PicoScopeWrapperBase):
         return self._ps2000PingUnit(handle)
 
 
+@final
+class PicoScope2000Device(PicoScopeDeviceBase[PicoScope2000Wrapper]):
+    """An opened ps2000 unit; the functions of :class:`PicoScope2000Wrapper` with its handle.
+
+    See :class:`~pycosdk.PicoScopeDeviceBase`.
+    """
+
+    _wrapper_type = PicoScope2000Wrapper
+
+    @classmethod
+    def ps2000_open_unit(cls) -> Self:
+        """Like :meth:`PicoScope2000Wrapper.ps2000_open_unit`, returning a device instead of the handle."""
+        return cls(cls.shared_wrapper().ps2000_open_unit())
+
+    @classmethod
+    def ps2000_open_unit_progress(cls) -> tuple[PS2000_OPEN_PROGRESS, Self | None, int]:
+        """Like :meth:`PicoScope2000Wrapper.ps2000_open_unit_progress`, with a device instead of the handle once opened."""
+        progress, handle, percent = cls.shared_wrapper().ps2000_open_unit_progress()
+        complete = progress == PS2000_OPEN_PROGRESS.PS2000_OPEN_PROGRESS_COMPLETE
+        return progress, cls(handle) if complete else None, percent
+
+    ps2000_open_unit_async = wrapper_function(
+        PicoScope2000Wrapper.ps2000_open_unit_async
+    )
+
+    ps2000_get_unit_info = handle_method(PicoScope2000Wrapper.ps2000_get_unit_info)
+    ps2000_flash_led = handle_method(PicoScope2000Wrapper.ps2000_flash_led)
+    ps2000_close_unit = handle_method(
+        PicoScope2000Wrapper.ps2000_close_unit, closes=True
+    )
+    ps2000_set_channel = handle_method(PicoScope2000Wrapper.ps2000_set_channel)
+    ps2000_get_timebase = handle_method(PicoScope2000Wrapper.ps2000_get_timebase)
+    ps2000_set_trigger = handle_method(PicoScope2000Wrapper.ps2000_set_trigger)
+    ps2000_set_trigger2 = handle_method(PicoScope2000Wrapper.ps2000_set_trigger2)
+    ps2000_run_block = handle_method(PicoScope2000Wrapper.ps2000_run_block)
+    ps2000_run_streaming = handle_method(PicoScope2000Wrapper.ps2000_run_streaming)
+    ps2000_run_streaming_ns = handle_method(
+        PicoScope2000Wrapper.ps2000_run_streaming_ns
+    )
+    ps2000_ready = handle_method(PicoScope2000Wrapper.ps2000_ready)
+    ps2000_stop = handle_method(PicoScope2000Wrapper.ps2000_stop)
+    ps2000_get_values = handle_method(PicoScope2000Wrapper.ps2000_get_values)
+    ps2000_get_times_and_values = handle_method(
+        PicoScope2000Wrapper.ps2000_get_times_and_values
+    )
+    ps2000_last_button_press = handle_method(
+        PicoScope2000Wrapper.ps2000_last_button_press
+    )
+    ps2000_set_ets = handle_method(PicoScope2000Wrapper.ps2000_set_ets)
+    ps2000_set_led = handle_method(PicoScope2000Wrapper.ps2000_set_led)
+    ps2000_get_streaming_last_values = handle_method(
+        PicoScope2000Wrapper.ps2000_get_streaming_last_values
+    )
+    ps2000_overview_buffer_status = handle_method(
+        PicoScope2000Wrapper.ps2000_overview_buffer_status
+    )
+    ps2000_get_streaming_values = handle_method(
+        PicoScope2000Wrapper.ps2000_get_streaming_values
+    )
+    ps2000_get_streaming_values_no_aggregation = handle_method(
+        PicoScope2000Wrapper.ps2000_get_streaming_values_no_aggregation
+    )
+    ps2000_set_light = handle_method(PicoScope2000Wrapper.ps2000_set_light)
+    ps2000_set_sig_gen_arbitrary = handle_method(
+        PicoScope2000Wrapper.ps2000_set_sig_gen_arbitrary
+    )
+    ps2000_set_sig_gen_built_in = handle_method(
+        PicoScope2000Wrapper.ps2000_set_sig_gen_built_in
+    )
+    ps2000SetAdvTriggerChannelProperties = handle_method(
+        PicoScope2000Wrapper.ps2000SetAdvTriggerChannelProperties
+    )
+    ps2000SetAdvTriggerChannelConditions = handle_method(
+        PicoScope2000Wrapper.ps2000SetAdvTriggerChannelConditions
+    )
+    ps2000SetAdvTriggerChannelDirections = handle_method(
+        PicoScope2000Wrapper.ps2000SetAdvTriggerChannelDirections
+    )
+    ps2000SetPulseWidthQualifier = handle_method(
+        PicoScope2000Wrapper.ps2000SetPulseWidthQualifier
+    )
+    ps2000SetAdvTriggerDelay = handle_method(
+        PicoScope2000Wrapper.ps2000SetAdvTriggerDelay
+    )
+    ps2000PingUnit = handle_method(PicoScope2000Wrapper.ps2000PingUnit)
+
+
 __all__ = (
     "PS2000_BUTTON_STATE",
     "PS2000_CHANNEL",
@@ -1285,4 +1373,5 @@ __all__ = (
     "ps2000GetOverviewBuffersMaxMin",
     "OverviewBuffersCallback",
     "PicoScope2000Wrapper",
+    "PicoScope2000Device",
 )

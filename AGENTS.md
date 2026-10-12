@@ -17,10 +17,11 @@
 All code lives in `src/pycosdk/`:
 
 - `_base.py`: `PicoScopeWrapperBase` (library loading, shared instance via `instance()`, `_bind`, callback keep-alive), `CALLBACK_FUNCTYPE`, `POWER_SOURCE_STATUSES`.
+- `_device.py`: `PicoScopeDeviceBase` (an opened unit: handle, close, context manager) and the descriptors `handle_method`/`wrapper_function` exposing wrapper methods on device classes.
 - `statusconfig.py`: `seterr`/`geterr`/`errstate`, `check_status` (status → error/warning/info handling) and `check_result` (legacy return values → error handling).
 - `exceptions.py`: `StatusException`/`StatusWarning` (`PICO_STATUS` drivers) and `ResultException`/`ResultWarning` (legacy drivers), with the common bases `DriverException`/`DriverWarning`; `MissingLibraryException`, `MissingFunctionException`.
 - `status.py` (`PicoStatus.h`), `deviceenums.py` (`PicoDeviceEnums.h`), `devicestructs.py` (`PicoDeviceStructs.h`), `connectprobe.py` (`PicoConnectProbes.h`), `callback.py` (`PicoCallback.h`), `version.py` (`PicoVersion.h`): types shared by the newer drivers.
-- One module per driver, each with its driver-specific enums/structs/constants, callback types and the wrapper class:
+- One module per driver, each with its driver-specific enums/structs/constants, callback types, the wrapper class and the device class:
   - `ps2000.py`, `ps3000.py`: pre-`PICO_STATUS` drivers, see `_bind_legacy` below; `ps3000.py` reuses private helpers from `ps2000.py`.
   - `ps2000a.py`, `ps3000a.py`, `ps5000.py`, `ps5000a.py`, `ps6000.py`: legacy drivers, mostly own `PS<model>_*` types.
   - `ps6000a.py`: also covers `ps6000aApiExperimental.h` / `PicoDeviceDefinitionsExperimental.h`.
@@ -52,6 +53,14 @@ The installed SDK (C headers and driver libraries) is the reference for the wrap
 - Public method names and parameter names mirror the C API. Return the status alone, or `(status, out1, ...)` with outputs converted to Python values. Don't change existing signatures or return shapes.
 - Legacy drivers (`ps2000`, `ps3000`) predate `PICO_STATUS`: their snake_case functions return plain integers whose meaning differs per function. Bind them via `self._bind_legacy("<fn>", [argtypes], restype, failed=..., error_code=...)`, where `failed` is a predicate on the raw return value (`None` if the function cannot fail) and `error_code` looks up the driver error code (`get_unit_info(..., *_ERROR_CODE)`). Failures fall into the `error` category and raise `ResultException` by default. Methods return the C return value (as a fitting Python type, e.g. `bool`, an enum, or the `c_int16` handle) followed by outputs.
 - Outputs the driver writes *after* the call returns (`GetValuesOverlapped*`) are returned as ctypes objects and kept alive via `_with_callback`.
+
+## Device Classes
+
+- Each driver module ends with a `PicoScope<model>Device(PicoScopeDeviceBase[<Wrapper>])` class that lists *every* public wrapper method, keeping the driver prefix in the name (a deliberate design decision, see the README). When adding a wrapper method, add it to the device class too:
+  - Methods whose first parameter is `handle`: `<fn> = handle_method(<Wrapper>.<fn>)`; the close function gets `closes=True`.
+  - Methods without a handle: `<fn> = wrapper_function(<Wrapper>.<fn>)`.
+  - Open functions (`OpenUnit`, `OpenUnitProgress`, `open_unit`, ...) are hand-written classmethods returning `cls(handle)` in place of the handle (`None` while an async open is incomplete).
+- Wrapper methods take the handle as `handle: c_int16`, otherwise `handle_method` does not type-check.
 
 ## Callbacks
 

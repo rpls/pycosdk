@@ -16,8 +16,9 @@ from ctypes import (
     create_string_buffer,
 )
 from enum import IntEnum
-from typing import final
+from typing import Self, final
 
+from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._base import CALLBACK_FUNCTYPE, PicoScopeWrapperBase
 from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
 
@@ -1319,6 +1320,114 @@ class PicoScope5000Wrapper(PicoScopeWrapperBase):
         return self._ps5000SetNoOfCaptures(handle, nCaptures)
 
 
+@final
+class PicoScope5000Device(PicoScopeDeviceBase[PicoScope5000Wrapper]):
+    """An opened ps5000 unit; the functions of :class:`PicoScope5000Wrapper` with its handle.
+
+    See :class:`~pycosdk.PicoScopeDeviceBase`.
+    """
+
+    _wrapper_type = PicoScope5000Wrapper
+
+    @classmethod
+    def ps5000OpenUnit(cls) -> tuple[PICO_STATUS, Self]:
+        """Like :meth:`PicoScope5000Wrapper.ps5000OpenUnit`, returning a device instead of the handle."""
+        status, handle = cls.shared_wrapper().ps5000OpenUnit()
+        return status, cls(handle)
+
+    @classmethod
+    def ps5000OpenUnitProgress(cls) -> tuple[PICO_STATUS, Self | None, int, bool]:
+        """Like :meth:`PicoScope5000Wrapper.ps5000OpenUnitProgress`, with a device instead of the handle once opened."""
+        status, handle, progressPercent, complete = (
+            cls.shared_wrapper().ps5000OpenUnitProgress()
+        )
+        return status, cls(handle) if complete else None, progressPercent, complete
+
+    ps5000OpenUnitAsync = wrapper_function(PicoScope5000Wrapper.ps5000OpenUnitAsync)
+
+    ps5000CloseUnit = handle_method(PicoScope5000Wrapper.ps5000CloseUnit, closes=True)
+    ps5000GetUnitInfo = handle_method(PicoScope5000Wrapper.ps5000GetUnitInfo)
+    ps5000FlashLed = handle_method(PicoScope5000Wrapper.ps5000FlashLed)
+    ps5000IsLedFlashing = handle_method(PicoScope5000Wrapper.ps5000IsLedFlashing)
+    ps5000MemorySegments = handle_method(PicoScope5000Wrapper.ps5000MemorySegments)
+    ps5000SetChannel = handle_method(PicoScope5000Wrapper.ps5000SetChannel)
+    ps5000GetTimebase = handle_method(PicoScope5000Wrapper.ps5000GetTimebase)
+    ps5000GetTimebase2 = handle_method(PicoScope5000Wrapper.ps5000GetTimebase2)
+    ps5000SetSigGenArbitrary = handle_method(
+        PicoScope5000Wrapper.ps5000SetSigGenArbitrary
+    )
+    ps5000SetSigGenBuiltIn = handle_method(PicoScope5000Wrapper.ps5000SetSigGenBuiltIn)
+    ps5000SetSigGenBuiltInV2 = handle_method(
+        PicoScope5000Wrapper.ps5000SetSigGenBuiltInV2
+    )
+    ps5000SigGenFrequencyToPhase = handle_method(
+        PicoScope5000Wrapper.ps5000SigGenFrequencyToPhase
+    )
+    ps5000SigGenArbitraryMinMaxValues = handle_method(
+        PicoScope5000Wrapper.ps5000SigGenArbitraryMinMaxValues
+    )
+    ps5000SigGenSoftwareControl = handle_method(
+        PicoScope5000Wrapper.ps5000SigGenSoftwareControl
+    )
+    ps5000SetEts = handle_method(PicoScope5000Wrapper.ps5000SetEts)
+    ps5000SetTriggerChannelProperties = handle_method(
+        PicoScope5000Wrapper.ps5000SetTriggerChannelProperties
+    )
+    ps5000SetTriggerChannelConditions = handle_method(
+        PicoScope5000Wrapper.ps5000SetTriggerChannelConditions
+    )
+    ps5000SetTriggerChannelDirections = handle_method(
+        PicoScope5000Wrapper.ps5000SetTriggerChannelDirections
+    )
+    ps5000SetSimpleTrigger = handle_method(PicoScope5000Wrapper.ps5000SetSimpleTrigger)
+    ps5000SetTriggerDelay = handle_method(PicoScope5000Wrapper.ps5000SetTriggerDelay)
+    ps5000SetPulseWidthQualifier = handle_method(
+        PicoScope5000Wrapper.ps5000SetPulseWidthQualifier
+    )
+    ps5000IsTriggerOrPulseWidthQualifierEnabled = handle_method(
+        PicoScope5000Wrapper.ps5000IsTriggerOrPulseWidthQualifierEnabled
+    )
+    ps5000GetTriggerTimeOffset = handle_method(
+        PicoScope5000Wrapper.ps5000GetTriggerTimeOffset
+    )
+    ps5000GetTriggerTimeOffset64 = handle_method(
+        PicoScope5000Wrapper.ps5000GetTriggerTimeOffset64
+    )
+    ps5000GetValuesTriggerTimeOffsetBulk = handle_method(
+        PicoScope5000Wrapper.ps5000GetValuesTriggerTimeOffsetBulk
+    )
+    ps5000GetValuesTriggerTimeOffsetBulk64 = handle_method(
+        PicoScope5000Wrapper.ps5000GetValuesTriggerTimeOffsetBulk64
+    )
+    ps5000SetDataBuffers = handle_method(PicoScope5000Wrapper.ps5000SetDataBuffers)
+    ps5000SetDataBuffer = handle_method(PicoScope5000Wrapper.ps5000SetDataBuffer)
+    ps5000SetDataBufferBulk = handle_method(
+        PicoScope5000Wrapper.ps5000SetDataBufferBulk
+    )
+    ps5000SetEtsTimeBuffer = handle_method(PicoScope5000Wrapper.ps5000SetEtsTimeBuffer)
+    ps5000SetEtsTimeBuffers = handle_method(
+        PicoScope5000Wrapper.ps5000SetEtsTimeBuffers
+    )
+    ps5000IsReady = handle_method(PicoScope5000Wrapper.ps5000IsReady)
+    ps5000RunBlock = handle_method(PicoScope5000Wrapper.ps5000RunBlock)
+    ps5000RunStreaming = handle_method(PicoScope5000Wrapper.ps5000RunStreaming)
+    ps5000GetStreamingLatestValues = handle_method(
+        PicoScope5000Wrapper.ps5000GetStreamingLatestValues
+    )
+    ps5000NoOfStreamingValues = handle_method(
+        PicoScope5000Wrapper.ps5000NoOfStreamingValues
+    )
+    ps5000GetMaxDownSampleRatio = handle_method(
+        PicoScope5000Wrapper.ps5000GetMaxDownSampleRatio
+    )
+    ps5000GetValues = handle_method(PicoScope5000Wrapper.ps5000GetValues)
+    ps5000GetValuesBulk = handle_method(PicoScope5000Wrapper.ps5000GetValuesBulk)
+    ps5000GetValuesAsync = handle_method(PicoScope5000Wrapper.ps5000GetValuesAsync)
+    ps5000Stop = handle_method(PicoScope5000Wrapper.ps5000Stop)
+    ps5000PingUnit = handle_method(PicoScope5000Wrapper.ps5000PingUnit)
+    ps5000SetNoOfCaptures = handle_method(PicoScope5000Wrapper.ps5000SetNoOfCaptures)
+
+
 __all__ = (
     "PS5000_CHANNEL",
     "PS5000_CHANNEL_BUFFER_INDEX",
@@ -1360,6 +1469,7 @@ __all__ = (
     "PS5000_TRIGGER_STATE",
     "PS5000_WAVE_TYPE",
     "PicoScope5000Wrapper",
+    "PicoScope5000Device",
     "ps5000BlockReady",
     "ps5000DataReady",
     "ps5000StreamingReady",

@@ -18,8 +18,9 @@ from ctypes import (
     create_string_buffer,
 )
 from enum import IntEnum
-from typing import final
+from typing import Self, final
 
+from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._base import CALLBACK_FUNCTYPE, PicoScopeWrapperBase
 from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
 
@@ -1818,6 +1819,155 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
         return self._ps6000SetOutputEdgeDetect(handle, 1 if state else 0)
 
 
+@final
+class PicoScope6000Device(PicoScopeDeviceBase[PicoScope6000Wrapper]):
+    """An opened ps6000 unit; the functions of :class:`PicoScope6000Wrapper` with its handle.
+
+    See :class:`~pycosdk.PicoScopeDeviceBase`.
+    """
+
+    _wrapper_type = PicoScope6000Wrapper
+
+    @classmethod
+    def ps6000OpenUnit(cls, serial: str | None) -> tuple[PICO_STATUS, Self]:
+        """Like :meth:`PicoScope6000Wrapper.ps6000OpenUnit`, returning a device instead of the handle."""
+        status, handle = cls.shared_wrapper().ps6000OpenUnit(serial)
+        return status, cls(handle)
+
+    @classmethod
+    def ps6000OpenUnitProgress(cls) -> tuple[PICO_STATUS, Self | None, int, bool]:
+        """Like :meth:`PicoScope6000Wrapper.ps6000OpenUnitProgress`, with a device instead of the handle once opened."""
+        status, handle, progressPercent, complete = (
+            cls.shared_wrapper().ps6000OpenUnitProgress()
+        )
+        return status, cls(handle) if complete else None, progressPercent, complete
+
+    ps6000OpenUnitAsync = wrapper_function(PicoScope6000Wrapper.ps6000OpenUnitAsync)
+    ps6000EnumerateUnits = wrapper_function(PicoScope6000Wrapper.ps6000EnumerateUnits)
+
+    ps6000CloseUnit = handle_method(PicoScope6000Wrapper.ps6000CloseUnit, closes=True)
+    ps6000GetUnitInfo = handle_method(PicoScope6000Wrapper.ps6000GetUnitInfo)
+    ps6000FlashLed = handle_method(PicoScope6000Wrapper.ps6000FlashLed)
+    ps6000MemorySegments = handle_method(PicoScope6000Wrapper.ps6000MemorySegments)
+    ps6000SetChannel = handle_method(PicoScope6000Wrapper.ps6000SetChannel)
+    ps6000GetTimebase = handle_method(PicoScope6000Wrapper.ps6000GetTimebase)
+    ps6000GetTimebase2 = handle_method(PicoScope6000Wrapper.ps6000GetTimebase2)
+    ps6000SetSigGenArbitrary = handle_method(
+        PicoScope6000Wrapper.ps6000SetSigGenArbitrary
+    )
+    ps6000SetSigGenBuiltIn = handle_method(PicoScope6000Wrapper.ps6000SetSigGenBuiltIn)
+    ps6000SetSigGenBuiltInV2 = handle_method(
+        PicoScope6000Wrapper.ps6000SetSigGenBuiltInV2
+    )
+    ps6000SetSigGenPropertiesArbitrary = handle_method(
+        PicoScope6000Wrapper.ps6000SetSigGenPropertiesArbitrary
+    )
+    ps6000SetSigGenPropertiesBuiltIn = handle_method(
+        PicoScope6000Wrapper.ps6000SetSigGenPropertiesBuiltIn
+    )
+    ps6000SigGenFrequencyToPhase = handle_method(
+        PicoScope6000Wrapper.ps6000SigGenFrequencyToPhase
+    )
+    ps6000SigGenArbitraryMinMaxValues = handle_method(
+        PicoScope6000Wrapper.ps6000SigGenArbitraryMinMaxValues
+    )
+    ps6000SigGenSoftwareControl = handle_method(
+        PicoScope6000Wrapper.ps6000SigGenSoftwareControl
+    )
+    ps6000SetSimpleTrigger = handle_method(PicoScope6000Wrapper.ps6000SetSimpleTrigger)
+    ps6000SetEts = handle_method(PicoScope6000Wrapper.ps6000SetEts)
+    ps6000SetTriggerChannelProperties = handle_method(
+        PicoScope6000Wrapper.ps6000SetTriggerChannelProperties
+    )
+    ps6000SetTriggerChannelConditions = handle_method(
+        PicoScope6000Wrapper.ps6000SetTriggerChannelConditions
+    )
+    ps6000SetTriggerChannelDirections = handle_method(
+        PicoScope6000Wrapper.ps6000SetTriggerChannelDirections
+    )
+    ps6000SetTriggerDelay = handle_method(PicoScope6000Wrapper.ps6000SetTriggerDelay)
+    ps6000SetPulseWidthQualifier = handle_method(
+        PicoScope6000Wrapper.ps6000SetPulseWidthQualifier
+    )
+    ps6000IsTriggerOrPulseWidthQualifierEnabled = handle_method(
+        PicoScope6000Wrapper.ps6000IsTriggerOrPulseWidthQualifierEnabled
+    )
+    ps6000GetTriggerTimeOffset = handle_method(
+        PicoScope6000Wrapper.ps6000GetTriggerTimeOffset
+    )
+    ps6000GetTriggerTimeOffset64 = handle_method(
+        PicoScope6000Wrapper.ps6000GetTriggerTimeOffset64
+    )
+    ps6000GetValuesTriggerTimeOffsetBulk = handle_method(
+        PicoScope6000Wrapper.ps6000GetValuesTriggerTimeOffsetBulk
+    )
+    ps6000GetValuesTriggerTimeOffsetBulk64 = handle_method(
+        PicoScope6000Wrapper.ps6000GetValuesTriggerTimeOffsetBulk64
+    )
+    ps6000SetDataBuffers = handle_method(PicoScope6000Wrapper.ps6000SetDataBuffers)
+    ps6000SetDataBuffer = handle_method(PicoScope6000Wrapper.ps6000SetDataBuffer)
+    ps6000SetDataBufferBulk = handle_method(
+        PicoScope6000Wrapper.ps6000SetDataBufferBulk
+    )
+    ps6000SetDataBuffersBulk = handle_method(
+        PicoScope6000Wrapper.ps6000SetDataBuffersBulk
+    )
+    ps6000SetEtsTimeBuffer = handle_method(PicoScope6000Wrapper.ps6000SetEtsTimeBuffer)
+    ps6000SetEtsTimeBuffers = handle_method(
+        PicoScope6000Wrapper.ps6000SetEtsTimeBuffers
+    )
+    ps6000IsReady = handle_method(PicoScope6000Wrapper.ps6000IsReady)
+    ps6000RunBlock = handle_method(PicoScope6000Wrapper.ps6000RunBlock)
+    ps6000RunStreaming = handle_method(PicoScope6000Wrapper.ps6000RunStreaming)
+    ps6000GetStreamingLatestValues = handle_method(
+        PicoScope6000Wrapper.ps6000GetStreamingLatestValues
+    )
+    ps6000NoOfStreamingValues = handle_method(
+        PicoScope6000Wrapper.ps6000NoOfStreamingValues
+    )
+    ps6000GetMaxDownSampleRatio = handle_method(
+        PicoScope6000Wrapper.ps6000GetMaxDownSampleRatio
+    )
+    ps6000GetValues = handle_method(PicoScope6000Wrapper.ps6000GetValues)
+    ps6000GetValuesBulk = handle_method(PicoScope6000Wrapper.ps6000GetValuesBulk)
+    ps6000GetValuesAsync = handle_method(PicoScope6000Wrapper.ps6000GetValuesAsync)
+    ps6000GetValuesOverlapped = handle_method(
+        PicoScope6000Wrapper.ps6000GetValuesOverlapped
+    )
+    ps6000GetValuesOverlappedBulk = handle_method(
+        PicoScope6000Wrapper.ps6000GetValuesOverlappedBulk
+    )
+    ps6000GetValuesBulkAsyc = handle_method(
+        PicoScope6000Wrapper.ps6000GetValuesBulkAsyc
+    )
+    ps6000GetNoOfCaptures = handle_method(PicoScope6000Wrapper.ps6000GetNoOfCaptures)
+    ps6000GetNoOfProcessedCaptures = handle_method(
+        PicoScope6000Wrapper.ps6000GetNoOfProcessedCaptures
+    )
+    ps6000Stop = handle_method(PicoScope6000Wrapper.ps6000Stop)
+    ps6000SetNoOfCaptures = handle_method(PicoScope6000Wrapper.ps6000SetNoOfCaptures)
+    ps6000SetWaveformLimiter = handle_method(
+        PicoScope6000Wrapper.ps6000SetWaveformLimiter
+    )
+    ps6000GetTriggerInfoBulk = handle_method(
+        PicoScope6000Wrapper.ps6000GetTriggerInfoBulk
+    )
+    ps6000SetExternalClock = handle_method(PicoScope6000Wrapper.ps6000SetExternalClock)
+    ps6000PingUnit = handle_method(PicoScope6000Wrapper.ps6000PingUnit)
+    ps6000GetAnalogueOffset = handle_method(
+        PicoScope6000Wrapper.ps6000GetAnalogueOffset
+    )
+    ps6000QueryTemperatures = handle_method(
+        PicoScope6000Wrapper.ps6000QueryTemperatures
+    )
+    ps6000QueryOutputEdgeDetect = handle_method(
+        PicoScope6000Wrapper.ps6000QueryOutputEdgeDetect
+    )
+    ps6000SetOutputEdgeDetect = handle_method(
+        PicoScope6000Wrapper.ps6000SetOutputEdgeDetect
+    )
+
+
 __all__ = (
     "PS640X_C_D_MAX_SIG_GEN_BUFFER_SIZE",
     "PS6000_BANDWIDTH_LIMITER",
@@ -1871,6 +2021,7 @@ __all__ = (
     "PS6000_TRIGGER_STATE",
     "PS6000_WAVE_TYPE",
     "PicoScope6000Wrapper",
+    "PicoScope6000Device",
     "ps6000BlockReady",
     "ps6000DataReady",
     "ps6000StreamingReady",

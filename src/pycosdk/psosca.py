@@ -1,5 +1,6 @@
 from collections.abc import Callable, Sequence
 from _ctypes import CFuncPtr
+from typing import Self, final
 from ctypes import (
     POINTER,
     Array,
@@ -17,6 +18,7 @@ from ctypes import (
     create_string_buffer,
 )
 
+from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._base import CALLBACK_FUNCTYPE, PicoScopeWrapperBase
 from .callback import PicoUpdateFirmwareProgress
 from .connectprobe import (
@@ -1533,8 +1535,182 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         return self._psospaSetAuxIoMode(handle, auxIoMode)
 
 
+@final
+class PicoScope3000eDevice(PicoScopeDeviceBase[PicoScope3000eWrapper]):
+    """An opened psospa unit; the functions of :class:`PicoScope3000eWrapper` with its handle.
+
+    See :class:`~pycosdk.PicoScopeDeviceBase`.
+    """
+
+    _wrapper_type = PicoScope3000eWrapper
+
+    @classmethod
+    def psospaOpenUnit(
+        cls, serial: str | None, resolution: PICO_DEVICE_RESOLUTION
+    ) -> tuple[PICO_STATUS, Self, PicoUsbPowerDetails]:
+        """Like :meth:`PicoScope3000eWrapper.psospaOpenUnit`, returning a device instead of the handle."""
+        status, handle, usbPowerDetails = cls.shared_wrapper().psospaOpenUnit(
+            serial, resolution
+        )
+        return status, cls(handle), usbPowerDetails
+
+    psospaGetVariantDetails = wrapper_function(
+        PicoScope3000eWrapper.psospaGetVariantDetails
+    )
+    psospaEnumerateUnits = wrapper_function(PicoScope3000eWrapper.psospaEnumerateUnits)
+
+    psospaCloseUnit = handle_method(PicoScope3000eWrapper.psospaCloseUnit, closes=True)
+    psospaGetUnitInfo = handle_method(PicoScope3000eWrapper.psospaGetUnitInfo)
+    psospaMemorySegments = handle_method(PicoScope3000eWrapper.psospaMemorySegments)
+    psospaMemorySegmentsBySamples = handle_method(
+        PicoScope3000eWrapper.psospaMemorySegmentsBySamples
+    )
+    psospaGetMaximumAvailableMemory = handle_method(
+        PicoScope3000eWrapper.psospaGetMaximumAvailableMemory
+    )
+    psospaQueryMaxSegmentsBySamples = handle_method(
+        PicoScope3000eWrapper.psospaQueryMaxSegmentsBySamples
+    )
+    psospaSetChannelOn = handle_method(PicoScope3000eWrapper.psospaSetChannelOn)
+    psospaSetChannelOff = handle_method(PicoScope3000eWrapper.psospaSetChannelOff)
+    psospaSetDigitalPortOn = handle_method(PicoScope3000eWrapper.psospaSetDigitalPortOn)
+    psospaSetDigitalPortOff = handle_method(
+        PicoScope3000eWrapper.psospaSetDigitalPortOff
+    )
+    psospaGetTimebase = handle_method(PicoScope3000eWrapper.psospaGetTimebase)
+    psospaSigGenWaveform = handle_method(PicoScope3000eWrapper.psospaSigGenWaveform)
+    psospaSigGenRange = handle_method(PicoScope3000eWrapper.psospaSigGenRange)
+    psospaSigGenWaveformDutyCycle = handle_method(
+        PicoScope3000eWrapper.psospaSigGenWaveformDutyCycle
+    )
+    psospaSigGenTrigger = handle_method(PicoScope3000eWrapper.psospaSigGenTrigger)
+    psospaSigGenFrequency = handle_method(PicoScope3000eWrapper.psospaSigGenFrequency)
+    psospaSigGenFrequencySweep = handle_method(
+        PicoScope3000eWrapper.psospaSigGenFrequencySweep
+    )
+    psospaSigGenPhase = handle_method(PicoScope3000eWrapper.psospaSigGenPhase)
+    psospaSigGenPhaseSweep = handle_method(PicoScope3000eWrapper.psospaSigGenPhaseSweep)
+    psospaSigGenSoftwareTriggerControl = handle_method(
+        PicoScope3000eWrapper.psospaSigGenSoftwareTriggerControl
+    )
+    psospaSigGenApply = handle_method(PicoScope3000eWrapper.psospaSigGenApply)
+    psospaSigGenLimits = handle_method(PicoScope3000eWrapper.psospaSigGenLimits)
+    psospaSigGenFrequencyLimits = handle_method(
+        PicoScope3000eWrapper.psospaSigGenFrequencyLimits
+    )
+    psospaSigGenPause = handle_method(PicoScope3000eWrapper.psospaSigGenPause)
+    psospaSigGenRestart = handle_method(PicoScope3000eWrapper.psospaSigGenRestart)
+    psospaSetSimpleTrigger = handle_method(PicoScope3000eWrapper.psospaSetSimpleTrigger)
+    psospaTriggerWithinPreTriggerSamples = handle_method(
+        PicoScope3000eWrapper.psospaTriggerWithinPreTriggerSamples
+    )
+    psospaSetTriggerChannelProperties = handle_method(
+        PicoScope3000eWrapper.psospaSetTriggerChannelProperties
+    )
+    psospaSetTriggerChannelConditions = handle_method(
+        PicoScope3000eWrapper.psospaSetTriggerChannelConditions
+    )
+    psospaSetTriggerChannelDirections = handle_method(
+        PicoScope3000eWrapper.psospaSetTriggerChannelDirections
+    )
+    psospaSetTriggerDelay = handle_method(PicoScope3000eWrapper.psospaSetTriggerDelay)
+    psospaSetTriggerHoldoffCounterBySamples = handle_method(
+        PicoScope3000eWrapper.psospaSetTriggerHoldoffCounterBySamples
+    )
+    psospaSetPulseWidthQualifierProperties = handle_method(
+        PicoScope3000eWrapper.psospaSetPulseWidthQualifierProperties
+    )
+    psospaSetPulseWidthQualifierConditions = handle_method(
+        PicoScope3000eWrapper.psospaSetPulseWidthQualifierConditions
+    )
+    psospaSetPulseWidthQualifierDirections = handle_method(
+        PicoScope3000eWrapper.psospaSetPulseWidthQualifierDirections
+    )
+    psospaSetTriggerDigitalPortProperties = handle_method(
+        PicoScope3000eWrapper.psospaSetTriggerDigitalPortProperties
+    )
+    psospaSetPulseWidthDigitalPortProperties = handle_method(
+        PicoScope3000eWrapper.psospaSetPulseWidthDigitalPortProperties
+    )
+    psospaGetTriggerTimeOffset = handle_method(
+        PicoScope3000eWrapper.psospaGetTriggerTimeOffset
+    )
+    psospaGetValuesTriggerTimeOffsetBulk = handle_method(
+        PicoScope3000eWrapper.psospaGetValuesTriggerTimeOffsetBulk
+    )
+    psospaSetDataBuffer = handle_method(PicoScope3000eWrapper.psospaSetDataBuffer)
+    psospaSetDataBuffers = handle_method(PicoScope3000eWrapper.psospaSetDataBuffers)
+    psospaRunBlock = handle_method(PicoScope3000eWrapper.psospaRunBlock)
+    psospaIsReady = handle_method(PicoScope3000eWrapper.psospaIsReady)
+    psospaRunStreaming = handle_method(PicoScope3000eWrapper.psospaRunStreaming)
+    psospaGetStreamingLatestValues = handle_method(
+        PicoScope3000eWrapper.psospaGetStreamingLatestValues
+    )
+    psospaNoOfStreamingValues = handle_method(
+        PicoScope3000eWrapper.psospaNoOfStreamingValues
+    )
+    psospaGetValues = handle_method(PicoScope3000eWrapper.psospaGetValues)
+    psospaGetValuesBulk = handle_method(PicoScope3000eWrapper.psospaGetValuesBulk)
+    psospaGetValuesAsync = handle_method(PicoScope3000eWrapper.psospaGetValuesAsync)
+    psospaGetValuesBulkAsync = handle_method(
+        PicoScope3000eWrapper.psospaGetValuesBulkAsync
+    )
+    psospaGetValuesOverlapped = handle_method(
+        PicoScope3000eWrapper.psospaGetValuesOverlapped
+    )
+    psospaStopUsingGetValuesOverlapped = handle_method(
+        PicoScope3000eWrapper.psospaStopUsingGetValuesOverlapped
+    )
+    psospaGetNoOfCaptures = handle_method(PicoScope3000eWrapper.psospaGetNoOfCaptures)
+    psospaGetNoOfProcessedCaptures = handle_method(
+        PicoScope3000eWrapper.psospaGetNoOfProcessedCaptures
+    )
+    psospaStop = handle_method(PicoScope3000eWrapper.psospaStop)
+    psospaSetNoOfCaptures = handle_method(PicoScope3000eWrapper.psospaSetNoOfCaptures)
+    psospaGetTriggerInfo = handle_method(PicoScope3000eWrapper.psospaGetTriggerInfo)
+    psospaPingUnit = handle_method(PicoScope3000eWrapper.psospaPingUnit)
+    psospaGetAnalogueOffsetLimits = handle_method(
+        PicoScope3000eWrapper.psospaGetAnalogueOffsetLimits
+    )
+    psospaGetMinimumTimebaseStateless = handle_method(
+        PicoScope3000eWrapper.psospaGetMinimumTimebaseStateless
+    )
+    psospaNearestSampleIntervalStateless = handle_method(
+        PicoScope3000eWrapper.psospaNearestSampleIntervalStateless
+    )
+    psospaSetDeviceResolution = handle_method(
+        PicoScope3000eWrapper.psospaSetDeviceResolution
+    )
+    psospaGetDeviceResolution = handle_method(
+        PicoScope3000eWrapper.psospaGetDeviceResolution
+    )
+    psospaQueryOutputEdgeDetect = handle_method(
+        PicoScope3000eWrapper.psospaQueryOutputEdgeDetect
+    )
+    psospaSetOutputEdgeDetect = handle_method(
+        PicoScope3000eWrapper.psospaSetOutputEdgeDetect
+    )
+    psospaGetScalingValues = handle_method(PicoScope3000eWrapper.psospaGetScalingValues)
+    psospaGetAdcLimits = handle_method(PicoScope3000eWrapper.psospaGetAdcLimits)
+    psospaCheckForUpdate = handle_method(PicoScope3000eWrapper.psospaCheckForUpdate)
+    psospaStartFirmwareUpdate = handle_method(
+        PicoScope3000eWrapper.psospaStartFirmwareUpdate
+    )
+    psospaResetChannelsAndReportAllChannelsOvervoltageTripStatus = handle_method(
+        PicoScope3000eWrapper.psospaResetChannelsAndReportAllChannelsOvervoltageTripStatus
+    )
+    psospaReportAllChannelsOvervoltageTripStatus = handle_method(
+        PicoScope3000eWrapper.psospaReportAllChannelsOvervoltageTripStatus
+    )
+    psospaSetLedColours = handle_method(PicoScope3000eWrapper.psospaSetLedColours)
+    psospaSetLedBrightness = handle_method(PicoScope3000eWrapper.psospaSetLedBrightness)
+    psospaSetLedStates = handle_method(PicoScope3000eWrapper.psospaSetLedStates)
+    psospaSetAuxIoMode = handle_method(PicoScope3000eWrapper.psospaSetAuxIoMode)
+
+
 __all__ = (
     "PicoScope3000eWrapper",
+    "PicoScope3000eDevice",
     "psospaBlockReady",
     "psospaDataReady",
 )

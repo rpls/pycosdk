@@ -17,8 +17,9 @@ from ctypes import (
     create_string_buffer,
 )
 from enum import IntEnum
-from typing import Any, final
+from typing import Any, Self, final
 
+from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._base import CALLBACK_FUNCTYPE, POWER_SOURCE_STATUSES, PicoScopeWrapperBase
 from .callback import PicoUpdateFirmwareProgress
 from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
@@ -2125,6 +2126,189 @@ class PicoScope3000aWrapper(PicoScopeWrapperBase):
         )
 
 
+@final
+class PicoScope3000aDevice(PicoScopeDeviceBase[PicoScope3000aWrapper]):
+    """An opened ps3000a unit; the functions of :class:`PicoScope3000aWrapper` with its handle.
+
+    See :class:`~pycosdk.PicoScopeDeviceBase`.
+    """
+
+    _wrapper_type = PicoScope3000aWrapper
+
+    @classmethod
+    def ps3000aOpenUnit(cls, serial: str | None) -> tuple[PICO_STATUS, Self]:
+        """Like :meth:`PicoScope3000aWrapper.ps3000aOpenUnit`, returning a device instead of the handle."""
+        status, handle = cls.shared_wrapper().ps3000aOpenUnit(serial)
+        return status, cls(handle)
+
+    @classmethod
+    def ps3000aOpenUnitProgress(cls) -> tuple[PICO_STATUS, Self | None, int, bool]:
+        """Like :meth:`PicoScope3000aWrapper.ps3000aOpenUnitProgress`, with a device instead of the handle once opened."""
+        status, handle, progressPercent, complete = (
+            cls.shared_wrapper().ps3000aOpenUnitProgress()
+        )
+        return status, cls(handle) if complete else None, progressPercent, complete
+
+    ps3000aOpenUnitAsync = wrapper_function(PicoScope3000aWrapper.ps3000aOpenUnitAsync)
+    ps3000aEnumerateUnits = wrapper_function(
+        PicoScope3000aWrapper.ps3000aEnumerateUnits
+    )
+
+    ps3000aCloseUnit = handle_method(
+        PicoScope3000aWrapper.ps3000aCloseUnit, closes=True
+    )
+    ps3000aGetUnitInfo = handle_method(PicoScope3000aWrapper.ps3000aGetUnitInfo)
+    ps3000aFlashLed = handle_method(PicoScope3000aWrapper.ps3000aFlashLed)
+    ps3000aMemorySegments = handle_method(PicoScope3000aWrapper.ps3000aMemorySegments)
+    ps3000aSetChannel = handle_method(PicoScope3000aWrapper.ps3000aSetChannel)
+    ps3000aSetDigitalPort = handle_method(PicoScope3000aWrapper.ps3000aSetDigitalPort)
+    ps3000aSetBandwidthFilter = handle_method(
+        PicoScope3000aWrapper.ps3000aSetBandwidthFilter
+    )
+    ps3000aSetNoOfCaptures = handle_method(PicoScope3000aWrapper.ps3000aSetNoOfCaptures)
+    ps3000aGetTimebase = handle_method(PicoScope3000aWrapper.ps3000aGetTimebase)
+    ps3000aGetTimebase2 = handle_method(PicoScope3000aWrapper.ps3000aGetTimebase2)
+    ps3000aSetSigGenArbitrary = handle_method(
+        PicoScope3000aWrapper.ps3000aSetSigGenArbitrary
+    )
+    ps3000aSetSigGenBuiltIn = handle_method(
+        PicoScope3000aWrapper.ps3000aSetSigGenBuiltIn
+    )
+    ps3000aSetSigGenBuiltInV2 = handle_method(
+        PicoScope3000aWrapper.ps3000aSetSigGenBuiltInV2
+    )
+    ps3000aSetSigGenPropertiesArbitrary = handle_method(
+        PicoScope3000aWrapper.ps3000aSetSigGenPropertiesArbitrary
+    )
+    ps3000aSetSigGenPropertiesBuiltIn = handle_method(
+        PicoScope3000aWrapper.ps3000aSetSigGenPropertiesBuiltIn
+    )
+    ps3000aSigGenFrequencyToPhase = handle_method(
+        PicoScope3000aWrapper.ps3000aSigGenFrequencyToPhase
+    )
+    ps3000aSigGenArbitraryMinMaxValues = handle_method(
+        PicoScope3000aWrapper.ps3000aSigGenArbitraryMinMaxValues
+    )
+    ps3000aGetMaxEtsValues = handle_method(PicoScope3000aWrapper.ps3000aGetMaxEtsValues)
+    ps3000aSigGenSoftwareControl = handle_method(
+        PicoScope3000aWrapper.ps3000aSigGenSoftwareControl
+    )
+    ps3000aSetEts = handle_method(PicoScope3000aWrapper.ps3000aSetEts)
+    ps3000aSetSimpleTrigger = handle_method(
+        PicoScope3000aWrapper.ps3000aSetSimpleTrigger
+    )
+    ps3000aSetTriggerDigitalPortProperties = handle_method(
+        PicoScope3000aWrapper.ps3000aSetTriggerDigitalPortProperties
+    )
+    ps3000aSetPulseWidthDigitalPortProperties = handle_method(
+        PicoScope3000aWrapper.ps3000aSetPulseWidthDigitalPortProperties
+    )
+    ps3000aSetTriggerChannelProperties = handle_method(
+        PicoScope3000aWrapper.ps3000aSetTriggerChannelProperties
+    )
+    ps3000aSetTriggerChannelConditions = handle_method(
+        PicoScope3000aWrapper.ps3000aSetTriggerChannelConditions
+    )
+    ps3000aSetTriggerChannelConditionsV2 = handle_method(
+        PicoScope3000aWrapper.ps3000aSetTriggerChannelConditionsV2
+    )
+    ps3000aSetTriggerChannelDirections = handle_method(
+        PicoScope3000aWrapper.ps3000aSetTriggerChannelDirections
+    )
+    ps3000aSetTriggerDelay = handle_method(PicoScope3000aWrapper.ps3000aSetTriggerDelay)
+    ps3000aSetPulseWidthQualifier = handle_method(
+        PicoScope3000aWrapper.ps3000aSetPulseWidthQualifier
+    )
+    ps3000aSetPulseWidthQualifierV2 = handle_method(
+        PicoScope3000aWrapper.ps3000aSetPulseWidthQualifierV2
+    )
+    ps3000aIsTriggerOrPulseWidthQualifierEnabled = handle_method(
+        PicoScope3000aWrapper.ps3000aIsTriggerOrPulseWidthQualifierEnabled
+    )
+    ps3000aGetTriggerTimeOffset = handle_method(
+        PicoScope3000aWrapper.ps3000aGetTriggerTimeOffset
+    )
+    ps3000aGetTriggerTimeOffset64 = handle_method(
+        PicoScope3000aWrapper.ps3000aGetTriggerTimeOffset64
+    )
+    ps3000aGetValuesTriggerTimeOffsetBulk = handle_method(
+        PicoScope3000aWrapper.ps3000aGetValuesTriggerTimeOffsetBulk
+    )
+    ps3000aGetValuesTriggerTimeOffsetBulk64 = handle_method(
+        PicoScope3000aWrapper.ps3000aGetValuesTriggerTimeOffsetBulk64
+    )
+    ps3000aGetNoOfCaptures = handle_method(PicoScope3000aWrapper.ps3000aGetNoOfCaptures)
+    ps3000aGetNoOfProcessedCaptures = handle_method(
+        PicoScope3000aWrapper.ps3000aGetNoOfProcessedCaptures
+    )
+    ps3000aSetDataBuffer = handle_method(PicoScope3000aWrapper.ps3000aSetDataBuffer)
+    ps3000aSetDataBuffers = handle_method(PicoScope3000aWrapper.ps3000aSetDataBuffers)
+    ps3000aSetUnscaledDataBuffers = handle_method(
+        PicoScope3000aWrapper.ps3000aSetUnscaledDataBuffers
+    )
+    ps3000aSetEtsTimeBuffer = handle_method(
+        PicoScope3000aWrapper.ps3000aSetEtsTimeBuffer
+    )
+    ps3000aSetEtsTimeBuffers = handle_method(
+        PicoScope3000aWrapper.ps3000aSetEtsTimeBuffers
+    )
+    ps3000aIsReady = handle_method(PicoScope3000aWrapper.ps3000aIsReady)
+    ps3000aRunBlock = handle_method(PicoScope3000aWrapper.ps3000aRunBlock)
+    ps3000aRunStreaming = handle_method(PicoScope3000aWrapper.ps3000aRunStreaming)
+    ps3000aGetStreamingLatestValues = handle_method(
+        PicoScope3000aWrapper.ps3000aGetStreamingLatestValues
+    )
+    ps3000aNoOfStreamingValues = handle_method(
+        PicoScope3000aWrapper.ps3000aNoOfStreamingValues
+    )
+    ps3000aGetMaxDownSampleRatio = handle_method(
+        PicoScope3000aWrapper.ps3000aGetMaxDownSampleRatio
+    )
+    ps3000aGetValues = handle_method(PicoScope3000aWrapper.ps3000aGetValues)
+    ps3000aGetValuesBulk = handle_method(PicoScope3000aWrapper.ps3000aGetValuesBulk)
+    ps3000aGetValuesAsync = handle_method(PicoScope3000aWrapper.ps3000aGetValuesAsync)
+    ps3000aGetValuesOverlapped = handle_method(
+        PicoScope3000aWrapper.ps3000aGetValuesOverlapped
+    )
+    ps3000aGetValuesOverlappedBulk = handle_method(
+        PicoScope3000aWrapper.ps3000aGetValuesOverlappedBulk
+    )
+    ps3000aGetTriggerInfoBulk = handle_method(
+        PicoScope3000aWrapper.ps3000aGetTriggerInfoBulk
+    )
+    ps3000aStop = handle_method(PicoScope3000aWrapper.ps3000aStop)
+    ps3000aHoldOff = handle_method(PicoScope3000aWrapper.ps3000aHoldOff)
+    ps3000aGetChannelInformation = handle_method(
+        PicoScope3000aWrapper.ps3000aGetChannelInformation
+    )
+    ps3000aPingUnit = handle_method(PicoScope3000aWrapper.ps3000aPingUnit)
+    ps3000aMaximumValue = handle_method(PicoScope3000aWrapper.ps3000aMaximumValue)
+    ps3000aMinimumValue = handle_method(PicoScope3000aWrapper.ps3000aMinimumValue)
+    ps3000aGetAnalogueOffset = handle_method(
+        PicoScope3000aWrapper.ps3000aGetAnalogueOffset
+    )
+    ps3000aGetMaxSegments = handle_method(PicoScope3000aWrapper.ps3000aGetMaxSegments)
+    ps3000aChangePowerSource = handle_method(
+        PicoScope3000aWrapper.ps3000aChangePowerSource
+    )
+    ps3000aCurrentPowerSource = handle_method(
+        PicoScope3000aWrapper.ps3000aCurrentPowerSource
+    )
+    ps3000aQueryOutputEdgeDetect = handle_method(
+        PicoScope3000aWrapper.ps3000aQueryOutputEdgeDetect
+    )
+    ps3000aSetOutputEdgeDetect = handle_method(
+        PicoScope3000aWrapper.ps3000aSetOutputEdgeDetect
+    )
+    ps3000aGetScalingValues = handle_method(
+        PicoScope3000aWrapper.ps3000aGetScalingValues
+    )
+    ps3000aCheckForUpdate = handle_method(PicoScope3000aWrapper.ps3000aCheckForUpdate)
+    ps3000aStartFirmwareUpdate = handle_method(
+        PicoScope3000aWrapper.ps3000aStartFirmwareUpdate
+    )
+
+
 __all__ = (
     "PS3000A_BANDWIDTH_LIMITER",
     "PS3000A_CHANNEL",
@@ -2199,6 +2383,7 @@ __all__ = (
     "PS3207A_MAX_INTERLEAVE",
     "PS3207B_MAX_SIG_GEN_BUFFER_SIZE",
     "PicoScope3000aWrapper",
+    "PicoScope3000aDevice",
     "ps3000aBlockReady",
     "ps3000aDataReady",
     "ps3000aStreamingReady",

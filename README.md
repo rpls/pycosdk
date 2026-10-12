@@ -25,17 +25,17 @@ pip install pycosdk
 
 ## Supported drivers
 
-| Driver    | Wrapper class            |
-| --------- | ------------------------ |
-| `ps2000`  | `PicoScope2000Wrapper`   |
-| `ps2000a` | `PicoScope2000aWrapper`  |
-| `ps3000`  | `PicoScope3000Wrapper`   |
-| `ps3000a` | `PicoScope3000aWrapper`  |
-| `ps5000`  | `PicoScope5000Wrapper`   |
-| `ps5000a` | `PicoScope5000aWrapper`  |
-| `ps6000`  | `PicoScope6000Wrapper`   |
-| `ps6000a` | `PicoScope6000aWrapper`  |
-| `psospa`  | `PicoScope3000eWrapper`  |
+| Driver    | Wrapper class           | Device class           |
+| --------- | ----------------------- | ---------------------- |
+| `ps2000`  | `PicoScope2000Wrapper`  | `PicoScope2000Device`  |
+| `ps2000a` | `PicoScope2000aWrapper` | `PicoScope2000aDevice` |
+| `ps3000`  | `PicoScope3000Wrapper`  | `PicoScope3000Device`  |
+| `ps3000a` | `PicoScope3000aWrapper` | `PicoScope3000aDevice` |
+| `ps5000`  | `PicoScope5000Wrapper`  | `PicoScope5000Device`  |
+| `ps5000a` | `PicoScope5000aWrapper` | `PicoScope5000aDevice` |
+| `ps6000`  | `PicoScope6000Wrapper`  | `PicoScope6000Device`  |
+| `ps6000a` | `PicoScope6000aWrapper` | `PicoScope6000aDevice` |
+| `psospa`  | `PicoScope3000eWrapper` | `PicoScope3000eDevice` |
 
 Each wrapper binds every function declared in the corresponding SDK header
 (for `ps6000a` including `ps6000aApiExperimental.h`). Functions that the
@@ -80,6 +80,62 @@ scope.ps6000aSetChannelOn(
 
 scope.ps6000aCloseUnit(handle)
 ```
+
+## Device wrappers
+
+A device class bundles an opened unit with the driver's shared wrapper. It
+offers every function of the wrapper that takes a handle as a method with the
+handle filled in, and the functions without one (opening and enumerating units)
+as classmethods. The open functions return a device instead of a handle;
+everything else keeps the wrapper's arguments and return values. A device is a
+context manager that closes the unit on exit, and `close()` may be called more
+than once. Once closed, calling a method that needs the handle raises a
+`ValueError`.
+
+```python
+from pycosdk import (
+    PICO_BANDWIDTH_LIMITER,
+    PICO_CHANNEL,
+    PICO_CONNECT_PROBE_RANGE,
+    PICO_COUPLING,
+    PICO_DEVICE_RESOLUTION,
+    PicoScope6000aDevice,
+)
+
+status, scope = PicoScope6000aDevice.ps6000aOpenUnit(
+    None, PICO_DEVICE_RESOLUTION.PICO_DR_8BIT
+)
+with scope:
+    scope.ps6000aSetChannelOn(
+        PICO_CHANNEL.PICO_CHANNEL_A,
+        PICO_COUPLING.PICO_DC_50OHM,
+        PICO_CONNECT_PROBE_RANGE.PICO_X1_PROBE_1V,
+        0.0,
+        PICO_BANDWIDTH_LIMITER.PICO_BW_FULL,
+    )
+```
+
+To use a custom library path, call the wrapper's `instance(library_path)`
+before using the device class. A unit opened through the wrapper can be wrapped
+as a device with `PicoScope6000aDevice(handle)`.
+
+### Why device methods keep the driver prefix
+
+The device methods are named `scope.ps6000aSetChannelOn(...)` rather than
+`scope.SetChannelOn(...)` on purpose. The drivers share many function names, but
+often not their arguments, argument types or semantics. For example,
+`SetChannel` takes a `dc` flag for the ps2000, ps3000 and ps5000, a coupling and
+an analogue offset for the ps2000a, ps3000a and ps5000a, an additional
+bandwidth limit for the ps6000, and the ps6000a and psospa split it into
+`SetChannelOn`/`SetChannelOff`. Even where the arguments match, enum values may
+differ (e.g. the ratio modes of the ps5000 and ps6000).
+
+Without the prefix, code written for one device would seem to work with another
+after only changing the device class, and fail (or silently misbehave) in many
+places at runtime. A type checker catches some, but not all, of these mistakes,
+and not everyone uses one. With the prefix, switching devices means touching
+every call, which forces the user (or their coding assistant) to look at what
+needs to change for the new device.
 
 ## Status handling
 

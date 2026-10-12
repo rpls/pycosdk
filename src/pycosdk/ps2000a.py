@@ -17,8 +17,9 @@ from ctypes import (
     create_string_buffer,
 )
 from enum import IntEnum
-from typing import Any, final
+from typing import Any, Self, final
 
+from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._base import CALLBACK_FUNCTYPE, PicoScopeWrapperBase
 from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
 
@@ -1965,6 +1966,171 @@ class PicoScope2000aWrapper(PicoScopeWrapperBase):
         )
 
 
+@final
+class PicoScope2000aDevice(PicoScopeDeviceBase[PicoScope2000aWrapper]):
+    """An opened ps2000a unit; the functions of :class:`PicoScope2000aWrapper` with its handle.
+
+    See :class:`~pycosdk.PicoScopeDeviceBase`.
+    """
+
+    _wrapper_type = PicoScope2000aWrapper
+
+    @classmethod
+    def ps2000aOpenUnit(cls, serial: str | None) -> tuple[PICO_STATUS, Self]:
+        """Like :meth:`PicoScope2000aWrapper.ps2000aOpenUnit`, returning a device instead of the handle."""
+        status, handle = cls.shared_wrapper().ps2000aOpenUnit(serial)
+        return status, cls(handle)
+
+    @classmethod
+    def ps2000aOpenUnitProgress(cls) -> tuple[PICO_STATUS, Self | None, int, bool]:
+        """Like :meth:`PicoScope2000aWrapper.ps2000aOpenUnitProgress`, with a device instead of the handle once opened."""
+        status, handle, progressPercent, complete = (
+            cls.shared_wrapper().ps2000aOpenUnitProgress()
+        )
+        return status, cls(handle) if complete else None, progressPercent, complete
+
+    ps2000aOpenUnitAsync = wrapper_function(PicoScope2000aWrapper.ps2000aOpenUnitAsync)
+    ps2000aEnumerateUnits = wrapper_function(
+        PicoScope2000aWrapper.ps2000aEnumerateUnits
+    )
+
+    ps2000aCloseUnit = handle_method(
+        PicoScope2000aWrapper.ps2000aCloseUnit, closes=True
+    )
+    ps2000aGetUnitInfo = handle_method(PicoScope2000aWrapper.ps2000aGetUnitInfo)
+    ps2000aFlashLed = handle_method(PicoScope2000aWrapper.ps2000aFlashLed)
+    ps2000aMemorySegments = handle_method(PicoScope2000aWrapper.ps2000aMemorySegments)
+    ps2000aSetChannel = handle_method(PicoScope2000aWrapper.ps2000aSetChannel)
+    ps2000aSetDigitalPort = handle_method(PicoScope2000aWrapper.ps2000aSetDigitalPort)
+    ps2000aSetNoOfCaptures = handle_method(PicoScope2000aWrapper.ps2000aSetNoOfCaptures)
+    ps2000aGetTimebase = handle_method(PicoScope2000aWrapper.ps2000aGetTimebase)
+    ps2000aGetTimebase2 = handle_method(PicoScope2000aWrapper.ps2000aGetTimebase2)
+    ps2000aSetSigGenArbitrary = handle_method(
+        PicoScope2000aWrapper.ps2000aSetSigGenArbitrary
+    )
+    ps2000aSetSigGenBuiltIn = handle_method(
+        PicoScope2000aWrapper.ps2000aSetSigGenBuiltIn
+    )
+    ps2000aSetSigGenBuiltInV2 = handle_method(
+        PicoScope2000aWrapper.ps2000aSetSigGenBuiltInV2
+    )
+    ps2000aSetSigGenPropertiesArbitrary = handle_method(
+        PicoScope2000aWrapper.ps2000aSetSigGenPropertiesArbitrary
+    )
+    ps2000aSetSigGenPropertiesBuiltIn = handle_method(
+        PicoScope2000aWrapper.ps2000aSetSigGenPropertiesBuiltIn
+    )
+    ps2000aSigGenFrequencyToPhase = handle_method(
+        PicoScope2000aWrapper.ps2000aSigGenFrequencyToPhase
+    )
+    ps2000aSigGenArbitraryMinMaxValues = handle_method(
+        PicoScope2000aWrapper.ps2000aSigGenArbitraryMinMaxValues
+    )
+    ps2000aGetMaxEtsValues = handle_method(PicoScope2000aWrapper.ps2000aGetMaxEtsValues)
+    ps2000aSigGenSoftwareControl = handle_method(
+        PicoScope2000aWrapper.ps2000aSigGenSoftwareControl
+    )
+    ps2000aSetEts = handle_method(PicoScope2000aWrapper.ps2000aSetEts)
+    ps2000aSetSimpleTrigger = handle_method(
+        PicoScope2000aWrapper.ps2000aSetSimpleTrigger
+    )
+    ps2000aSetTriggerDigitalPortProperties = handle_method(
+        PicoScope2000aWrapper.ps2000aSetTriggerDigitalPortProperties
+    )
+    ps2000aSetDigitalAnalogTriggerOperand = handle_method(
+        PicoScope2000aWrapper.ps2000aSetDigitalAnalogTriggerOperand
+    )
+    ps2000aSetPulseWidthDigitalPortProperties = handle_method(
+        PicoScope2000aWrapper.ps2000aSetPulseWidthDigitalPortProperties
+    )
+    ps2000aSetTriggerChannelProperties = handle_method(
+        PicoScope2000aWrapper.ps2000aSetTriggerChannelProperties
+    )
+    ps2000aSetTriggerChannelConditions = handle_method(
+        PicoScope2000aWrapper.ps2000aSetTriggerChannelConditions
+    )
+    ps2000aSetTriggerChannelDirections = handle_method(
+        PicoScope2000aWrapper.ps2000aSetTriggerChannelDirections
+    )
+    ps2000aSetTriggerDelay = handle_method(PicoScope2000aWrapper.ps2000aSetTriggerDelay)
+    ps2000aSetPulseWidthQualifier = handle_method(
+        PicoScope2000aWrapper.ps2000aSetPulseWidthQualifier
+    )
+    ps2000aIsTriggerOrPulseWidthQualifierEnabled = handle_method(
+        PicoScope2000aWrapper.ps2000aIsTriggerOrPulseWidthQualifierEnabled
+    )
+    ps2000aGetTriggerTimeOffset = handle_method(
+        PicoScope2000aWrapper.ps2000aGetTriggerTimeOffset
+    )
+    ps2000aGetTriggerTimeOffset64 = handle_method(
+        PicoScope2000aWrapper.ps2000aGetTriggerTimeOffset64
+    )
+    ps2000aGetValuesTriggerTimeOffsetBulk = handle_method(
+        PicoScope2000aWrapper.ps2000aGetValuesTriggerTimeOffsetBulk
+    )
+    ps2000aGetValuesTriggerTimeOffsetBulk64 = handle_method(
+        PicoScope2000aWrapper.ps2000aGetValuesTriggerTimeOffsetBulk64
+    )
+    ps2000aGetNoOfCaptures = handle_method(PicoScope2000aWrapper.ps2000aGetNoOfCaptures)
+    ps2000aGetNoOfProcessedCaptures = handle_method(
+        PicoScope2000aWrapper.ps2000aGetNoOfProcessedCaptures
+    )
+    ps2000aSetDataBuffer = handle_method(PicoScope2000aWrapper.ps2000aSetDataBuffer)
+    ps2000aSetDataBuffers = handle_method(PicoScope2000aWrapper.ps2000aSetDataBuffers)
+    ps2000aSetUnscaledDataBuffers = handle_method(
+        PicoScope2000aWrapper.ps2000aSetUnscaledDataBuffers
+    )
+    ps2000aSetEtsTimeBuffer = handle_method(
+        PicoScope2000aWrapper.ps2000aSetEtsTimeBuffer
+    )
+    ps2000aSetEtsTimeBuffers = handle_method(
+        PicoScope2000aWrapper.ps2000aSetEtsTimeBuffers
+    )
+    ps2000aIsReady = handle_method(PicoScope2000aWrapper.ps2000aIsReady)
+    ps2000aRunBlock = handle_method(PicoScope2000aWrapper.ps2000aRunBlock)
+    ps2000aRunStreaming = handle_method(PicoScope2000aWrapper.ps2000aRunStreaming)
+    ps2000aGetStreamingLatestValues = handle_method(
+        PicoScope2000aWrapper.ps2000aGetStreamingLatestValues
+    )
+    ps2000aNoOfStreamingValues = handle_method(
+        PicoScope2000aWrapper.ps2000aNoOfStreamingValues
+    )
+    ps2000aGetMaxDownSampleRatio = handle_method(
+        PicoScope2000aWrapper.ps2000aGetMaxDownSampleRatio
+    )
+    ps2000aGetValues = handle_method(PicoScope2000aWrapper.ps2000aGetValues)
+    ps2000aGetValuesBulk = handle_method(PicoScope2000aWrapper.ps2000aGetValuesBulk)
+    ps2000aGetValuesAsync = handle_method(PicoScope2000aWrapper.ps2000aGetValuesAsync)
+    ps2000aGetValuesOverlapped = handle_method(
+        PicoScope2000aWrapper.ps2000aGetValuesOverlapped
+    )
+    ps2000aGetValuesOverlappedBulk = handle_method(
+        PicoScope2000aWrapper.ps2000aGetValuesOverlappedBulk
+    )
+    ps2000aStop = handle_method(PicoScope2000aWrapper.ps2000aStop)
+    ps2000aHoldOff = handle_method(PicoScope2000aWrapper.ps2000aHoldOff)
+    ps2000aGetChannelInformation = handle_method(
+        PicoScope2000aWrapper.ps2000aGetChannelInformation
+    )
+    ps2000aPingUnit = handle_method(PicoScope2000aWrapper.ps2000aPingUnit)
+    ps2000aMaximumValue = handle_method(PicoScope2000aWrapper.ps2000aMaximumValue)
+    ps2000aMinimumValue = handle_method(PicoScope2000aWrapper.ps2000aMinimumValue)
+    ps2000aGetAnalogueOffset = handle_method(
+        PicoScope2000aWrapper.ps2000aGetAnalogueOffset
+    )
+    ps2000aGetMaxSegments = handle_method(PicoScope2000aWrapper.ps2000aGetMaxSegments)
+    ps2000aQueryOutputEdgeDetect = handle_method(
+        PicoScope2000aWrapper.ps2000aQueryOutputEdgeDetect
+    )
+    ps2000aSetOutputEdgeDetect = handle_method(
+        PicoScope2000aWrapper.ps2000aSetOutputEdgeDetect
+    )
+    ps2000aGetScalingValues = handle_method(
+        PicoScope2000aWrapper.ps2000aGetScalingValues
+    )
+    ps2000aGetCaptureState = handle_method(PicoScope2000aWrapper.ps2000aGetCaptureState)
+
+
 __all__ = (
     "PS2000A_CAPTURE_STATE",
     "PS2000A_CHANNEL",
@@ -2031,6 +2197,7 @@ __all__ = (
     "PS2208_MAX_ETS_CYCLES",
     "PS2208_MAX_INTERLEAVE",
     "PicoScope2000aWrapper",
+    "PicoScope2000aDevice",
     "ps2000aBlockReady",
     "ps2000aDataReady",
     "ps2000aStreamingReady",
