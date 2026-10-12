@@ -525,6 +525,8 @@ class PICO_STATUS(IntEnum):
     PICO_CONFLICT_IN_SET_DATA_BUFFERS_CALL_REMOVE_DATA_BUFFER_TO_RESET = 0x0000019C
     # While processing data, buffers cannot be removed from the data buffers list.
     PICO_REMOVING_DATA_BUFFER_ENTRIES_NOT_ALLOWED_WHILE_DATA_PROCESSING = 0x0000019D
+    # An already enabled frequency counter must be disabled before another can be enabled
+    PICO_TOO_MANY_FREQUENCY_COUNTERS = 0x0000019E
     #  An USB request has failed.
     PICO_CYUSB_REQUEST_FAILED = 0x00000200
     # A request has been made to retrieve the latest streaming data, but with either a null pointer or an array size set to zero.
