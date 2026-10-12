@@ -2,6 +2,7 @@
 
 ## General Rule
 
+- Don't write any tests unless explicitly asked to do.
 - Do not run any tests unless explicitly asked to do.
 
 ## Python Coding rules
