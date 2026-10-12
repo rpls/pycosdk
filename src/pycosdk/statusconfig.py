@@ -25,20 +25,28 @@ action, wrapper methods still return the status if they do not raise.
 them temporarily for a ``with`` block (or a decorated function); such overrides
 are local to the current thread or asyncio task.
 
+The legacy drivers (``ps2000``, ``ps3000``) predate ``PICO_STATUS`` and report
+a failure through their return value instead, see :func:`check_result`. A failed
+call always falls into the ``error`` category; ``"raise"`` raises a
+:class:`~pycosdk.exceptions.ResultException` and ``"warn"`` emits a
+:class:`~pycosdk.exceptions.ResultWarning`.
+
 Callbacks invoked by the driver are not affected: they receive the status as an
 argument and are free to handle it.
 """
 
 import warnings
-from collections.abc import Collection
+from collections.abc import Callable, Collection
 from contextlib import ContextDecorator
 from contextvars import ContextVar, Token
-from typing import Literal, TypedDict, get_args
+from typing import Literal, TypedDict, TypeVar, get_args
 
-from .exceptions import StatusException, StatusWarning
+from .exceptions import ResultException, ResultWarning, StatusException, StatusWarning
 from .status import PICO_STATUS
 
 StatusAction = Literal["raise", "warn", "ignore"]
+
+_R = TypeVar("_R")
 
 
 class StatusConfig(TypedDict):
@@ -170,10 +178,44 @@ def check_status(
     return status
 
 
+def check_result(
+    result: _R,
+    failed: bool,
+    function: str | None = None,
+    error_code: Callable[[], int | None] | None = None,
+    stacklevel: int = 2,
+) -> _R:
+    """Handle the raw ``result`` of a legacy driver function per the current settings.
+
+    ``failed`` tells whether ``result`` indicates a failure, which is handled by
+    the ``error`` action; ``result`` is returned unless that action raises.
+    ``error_code`` is only called when raising or warning, to look up the driver
+    error code attached to the exception or warning; if it raises, the code is
+    left out. ``stacklevel`` is passed on to :func:`warnings.warn` (counted from
+    the caller of this function).
+    """
+    if not failed:
+        return result
+    action = _current()["error"]
+    if action == "ignore":
+        return result
+    code = None
+    if error_code is not None:
+        try:
+            code = error_code()
+        except Exception:
+            code = None
+    if action == "raise":
+        raise ResultException(result, function, code)
+    warnings.warn(ResultWarning(result, function, code), stacklevel=stacklevel + 1)
+    return result
+
+
 __all__ = (
     "WARNING_STATUSES",
     "StatusAction",
     "StatusConfig",
+    "check_result",
     "check_status",
     "errstate",
     "geterr",

@@ -5,12 +5,13 @@ from collections import deque
 from collections.abc import Callable, Collection
 from ctypes import LibraryLoader
 from ctypes.util import find_library
+from functools import partial
 from pathlib import Path
-from typing import Any, ClassVar, Self
+from typing import Any, ClassVar, Self, TypeVar
 
 from .exceptions import MissingFunctionException, MissingLibraryException
 from .status import PICO_STATUS, PICO_STATUS_T
-from .statusconfig import check_status
+from .statusconfig import check_result, check_status
 
 if sys.platform == "win32":
     # The drivers declare their callbacks as __stdcall on Windows.
@@ -61,6 +62,8 @@ _RETIRED_CALLBACKS = 32
 # Shared wrapper instances per wrapper class, see PicoScopeWrapperBase.instance.
 _instances: dict[type["PicoScopeWrapperBase"], "PicoScopeWrapperBase"] = {}
 _instances_lock = threading.Lock()
+
+_R = TypeVar("_R")
 
 
 class PicoScopeWrapperBase:
@@ -146,29 +149,86 @@ class PicoScopeWrapperBase:
         func.errcheck = errcheck
         return func
 
+    def _bind_legacy(
+        self,
+        name: str,
+        argtypes: list[Any],
+        restype: Any,
+        failed: Callable[[Any], bool] | None = None,
+        error_code: Callable[[tuple[Any, ...]], int | None] | None = None,
+    ) -> Callable[..., Any]:
+        """Bind the function ``name`` of a legacy (pre-``PICO_STATUS``) driver.
+
+        ``restype`` is the ctypes return type (``None`` for ``void``). ``failed``
+        tells from the raw return value whether the call failed; a failure is
+        handled by :func:`pycosdk.statusconfig.check_result`. Without ``failed``
+        the function cannot fail and its result is returned unchecked.
+        ``error_code`` receives the call's arguments and looks up the driver
+        error code to attach to the exception or warning.
+
+        Each call binds a separate function object, so a function can be bound
+        more than once, e.g., unchecked for use inside an ``error_code`` lookup.
+        Functions missing from the loaded library are replaced by a stub raising
+        :class:`MissingFunctionException` when called.
+        """
+        try:
+            func = self.lib[name]
+        except AttributeError:
+
+            def missing(*_args: Any, **_kwargs: Any) -> Any:
+                raise MissingFunctionException(
+                    f"{name} is not exported by the loaded driver library"
+                )
+
+            return missing
+
+        func.restype = restype
+        func.argtypes = argtypes
+        if failed is not None:
+            is_failure = failed
+
+            def errcheck(result: Any, _func: Any, args: tuple[Any, ...]) -> Any:
+                lookup = None if error_code is None else partial(error_code, args)
+                # Frames: check_result <- errcheck <- wrapper method <- user code
+                return check_result(
+                    result, is_failure(result), name, lookup, stacklevel=3
+                )
+
+            func.errcheck = errcheck
+        return func
+
     @staticmethod
     def _callback_key(name: str, handle: Any) -> str:
         """Callback slot key for the driver function ``name`` on device ``handle``."""
         return f"{name}:{getattr(handle, 'value', handle)}"
 
     def _with_callback(
-        self, key: str, callback: Any, call: Callable[[], PICO_STATUS]
-    ) -> PICO_STATUS:
+        self,
+        key: str,
+        callback: Any,
+        call: Callable[[], _R],
+        accepted: Callable[[_R], bool] | None = None,
+    ) -> _R:
         """Run ``call``, which hands ``callback`` to the driver, keeping it alive.
 
         ``key`` identifies the callback slot, see :meth:`_callback_key`. Only one callback per
         slot is current; replaced ones are retired but kept alive for a while.
         If the driver rejects the new callback, the previous one stays current.
+        ``accepted`` tells from the result of ``call`` whether the driver took
+        the callback; by default, when it returned ``PICO_OK``.
         """
         previous = self._callbacks.get(key)
         self._callbacks[key] = callback
-        accepted = False
+        ok = False
         try:
-            status = call()
-            accepted = status == PICO_STATUS.PICO_OK
-            return status
+            result = call()
+            if accepted is None:
+                ok = result == PICO_STATUS.PICO_OK
+            else:
+                ok = accepted(result)
+            return result
         finally:
-            if accepted:
+            if ok:
                 retired = previous
             else:
                 retired = callback

@@ -66,8 +66,12 @@ from .devicestructs import (
     PROBE_APP,
 )
 from .exceptions import (
+    DriverException,
+    DriverWarning,
     MissingFunctionException,
     MissingLibraryException,
+    ResultException,
+    ResultWarning,
     StatusException,
     StatusWarning,
 )
@@ -501,8 +505,12 @@ __all__ = (
     "PS6000_TRIGGER_STATE",
     "PS6000_WAVE_TYPE",
     "WARNING_STATUSES",
+    "DriverException",
+    "DriverWarning",
     "MissingFunctionException",
     "MissingLibraryException",
+    "ResultException",
+    "ResultWarning",
     "StatusAction",
     "StatusConfig",
     "StatusException",
