@@ -77,6 +77,7 @@ from .exceptions import (
 )
 from .ps2000 import PicoScope2000Wrapper
 from .ps2000a import PicoScope2000aWrapper
+from .ps3000 import PicoScope3000Wrapper
 from .ps3000a import (
     PS3000A_BANDWIDTH_LIMITER,
     PS3000A_CHANNEL,
@@ -521,6 +522,7 @@ __all__ = (
     "seterr",
     "PicoScope2000Wrapper",
     "PicoScope2000aWrapper",
+    "PicoScope3000Wrapper",
     "PicoScope3000aWrapper",
     "PicoScope3000eWrapper",
     "PicoScope5000Wrapper",
