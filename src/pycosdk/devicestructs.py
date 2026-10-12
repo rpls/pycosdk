@@ -12,7 +12,7 @@ from ctypes import (
     c_void_p,
 )
 from dataclasses import dataclass
-from typing import final
+from typing import Self, final
 
 from .connectprobe import (
     PICO_CONNECT_PROBE_RANGE_T,
@@ -248,7 +248,7 @@ class PicoUsbPowerDelivery:
     currentRdo: int
 
     @classmethod
-    def from_struct(cls, c: PICO_USB_POWER_DELIVERY):
+    def from_struct(cls, c: PICO_USB_POWER_DELIVERY) -> Self:
         return cls(
             c.valid_ != 0,
             c.busVoltagemV_,
@@ -280,7 +280,7 @@ class PicoUsbPowerDetails:
     powerPort: PicoUsbPowerDelivery
 
     @classmethod
-    def from_struct(cls, c: PICO_USB_POWER_DETAILS):
+    def from_struct(cls, c: PICO_USB_POWER_DETAILS) -> Self:
         return cls(
             c.powerErrorLikely_ != 0,
             PicoUsbPowerDelivery.from_struct(c.dataPort_),

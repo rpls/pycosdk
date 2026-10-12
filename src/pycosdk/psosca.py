@@ -1,4 +1,5 @@
 from collections.abc import Callable, Sequence
+from _ctypes import CFuncPtr
 from ctypes import (
     POINTER,
     Array,
@@ -101,7 +102,7 @@ def _range_value(value: float) -> int:
 class PicoScope3000eWrapper(PicoScopeWrapperBase):
     _library_name = "psospa"
 
-    def __init__(self, library_path: str | None = None):
+    def __init__(self, library_path: str | None = None) -> None:
         super().__init__(library_path)
 
         # The device opened fine, but is connected to a USB 2.0 port.
@@ -570,7 +571,9 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
             "psospaSetAuxIoMode", [c_int16, PICO_AUXIO_MODE_T]
         )
 
-    def psospaOpenUnit(self, serial: str | None, resolution: PICO_DEVICE_RESOLUTION):
+    def psospaOpenUnit(
+        self, serial: str | None, resolution: PICO_DEVICE_RESOLUTION
+    ) -> tuple[PICO_STATUS, c_int16, PicoUsbPowerDetails]:
         handle = c_int16(0)
         ser = serial.encode() if serial is not None else None
         usbpwrdet = PICO_USB_POWER_DETAILS()
@@ -580,10 +583,12 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
             PicoUsbPowerDetails.from_struct(usbpwrdet),
         )
 
-    def psospaCloseUnit(self, handle: c_int16):
+    def psospaCloseUnit(self, handle: c_int16) -> PICO_STATUS:
         return self._psospaCloseUnit(handle)
 
-    def psospaGetUnitInfo(self, handle: c_int16, info: PICO_INFO):
+    def psospaGetUnitInfo(
+        self, handle: c_int16, info: PICO_INFO
+    ) -> tuple[PICO_STATUS, str]:
         buf = create_string_buffer(bytes(255))
         size = c_int16(0)
         status = self._psospaGetUnitInfo(handle, buf, 255, byref(size), info)
@@ -610,7 +615,9 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         )
         return status, buf.value.decode("utf-8")
 
-    def psospaMemorySegments(self, handle: c_int16, nsegments: int):
+    def psospaMemorySegments(
+        self, handle: c_int16, nsegments: int
+    ) -> tuple[PICO_STATUS, int]:
         assert nsegments > 0
         maxSamples = c_uint64(0)
         return (
@@ -618,7 +625,9 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
             maxSamples.value,
         )
 
-    def psospaMemorySegmentsBySamples(self, handle: c_int16, nsamples: int):
+    def psospaMemorySegmentsBySamples(
+        self, handle: c_int16, nsamples: int
+    ) -> tuple[PICO_STATUS, int]:
         assert nsamples > 0
         maxSegments = c_uint64(0)
         return (
@@ -643,7 +652,7 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         nsamples: int,
         nchannels: int,
         resolution: PICO_DEVICE_RESOLUTION,
-    ):
+    ) -> tuple[PICO_STATUS, int]:
         maxSegments = c_uint64(0)
         return (
             self._psospaQueryMaxSegmentsBySamples(
@@ -662,7 +671,7 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         rangeType: PICO_PROBE_RANGE_INFO,
         analog_offset: float,
         bandwidth: PICO_BANDWIDTH_LIMITER,
-    ):
+    ) -> PICO_STATUS:
         return self._psospaSetChannelOn(
             handle,
             channel,
@@ -674,20 +683,24 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
             bandwidth,
         )
 
-    def psospaSetChannelOff(self, handle: c_int16, channel: PICO_CHANNEL):
+    def psospaSetChannelOff(
+        self, handle: c_int16, channel: PICO_CHANNEL
+    ) -> PICO_STATUS:
         return self._psospaSetChannelOff(handle, channel)
 
     def psospaSetDigitalPortOn(
         self, handle: c_int16, port: PICO_CHANNEL, logicThreshold: float
-    ):
+    ) -> PICO_STATUS:
         return self._psospaSetDigitalPortOn(handle, port, logicThreshold)
 
-    def psospaSetDigitalPortOff(self, handle: c_int16, port: PICO_CHANNEL):
+    def psospaSetDigitalPortOff(
+        self, handle: c_int16, port: PICO_CHANNEL
+    ) -> PICO_STATUS:
         return self._psospaSetDigitalPortOff(handle, port)
 
     def psospaGetTimebase(
         self, handle: c_int16, timebase: int, noSamples: int, segmentIndex: int
-    ):
+    ) -> tuple[PICO_STATUS, float, int]:
         timeIntervalNS = c_double(0)
         maxSamples = c_uint64(0)
         return (
@@ -860,7 +873,7 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         direction: PICO_THRESHOLD_DIRECTION,
         delay: int,
         autoTriggerUS: int,
-    ):
+    ) -> PICO_STATUS:
         assert autoTriggerUS >= 0
         return self._psospaSetSimpleTrigger(
             handle,
@@ -994,7 +1007,7 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         waveform: int,
         downsampleMode: PICO_RATIO_MODE,
         action: PICO_ACTION,
-    ):
+    ) -> PICO_STATUS:
         assert nsamples > 0
         return self._psospaSetDataBuffer(
             handle,
@@ -1039,14 +1052,14 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         timebase: int,
         segment: int,
         callback: Callable[[c_int16, PICO_STATUS], None] | None = None,
-    ):
+    ) -> tuple[PICO_STATUS, float]:
         assert preSamples >= 0
         assert postSamples >= 0
         timeInd = c_double(0)
         lpReady = psospaBlockReady()  # NULL; ctypes rejects None here
         if callback is not None:
 
-            def cbwrapper(handle: c_int16, status: int, _: int | None):
+            def cbwrapper(handle: c_int16, status: int, _: int | None) -> None:
                 callback(handle, PICO_STATUS(status))
 
             lpReady = psospaBlockReady(cbwrapper)
@@ -1066,7 +1079,7 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         )
         return status, float(timeInd.value)
 
-    def psospaIsReady(self, handle: c_int16):
+    def psospaIsReady(self, handle: c_int16) -> tuple[PICO_STATUS, bool]:
         ready = c_int16(0)
         return self._psospaIsReady(handle, byref(ready)), ready.value == 1
 
@@ -1155,7 +1168,7 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         toSegment: int,
         downsampleRatio: int,
         downsampleMode: PICO_RATIO_MODE,
-    ):
+    ) -> tuple[PICO_STATUS, int, list[PICO_CHANNEL_FLAGS]]:
         assert startindex >= 0
         assert nosamples > 0
         assert fromSegment <= toSegment
@@ -1179,10 +1192,10 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
 
     def _data_ready(
         self, callback: Callable[[int, PICO_STATUS, int, PICO_CHANNEL_FLAGS], None]
-    ):
+    ) -> CFuncPtr:
         def cbwrapper(
             handle: int, status: int, noOfSamples: int, overflow: int, _: int | None
-        ):
+        ) -> None:
             callback(
                 handle, PICO_STATUS(status), noOfSamples, PICO_CHANNEL_FLAGS(overflow)
             )
@@ -1301,7 +1314,7 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
     def psospaStop(self, handle: c_int16) -> PICO_STATUS:
         return self._psospaStop(handle)
 
-    def psospaSetNoOfCaptures(self, handle: c_int16, ncaptures: int):
+    def psospaSetNoOfCaptures(self, handle: c_int16, ncaptures: int) -> PICO_STATUS:
         assert ncaptures > 0
         return self._psospaSetNoOfCaptures(handle, ncaptures)
 
@@ -1358,7 +1371,7 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         handle: c_int16,
         enabledChannels: PICO_CHANNEL_FLAGS,
         resolution: PICO_DEVICE_RESOLUTION,
-    ):
+    ) -> tuple[PICO_STATUS, int, float]:
         timebase = c_uint32(0)
         timeInterval = c_double(0)
         return (
@@ -1380,7 +1393,7 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         timeIntervalRequested: float,
         roundFaster: bool,
         resolution: PICO_DEVICE_RESOLUTION,
-    ):
+    ) -> tuple[PICO_STATUS, int, float]:
         timebase = c_uint32(0)
         timeInterval = c_double(0)
         return (
@@ -1461,7 +1474,7 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         cb = PicoUpdateFirmwareProgress()  # NULL; ctypes rejects None here
         if progress is not None:
 
-            def cbwrapper(handle: int, percent: int):
+            def cbwrapper(handle: int, percent: int) -> None:
                 progress(handle, percent)
 
             cb = PicoUpdateFirmwareProgress(cbwrapper)

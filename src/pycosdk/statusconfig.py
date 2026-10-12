@@ -125,7 +125,7 @@ class errstate(ContextDecorator):
         error: StatusAction | None = None,
         warning: StatusAction | None = None,
         info: StatusAction | None = None,
-    ):
+    ) -> None:
         self._kwargs: dict[str, StatusAction | None] = dict(
             all=all, error=error, warning=warning, info=info
         )

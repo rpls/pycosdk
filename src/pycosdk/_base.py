@@ -61,7 +61,7 @@ _RETIRED_CALLBACKS = 32
 class PicoScopeWrapperBase:
     _library_name: ClassVar[str]
 
-    def __init__(self, library_path: str | None = None):
+    def __init__(self, library_path: str | None = None) -> None:
         if library_path is None:
             library_path = find_driver_library(self._library_name)
         if library_path is None:

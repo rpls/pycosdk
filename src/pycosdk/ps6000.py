@@ -375,7 +375,7 @@ _TIME_UNIT_SECONDS = {
 class PicoScope6000Wrapper(PicoScopeWrapperBase):
     _library_name = "ps6000"
 
-    def __init__(self, library_path: str | None = None):
+    def __init__(self, library_path: str | None = None) -> None:
         super().__init__(library_path)
 
         self._ps6000OpenUnit = self._bind(
@@ -856,7 +856,7 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
             "ps6000SetOutputEdgeDetect", [c_int16, c_int16]
         )
 
-    def ps6000OpenUnit(self, serial: str | None):
+    def ps6000OpenUnit(self, serial: str | None) -> tuple[PICO_STATUS, c_int16]:
         handle = c_int16(0)
         ser = serial.encode() if serial is not None else None
         return self._ps6000OpenUnit(byref(handle), ser), handle
@@ -876,10 +876,12 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
         )
         return status, handle, progressPercent.value, complete.value != 0
 
-    def ps6000CloseUnit(self, handle: c_int16):
+    def ps6000CloseUnit(self, handle: c_int16) -> PICO_STATUS:
         return self._ps6000CloseUnit(handle)
 
-    def ps6000GetUnitInfo(self, handle: c_int16, info: PICO_INFO):
+    def ps6000GetUnitInfo(
+        self, handle: c_int16, info: PICO_INFO
+    ) -> tuple[PICO_STATUS, str]:
         buf = create_string_buffer(bytes(255))
         size = c_int16(0)
         status = self._ps6000GetUnitInfo(handle, buf, 255, byref(size), info)
@@ -892,7 +894,9 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
     def ps6000FlashLed(self, handle: c_int16, start: int) -> PICO_STATUS:
         return self._ps6000FlashLed(handle, start)
 
-    def ps6000MemorySegments(self, handle: c_int16, nsegments: int):
+    def ps6000MemorySegments(
+        self, handle: c_int16, nsegments: int
+    ) -> tuple[PICO_STATUS, int]:
         assert nsegments > 0
         maxSamples = c_uint32(0)
         return (
@@ -909,7 +913,7 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
         range: PS6000_RANGE,
         analog_offset: float,
         bandwidth: PS6000_BANDWIDTH_LIMITER,
-    ):
+    ) -> PICO_STATUS:
         return self._ps6000SetChannel(
             handle,
             channel,
@@ -948,7 +952,7 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
         noSamples: int,
         oversample: int,
         segmentIndex: int,
-    ):
+    ) -> tuple[PICO_STATUS, float, int]:
         assert oversample >= 0 and oversample <= PS6000_MAX_OVERSAMPLE_8BIT
         timeIntervalNS = c_float(0)
         maxSamples = c_uint32(0)
@@ -1179,7 +1183,7 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
         direction: PS6000_THRESHOLD_DIRECTION,
         delay: int,
         autoTriggerMS: int,
-    ):
+    ) -> PICO_STATUS:
         assert autoTriggerMS >= 0
         return self._ps6000SetSimpleTrigger(
             handle,
@@ -1242,7 +1246,7 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
             handle, channelA, channelB, channelC, channelD, ext, aux
         )
 
-    def ps6000SetTriggerDelay(self, handle: c_int16, delay: int):
+    def ps6000SetTriggerDelay(self, handle: c_int16, delay: int) -> PICO_STATUS:
         return self._ps6000SetTriggerDelay(handle, delay)
 
     def ps6000SetPulseWidthQualifier(
@@ -1323,7 +1327,7 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
         handle: c_int16,
         fromSegment: int,
         toSegment: int,
-    ):
+    ) -> tuple[PICO_STATUS, list[float]]:
         assert fromSegment <= toSegment
         n = toSegment - fromSegment + 1
         times = (c_int64 * n)()
@@ -1356,7 +1360,7 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
         buffer: c_void_p,
         bufferLth: int,
         mode: PS6000_RATIO_MODE,
-    ):
+    ) -> PICO_STATUS:
         return self._ps6000SetDataBuffer(handle, channel, buffer, bufferLth, mode)
 
     def ps6000SetDataBufferBulk(
@@ -1367,7 +1371,7 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
         bufferLth: int,
         waveform: int,
         mode: PS6000_RATIO_MODE,
-    ):
+    ) -> PICO_STATUS:
         return self._ps6000SetDataBufferBulk(
             handle, channel, buffer, bufferLth, waveform, mode
         )
@@ -1408,7 +1412,7 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
         """The buffers must hold ``bufferLth`` uint32 values and outlive the capture."""
         return self._ps6000SetEtsTimeBuffers(handle, timeUpper, timeLower, bufferLth)
 
-    def ps6000IsReady(self, handle: c_int16):
+    def ps6000IsReady(self, handle: c_int16) -> tuple[PICO_STATUS, bool]:
         ready = c_int16(0)
         return self._ps6000IsReady(handle, byref(ready)), ready.value == 1
 
@@ -1421,7 +1425,7 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
         oversample: int,
         segment: int,
         callback: Callable[[c_int16, PICO_STATUS], None] | None,
-    ):
+    ) -> tuple[PICO_STATUS, int]:
         assert preSamples >= 0
         assert postSamples >= 0
         assert oversample >= 0 and oversample <= PS6000_MAX_OVERSAMPLE_8BIT
@@ -1429,7 +1433,7 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
         lpReady = ps6000BlockReady()  # NULL; ctypes rejects None here
         if callback is not None:
 
-            def cbwrapper(handle: c_int16, status: int, _: c_void_p):
+            def cbwrapper(handle: c_int16, status: int, _: c_void_p) -> None:
                 callback(handle, PICO_STATUS(status))
 
             lpReady = ps6000BlockReady(cbwrapper)
@@ -1493,7 +1497,7 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
             triggered: int,
             autoStop: int,
             _: c_void_p,
-        ):
+        ) -> None:
             callback(
                 handle,
                 noOfSamples,
@@ -1563,7 +1567,7 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
         toSegment: int,
         downsampleRatio: int,
         downsampleMode: PS6000_RATIO_MODE,
-    ):
+    ) -> tuple[PICO_STATUS, int, list[int]]:
         assert nosamples > 0
         assert fromSegment <= toSegment
         nosamples_ = c_uint32(nosamples)
@@ -1597,7 +1601,7 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
 
         def cbwrapper(
             handle: int, status: int, noOfSamples: int, overflow: int, _: c_void_p
-        ):
+        ) -> None:
             callback(handle, PICO_STATUS(status), noOfSamples, overflow)
 
         lpDataReady = ps6000DataReady(cbwrapper)
@@ -1716,11 +1720,13 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
         )
         return status, samples, overflow
 
-    def ps6000GetNoOfCaptures(self, handle: c_int16):
+    def ps6000GetNoOfCaptures(self, handle: c_int16) -> tuple[PICO_STATUS, int]:
         captures = c_uint32()
         return self._ps6000GetNoOfCaptures(handle, byref(captures)), captures.value
 
-    def ps6000GetNoOfProcessedCaptures(self, handle: c_int16):
+    def ps6000GetNoOfProcessedCaptures(
+        self, handle: c_int16
+    ) -> tuple[PICO_STATUS, int]:
         captures = c_uint32()
         return (
             self._ps6000GetNoOfProcessedCaptures(handle, byref(captures)),
@@ -1730,7 +1736,7 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
     def ps6000Stop(self, handle: c_int16) -> PICO_STATUS:
         return self._ps6000Stop(handle)
 
-    def ps6000SetNoOfCaptures(self, handle: c_int16, ncaptures: int):
+    def ps6000SetNoOfCaptures(self, handle: c_int16, ncaptures: int) -> PICO_STATUS:
         assert ncaptures > 0
         return self._ps6000SetNoOfCaptures(handle, ncaptures)
 
@@ -1779,7 +1785,7 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
 
     def ps6000GetAnalogueOffset(
         self, handle: c_int16, range: PS6000_RANGE, coupling: PS6000_COUPLING
-    ):
+    ) -> tuple[PICO_STATUS, float, float]:
         minv = c_float(0)
         maxv = c_float(0)
         return (

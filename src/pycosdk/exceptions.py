@@ -20,7 +20,7 @@ class StatusException(Exception):
     :func:`pycosdk.seterr` and :class:`pycosdk.errstate`.
     """
 
-    def __init__(self, status: PICO_STATUS, function: str | None = None):
+    def __init__(self, status: PICO_STATUS, function: str | None = None) -> None:
         super().__init__(status, function)
         self.status: PICO_STATUS = status
         self.function: str | None = function
@@ -33,7 +33,7 @@ class StatusException(Exception):
 class StatusWarning(UserWarning):
     """Emitted instead of raising when a status category is configured to ``"warn"``."""
 
-    def __init__(self, status: PICO_STATUS, function: str | None = None):
+    def __init__(self, status: PICO_STATUS, function: str | None = None) -> None:
         super().__init__(status, function)
         self.status: PICO_STATUS = status
         self.function: str | None = function
