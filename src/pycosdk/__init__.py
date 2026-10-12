@@ -71,6 +71,7 @@ from .exceptions import (
     StatusException,
     StatusWarning,
 )
+from .ps2000a import PicoScope2000aWrapper
 from .ps3000a import (
     PS3000A_BANDWIDTH_LIMITER,
     PS3000A_CHANNEL,
@@ -508,6 +509,7 @@ __all__ = (
     "errstate",
     "geterr",
     "seterr",
+    "PicoScope2000aWrapper",
     "PicoScope3000aWrapper",
     "PicoScope3000eWrapper",
     "PicoScope5000aWrapper",
