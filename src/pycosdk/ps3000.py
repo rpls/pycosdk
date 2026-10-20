@@ -35,7 +35,6 @@ from ._struct import CStruct, c_array
 from .ps2000 import (
     OverviewBuffersCallback,
     _is_negative,
-    _is_nonzero,
     _is_not_positive,
     _is_zero,
     _overview_callback,
@@ -473,9 +472,15 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
             failed=_is_zero,
             error_code=unit_error,
         )
-        # 0: another open operation is in progress.
+        # 1: the open was started. 0: another open is in progress (guide); the
+        # driver also returns 0 if the open already finished, unsuccessfully
+        # without a unit. -1: the open could not be started.
         self._ps3000_open_unit_async = self._bind_legacy(
-            "ps3000_open_unit_async", [], c_int16, failed=_is_zero
+            "ps3000_open_unit_async",
+            [],
+            c_int16,
+            failed=_is_not_positive,
+            error_code=open_error,
         )
         # Returns a PS3000_OPEN_PROGRESS.
         self._ps3000_open_unit_progress = self._bind_legacy(
@@ -499,12 +504,12 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
             [c_int16, ps3000GetOverviewBuffersMaxMin],
             c_int16,
         )
-        # Inverted: returns 0 on success and 1 for an invalid handle.
+        # 1 on success, 0 for an invalid handle.
         self._ps3000_overview_buffer_status = self._bind_legacy(
             "ps3000_overview_buffer_status",
             [c_int16, POINTER(c_int16)],
             c_int16,
-            failed=_is_nonzero,
+            failed=_is_zero,
             error_code=unit_error,
         )
         # Return the number of values per buffer; 0 on failure.
@@ -897,8 +902,9 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
     def ps3000_open_unit_async(self) -> None:
         """Start opening a unit.
 
-        Raises :class:`~pycosdk.exceptions.ResultException` if an open operation
-        is already in progress.
+        Raises :class:`~pycosdk.exceptions.ResultException` if the open could
+        not be started, e.g. because another open operation is in progress, or
+        if it already finished without opening a unit.
         """
         self._ps3000_open_unit_async()
 
@@ -906,10 +912,19 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         """Return ``(progress, handle, progress_percent)``.
 
         ``handle`` is valid once ``progress`` is ``PS3000_OPEN_PROGRESS_COMPLETE``.
+        Raises :class:`~pycosdk.exceptions.ResultException` if the unit failed
+        to open or was not found.
         """
         handle = c_int16(0)
         progress_percent = c_int16(0)
         result = self._ps3000_open_unit_progress(byref(handle), byref(progress_percent))
+        # The driver may report completion without a handle if the open failed.
+        check_result(
+            result,
+            result > 0 and handle.value <= 0,
+            "ps3000_open_unit_progress",
+            partial(self._error_code, 0),
+        )
         return PS3000_OPEN_PROGRESS(result), handle, progress_percent.value
 
     def ps3000_streaming_ns_get_interval_stateless(
@@ -959,6 +974,7 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
     def ps3000_get_streaming_values(
         self,
         handle: c_int16,
+        start_time: float,
         pbuffer_a_max: DataBuffer,
         pbuffer_a_min: DataBuffer,
         pbuffer_b_max: DataBuffer,
@@ -969,11 +985,13 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         pbuffer_d_min: DataBuffer,
         no_of_values: int,
         noOfSamplesPerAggregate: int,
-    ) -> tuple[int, float, int, int, bool]:
-        """Return ``(no_of_values_returned, start_time, overflow, triggerAt, triggered)``.
+    ) -> tuple[int, int, int, bool]:
+        """Return ``(no_of_values_returned, overflow, triggerAt, triggered)``.
 
-        The buffers are as in :meth:`ps3000_get_values` (at least
-        ``no_of_values`` int16 elements, or None).
+        ``start_time`` is the time in nanoseconds, relative to the trigger
+        point, of the first sample required. The buffers are as in
+        :meth:`ps3000_get_values` (at least ``no_of_values`` int16 elements, or
+        None).
         """
         buffers = _sample_buffers(
             no_of_values,
@@ -986,13 +1004,12 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
             pbuffer_d_max=pbuffer_d_max,
             pbuffer_d_min=pbuffer_d_min,
         )
-        start_time = c_double(0)
         overflow = c_int16(0)
         triggerAt = c_uint32(0)
         triggered = c_int16(0)
         result = self._ps3000_get_streaming_values(
             handle,
-            byref(start_time),
+            byref(c_double(start_time)),
             *buffers,
             byref(overflow),
             byref(triggerAt),
@@ -1002,7 +1019,6 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         )
         return (
             result,
-            start_time.value,
             overflow.value,
             triggerAt.value,
             triggered.value != 0,
@@ -1011,16 +1027,19 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
     def ps3000_get_streaming_values_no_aggregation(
         self,
         handle: c_int16,
+        start_time: float,
         pbuffer_a: DataBuffer,
         pbuffer_b: DataBuffer,
         pbuffer_c: DataBuffer,
         pbuffer_d: DataBuffer,
         no_of_values: int,
-    ) -> tuple[int, float, int, int, bool]:
-        """Return ``(no_of_values_returned, start_time, overflow, triggerAt, trigger)``.
+    ) -> tuple[int, int, int, bool]:
+        """Return ``(no_of_values_returned, overflow, triggerAt, trigger)``.
 
-        The buffers are as in :meth:`ps3000_get_values` (at least
-        ``no_of_values`` int16 elements, or None).
+        ``start_time`` is the time in nanoseconds, relative to the trigger
+        point, of the first sample required. The buffers are as in
+        :meth:`ps3000_get_values` (at least ``no_of_values`` int16 elements, or
+        None).
         """
         buffers = _sample_buffers(
             no_of_values,
@@ -1029,13 +1048,12 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
             pbuffer_c=pbuffer_c,
             pbuffer_d=pbuffer_d,
         )
-        start_time = c_double(0)
         overflow = c_int16(0)
         triggerAt = c_uint32(0)
         trigger = c_int16(0)
         result = self._ps3000_get_streaming_values_no_aggregation(
             handle,
-            byref(start_time),
+            byref(c_double(start_time)),
             *buffers,
             byref(overflow),
             byref(triggerAt),
@@ -1044,7 +1062,6 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         )
         return (
             result,
-            start_time.value,
             overflow.value,
             triggerAt.value,
             trigger.value != 0,

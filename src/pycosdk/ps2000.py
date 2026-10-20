@@ -303,10 +303,6 @@ def _is_zero(result: int) -> bool:
     return result == 0
 
 
-def _is_nonzero(result: int) -> bool:
-    return result != 0
-
-
 def _is_negative(result: int) -> bool:
     return result < 0
 
