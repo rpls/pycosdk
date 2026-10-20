@@ -300,6 +300,9 @@ _OVERVIEW_BUFFERS = 2 * PS3000_CHANNEL.PS3000_MAX_CHANNELS
 
 
 class PicoScope3000Wrapper(PicoScopeWrapperBase):
+    # TODO: Rename the parameters that differ from the C prototypes:
+    # ps3000_get_streaming_last_values (callback -> lpGetOverviewBuffersMaxMin)
+    # and ps3000_save_streaming_data (callback -> lpCallbackFunc).
     _library_name = "ps3000"
 
     def __init__(self, library_path: str | None = None) -> None:

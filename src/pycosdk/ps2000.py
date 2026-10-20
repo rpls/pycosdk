@@ -421,6 +421,9 @@ _OVERVIEW_BUFFERS = 2 * PS2000_CHANNEL.PS2000_MAX_CHANNELS
 
 
 class PicoScope2000Wrapper(PicoScopeWrapperBase):
+    # TODO: Rename the parameter that differs from the C prototype:
+    # ps2000_get_streaming_last_values (callback -> lpGetOverviewBuffersMaxMin;
+    # unnamed in the header, named so in the guide).
     _library_name = "ps2000"
 
     def __init__(self, library_path: str | None = None) -> None:
