@@ -137,6 +137,10 @@ def action_buffer_changes(
     ``PICO_CLEAR_WAVEFORM_*`` actions release nothing: the guides don't say
     precisely what they clear, and keeping a buffer too long only costs memory.
     """
+    # TODO: Verify that PICO_ADD replaces a buffer set earlier under the same key.
+    # The guides speak of a "list" of buffers per channel, data type and segment;
+    # if the driver queues them instead, an earlier buffer is released here while
+    # the driver may still write to it (keep a list per key then).
     changes: list[tuple[tuple[Any, ...] | None, Any]] = []
     if action & PICO_ACTION.PICO_CLEAR_ALL:
         changes.append((None, None))

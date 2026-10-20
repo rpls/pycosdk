@@ -10,6 +10,7 @@ from ctypes import (
     c_uint64,
     c_void_p,
 )
+from enum import IntFlag
 from typing import Annotated, final
 
 from ._struct import CStruct
@@ -66,9 +67,25 @@ DIGITAL_PORT_SERIAL_LENGTH = 10
 DIGITAL_PORT_CALIBRATION_DATE_LENGTH = 8
 
 
+class PICO_TRIGGER_INFO_STATUS(IntFlag):
+    """The statuses that ``PICO_TRIGGER_INFO.status`` ORs together.
+
+    No C counterpart: the header declares the field as ``PICO_STATUS``. Other
+    statuses are kept as unnamed values (still comparable with ``PICO_STATUS``).
+    """
+
+    PICO_OK = PICO_STATUS.PICO_OK
+    PICO_DEVICE_TIME_STAMP_RESET = PICO_STATUS.PICO_DEVICE_TIME_STAMP_RESET
+    PICO_TRIGGER_TIME_NOT_REQUESTED = PICO_STATUS.PICO_TRIGGER_TIME_NOT_REQUESTED
+    PICO_TRIGGER_TIME_BUFFER_NOT_SET = PICO_STATUS.PICO_TRIGGER_TIME_BUFFER_NOT_SET
+    PICO_TRIGGER_TIME_FAILED_TO_CALCULATE = (
+        PICO_STATUS.PICO_TRIGGER_TIME_FAILED_TO_CALCULATE
+    )
+
+
 @final
 class PICO_TRIGGER_INFO(CStruct):
-    status: Annotated[PICO_STATUS, PICO_STATUS_T]
+    status: Annotated[PICO_TRIGGER_INFO_STATUS, PICO_STATUS_T]
     segmentIndex: Annotated[int, c_uint64]
     triggerIndex: Annotated[int, c_uint64]
     triggerTime: Annotated[float, c_double]
@@ -255,6 +272,7 @@ __all__ = (
     "PICO_STREAMING_DATA_TRIGGER_INFO",
     "PICO_TRIGGER_CHANNEL_PROPERTIES",
     "PICO_TRIGGER_INFO",
+    "PICO_TRIGGER_INFO_STATUS",
     "PICO_USB_POWER_DELIVERY",
     "PICO_USB_POWER_DETAILS",
     "PICO_USER_PROBE_INTERACTIONS",

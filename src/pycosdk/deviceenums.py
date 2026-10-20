@@ -2,7 +2,7 @@ from ctypes import c_int32, c_uint32
 from enum import IntEnum, IntFlag
 
 
-class PICO_RATIO_MODE(IntEnum):
+class PICO_RATIO_MODE(IntFlag):
     PICO_RATIO_MODE_AGGREGATE = 1
     PICO_RATIO_MODE_DECIMATE = 2
     PICO_RATIO_MODE_AVERAGE = 4
