@@ -5,7 +5,8 @@ Yet another wrapper for the [PicoSDK](https://www.picotech.com/downloads).
 `pycosdk` is a thin, fully type-annotated `ctypes` binding to Pico Technology's
 PicoScope driver libraries. It stays deliberately close to the C API: method
 names mirror the driver functions, and the enums and structs are transcribed
-from the SDK headers as `IntEnum`/`IntFlag` and `ctypes.Structure` types.
+from the SDK headers as `IntEnum`/`IntFlag` types and typed dataclasses (see
+[Structs](#structs)).
 
 ## Requirements
 
@@ -51,9 +52,12 @@ the library is not on the default search path; otherwise a
 `MissingLibraryException` is raised when the library cannot be found. Once
 loaded, asking for a different `library_path` raises a `RuntimeError`.
 
-Methods return the driver's `PICO_STATUS` as an enum member, followed by any
-output parameters. By default, a status other than `PICO_OK` raises a
-`StatusException` (see [Status handling](#status-handling)).
+Methods return the function's output parameters: nothing, a single value, or a
+tuple in the order of the C parameters. A failed call raises a
+`StatusException` instead of returning its `PICO_STATUS`. Only the few
+functions whose status carries information (e.g. the power source reported when
+opening a unit) return it, as their last output; see
+[Status handling](#status-handling).
 
 ```python
 from pycosdk import (
@@ -67,7 +71,7 @@ from pycosdk import (
 
 scope = PicoScope6000aWrapper.instance()
 
-status, handle = scope.ps6000aOpenUnit(None, PICO_DEVICE_RESOLUTION.PICO_DR_8BIT)
+handle, status = scope.ps6000aOpenUnit(None, PICO_DEVICE_RESOLUTION.PICO_DR_8BIT)
 
 scope.ps6000aSetChannelOn(
     handle,
@@ -102,7 +106,7 @@ from pycosdk import (
     PicoScope6000aDevice,
 )
 
-status, scope = PicoScope6000aDevice.ps6000aOpenUnit(
+scope, status = PicoScope6000aDevice.ps6000aOpenUnit(
     None, PICO_DEVICE_RESOLUTION.PICO_DR_8BIT
 )
 with scope:
@@ -139,35 +143,47 @@ needs to change for the new device.
 
 ## Status handling
 
-Non-OK statuses fall into three categories, each handled by one of the actions
-`"raise"` (raise `StatusException`), `"warn"` (emit a `StatusWarning`) or
-`"ignore"`. Unless a method raises, it still returns the status.
+Every status other than `PICO_OK` falls into one of three categories:
 
-| Category  | Statuses                                                        | Default    |
-| --------- | --------------------------------------------------------------- | ---------- |
-| `error`   | everything not covered below                                    | `"raise"`  |
-| `warning` | `PICO_WARNING_*` and `PICO_SHOTS_SWEEPS_WARNING`                 | `"warn"`   |
-| `info`    | statuses a specific function uses to report a non-error condition | `"ignore"` |
+| Category  | Statuses                                                          | Handling                                              |
+| --------- | ----------------------------------------------------------------- | ----------------------------------------------------- |
+| `error`   | everything not covered below                                      | always raises `StatusException`                       |
+| `warning` | `PICO_WARNING_*` and `PICO_SHOTS_SWEEPS_WARNING`                   | configurable, default `"warn"` (emit a `StatusWarning`) |
+| `info`    | statuses a specific function uses to report a non-error condition | configurable, default `"ignore"`                      |
 
-Examples for `info` statuses are the power-source statuses returned by
-`ps3000aOpenUnit` or `ps5000aCurrentPowerSource` (e.g.
-`PICO_POWER_SUPPLY_NOT_CONNECTED`) and `PICO_WAITING_FOR_DATA_BUFFERS` from
-`ps6000aGetStreamingLatestValues`.
+The `info` statuses are documented in the programmer's guides as not being
+failures, and the functions reporting them return the status as their last
+output:
 
-Like NumPy's `seterr`/`errstate`, the configuration is global rather than per
-wrapper instance:
+| Functions                                                                           | Statuses                                                                                          |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `OpenUnit`, `OpenUnitAsync`, `OpenUnitProgress` of ps3000a and ps5000a                | power source (`PICO_POWER_SUPPLY_NOT_CONNECTED`, `PICO_USB3_0_DEVICE_NON_USB3_0_PORT`, ...)        |
+| `ChangePowerSource`, `CurrentPowerSource`, `PingUnit` of ps3000a and ps5000a; `ps5000aSetDeviceResolution`; `ps6000PingUnit` | power source                                                   |
+| `OpenUnit`, `OpenUnitAsync`, `OpenUnitProgress` of ps6000a; `psospaOpenUnit`        | `PICO_USB3_0_DEVICE_NON_USB3_0_PORT`, `PICO_FIRMWARE_UPDATE_REQUIRED_TO_USE_DEVICE_WITH_THIS_DRIVER` |
+| `GetStreamingLatestValues` of ps2000a, ps3000a, ps5000, ps5000a and ps6000          | `PICO_BUSY` (no new data yet, poll again)                                                         |
+| `GetStreamingLatestValues` of ps6000a and psospa                                    | `PICO_WAITING_FOR_DATA_BUFFERS` (set new buffers; the returned data is valid)                     |
+
+`EnumerateUnits` treats `PICO_NOT_FOUND` as a valid result (no units, count 0)
+without returning it.
+
+If the power supply of a ps3000a or ps5000a is connected or disconnected while
+it is running, the next call raises a `StatusException` with the new power
+status; catch it and call `ChangePowerSource` to continue.
+
+Like NumPy's `seterr`/`errstate`, the configuration of the `warning` and `info`
+categories is global rather than per wrapper instance:
 
 ```python
 import pycosdk
 
 # Process-wide; returns the previous settings.
-old = pycosdk.seterr(error="warn", info="warn")
+old = pycosdk.seterr(warning="raise", info="warn")
 pycosdk.seterr(**old)
 
 # Temporarily, as context manager or decorator. Overrides are local to the
 # current thread / asyncio task.
-with pycosdk.errstate(error="ignore"):
-    status = scope.ps6000aStop(handle)
+with pycosdk.errstate(warning="ignore"):
+    scope.ps6000aSetAuxIoMode(handle, ...)
 
 try:
     scope.ps6000aSetChannelOn(handle, ...)
@@ -175,10 +191,38 @@ except pycosdk.StatusException as e:
     print(e.function, e.status)
 ```
 
+The legacy drivers `ps2000` and `ps3000` predate `PICO_STATUS`: a failed call
+raises a `ResultException`, and a return value is only returned where it means
+more than success (e.g. a handle or a number of values).
+
 Callbacks registered with the driver (e.g. via `RunBlock` or the
 `Set*InteractionCallback` functions) receive the status as a parameter and are
 not subject to this configuration. The wrappers keep references to the
 callback objects handed to the driver, so passing a lambda is safe.
+
+## Structs
+
+The C structs are typed dataclasses (subclasses of `CStruct`) with the C field
+names. Fields are converted to fitting Python types: enum fields to their enum,
+flags to `bool`, char arrays to `str`, nested structs to their dataclass. Methods
+take and return these dataclasses (lists of them for C arrays) and convert to and
+from the C struct, which is available as `c_type`, themselves:
+
+```python
+from pycosdk import PICO_CHANNEL, PICO_CONDITION, PICO_TRIGGER_STATE
+
+conditions = [
+    PICO_CONDITION(
+        source=PICO_CHANNEL.PICO_CHANNEL_A,
+        condition=PICO_TRIGGER_STATE.PICO_CONDITION_TRUE,
+    )
+]
+```
+
+A misspelled or missing field is a `TypeError` (and caught by type checkers),
+unlike with a plain `ctypes.Structure`. Values returned by the driver are
+copies: in/out arrays, e.g. the `streamingDataInfo` of
+`ps6000aGetStreamingLatestValues`, come back as new lists.
 
 ## Type checking
 

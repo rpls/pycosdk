@@ -5,7 +5,8 @@ returned by a driver function that is not ``PICO_OK`` falls into one of three
 categories:
 
 ``error``
-    Anything not covered by the other two categories. Default: ``"raise"``.
+    Anything not covered by the other two categories. Errors always raise a
+    :class:`~pycosdk.exceptions.StatusException`; this is not configurable.
 ``warning``
     Statuses the driver documents as warnings (``PICO_WARNING_*``,
     ``PICO_SHOTS_SWEEPS_WARNING``), see :data:`WARNING_STATUSES`.
@@ -16,10 +17,12 @@ categories:
     ``ps3000aOpenUnit`` or ``ps3000aCurrentPowerSource``. Which statuses are
     informational is defined per wrapped function. Default: ``"ignore"``.
 
-Each category is handled by one of the actions ``"raise"`` (raise a
-:class:`~pycosdk.exceptions.StatusException`), ``"warn"`` (emit a
-:class:`~pycosdk.exceptions.StatusWarning`) or ``"ignore"``. Regardless of the
-action, wrapper methods still return the status if they do not raise.
+The ``warning`` and ``info`` categories are each handled by one of the actions
+``"raise"`` (raise a :class:`~pycosdk.exceptions.StatusException`), ``"warn"``
+(emit a :class:`~pycosdk.exceptions.StatusWarning`) or ``"ignore"``. Wrapper
+methods do not return the status, except for functions whose informational
+statuses carry information (e.g. the power source reported by ``OpenUnit``);
+those return it as their last output.
 
 :func:`seterr` changes the process-wide settings. :class:`errstate` overrides
 them temporarily for a ``with`` block (or a decorated function); such overrides
@@ -27,9 +30,7 @@ are local to the current thread or asyncio task.
 
 The legacy drivers (``ps2000``, ``ps3000``) predate ``PICO_STATUS`` and report
 a failure through their return value instead, see :func:`check_result`. A failed
-call always falls into the ``error`` category; ``"raise"`` raises a
-:class:`~pycosdk.exceptions.ResultException` and ``"warn"`` emits a
-:class:`~pycosdk.exceptions.ResultWarning`.
+call always raises a :class:`~pycosdk.exceptions.ResultException`.
 
 Callbacks invoked by the driver are not affected: they receive the status as an
 argument and are free to handle it.
@@ -41,7 +42,7 @@ from contextlib import ContextDecorator
 from contextvars import ContextVar, Token
 from typing import Literal, TypedDict, TypeVar, get_args
 
-from .exceptions import ResultException, ResultWarning, StatusException, StatusWarning
+from .exceptions import ResultException, StatusException, StatusWarning
 from .status import PICO_STATUS
 
 StatusAction = Literal["raise", "warn", "ignore"]
@@ -50,7 +51,6 @@ _R = TypeVar("_R")
 
 
 class StatusConfig(TypedDict):
-    error: StatusAction
     warning: StatusAction
     info: StatusAction
 
@@ -59,7 +59,7 @@ WARNING_STATUSES: frozenset[PICO_STATUS] = frozenset(
     s for s in PICO_STATUS if "WARNING" in s.name
 )
 
-_global_config: StatusConfig = {"error": "raise", "warning": "warn", "info": "ignore"}
+_global_config: StatusConfig = {"warning": "warn", "info": "ignore"}
 _context_config: ContextVar[StatusConfig | None] = ContextVar(
     "pycosdk_status_config", default=None
 )
@@ -73,13 +73,11 @@ def _current() -> StatusConfig:
 def _updated(
     config: StatusConfig,
     all: StatusAction | None,
-    error: StatusAction | None,
     warning: StatusAction | None,
     info: StatusAction | None,
 ) -> StatusConfig:
     new = config.copy()
     for key, action in (
-        ("error", all if error is None else error),
         ("warning", all if warning is None else warning),
         ("info", all if info is None else info),
     ):
@@ -99,19 +97,19 @@ def geterr() -> StatusConfig:
 def seterr(
     *,
     all: StatusAction | None = None,
-    error: StatusAction | None = None,
     warning: StatusAction | None = None,
     info: StatusAction | None = None,
 ) -> StatusConfig:
-    """Set how non-OK statuses are handled and return the previous settings.
+    """Set how warning and info statuses are handled and return the previous settings.
 
-    ``all`` sets every category; the specific keywords take precedence over it.
+    ``all`` sets both categories; the specific keywords take precedence over it.
+    Errors always raise.
     Outside of an :class:`errstate` block the change is process-wide. Inside of
     one, it only lasts until the block is left (like :func:`numpy.seterr`).
     """
     global _global_config
     old = geterr()
-    new = _updated(old, all, error, warning, info)
+    new = _updated(old, all, warning, info)
     if _context_config.get() is None:
         _global_config = new
     else:
@@ -122,23 +120,22 @@ def seterr(
 class errstate(ContextDecorator):
     """Temporarily override the status handling, as context manager or decorator.
 
-    >>> with errstate(error="ignore"):
-    ...     status, handle = scope.ps3000aOpenUnit(None)
+    >>> with errstate(warning="raise"):
+    ...     scope.ps3000aSetSigGenBuiltIn(...)
     """
 
     def __init__(
         self,
         *,
         all: StatusAction | None = None,
-        error: StatusAction | None = None,
         warning: StatusAction | None = None,
         info: StatusAction | None = None,
     ) -> None:
         self._kwargs: dict[str, StatusAction | None] = dict(
-            all=all, error=error, warning=warning, info=info
+            all=all, warning=warning, info=info
         )
         # Validate eagerly, so typos are reported where the errstate is created.
-        _ = _updated(_global_config, all, error, warning, info)
+        _ = _updated(_global_config, all, warning, info)
         self._tokens: list[Token[StatusConfig | None]] = []
 
     def __enter__(self) -> "errstate":
@@ -170,7 +167,7 @@ def check_status(
     elif status in WARNING_STATUSES:
         action = _current()["warning"]
     else:
-        action = _current()["error"]
+        raise StatusException(status, function)
     if action == "raise":
         raise StatusException(status, function)
     if action == "warn":
@@ -183,21 +180,15 @@ def check_result(
     failed: bool,
     function: str | None = None,
     error_code: Callable[[], int | None] | None = None,
-    stacklevel: int = 2,
 ) -> _R:
-    """Handle the raw ``result`` of a legacy driver function per the current settings.
+    """Return the raw ``result`` of a legacy driver function, raising on failure.
 
-    ``failed`` tells whether ``result`` indicates a failure, which is handled by
-    the ``error`` action; ``result`` is returned unless that action raises.
-    ``error_code`` is only called when raising or warning, to look up the driver
-    error code attached to the exception or warning; if it raises, the code is
-    left out. ``stacklevel`` is passed on to :func:`warnings.warn` (counted from
-    the caller of this function).
+    ``failed`` tells whether ``result`` indicates a failure, which raises a
+    :class:`~pycosdk.exceptions.ResultException`. ``error_code`` is only called
+    then, to look up the driver error code attached to the exception; if it
+    raises, the code is left out.
     """
     if not failed:
-        return result
-    action = _current()["error"]
-    if action == "ignore":
         return result
     code = None
     if error_code is not None:
@@ -205,10 +196,7 @@ def check_result(
             code = error_code()
         except Exception:
             code = None
-    if action == "raise":
-        raise ResultException(result, function, code)
-    warnings.warn(ResultWarning(result, function, code), stacklevel=stacklevel + 1)
-    return result
+    raise ResultException(result, function, code)
 
 
 __all__ = (

@@ -3,7 +3,6 @@ from collections.abc import Callable, Sequence
 from ctypes import (
     POINTER,
     Array,
-    Structure,
     byref,
     c_char_p,
     c_double,
@@ -18,10 +17,11 @@ from ctypes import (
     create_string_buffer,
 )
 from enum import IntEnum, IntFlag
-from typing import Self, final
+from typing import Annotated, Self, final
 
-from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._base import CALLBACK_FUNCTYPE, POWER_SOURCE_STATUSES, PicoScopeWrapperBase
+from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
+from ._struct import CStruct, c_array
 from .callback import PicoUpdateFirmwareProgress
 from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
 from .version import PICO_VERSION
@@ -400,108 +400,81 @@ PS5000A_CHANNEL_INFO_T = c_int32
 
 
 @final
-class PS5000A_TRIGGER_INFO(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("status", PICO_STATUS_T),
-        ("segmentIndex", c_uint32),
-        ("triggerIndex", c_uint32),
-        ("triggerTime", c_int64),
-        ("timeUnits", c_int16),
-        ("reserved0", c_int16),
-        ("timeStampCounter", c_uint64),
-    ]
+class PS5000A_TRIGGER_INFO(CStruct):
+    status: Annotated[PICO_STATUS, PICO_STATUS_T]
+    segmentIndex: Annotated[int, c_uint32]
+    triggerIndex: Annotated[int, c_uint32]
+    triggerTime: Annotated[int, c_int64]
+    timeUnits: Annotated[PS5000A_TIME_UNITS, c_int16]
+    reserved0: Annotated[int, c_int16]
+    timeStampCounter: Annotated[int, c_uint64]
 
 
 @final
-class PS5000A_TRIGGER_CONDITIONS(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("channelA", PS5000A_TRIGGER_STATE_T),
-        ("channelB", PS5000A_TRIGGER_STATE_T),
-        ("channelC", PS5000A_TRIGGER_STATE_T),
-        ("channelD", PS5000A_TRIGGER_STATE_T),
-        ("external", PS5000A_TRIGGER_STATE_T),
-        ("aux", PS5000A_TRIGGER_STATE_T),
-        ("pulseWidthQualifier", PS5000A_TRIGGER_STATE_T),
-    ]
+class PS5000A_TRIGGER_CONDITIONS(CStruct):
+    channelA: Annotated[PS5000A_TRIGGER_STATE, PS5000A_TRIGGER_STATE_T]
+    channelB: Annotated[PS5000A_TRIGGER_STATE, PS5000A_TRIGGER_STATE_T]
+    channelC: Annotated[PS5000A_TRIGGER_STATE, PS5000A_TRIGGER_STATE_T]
+    channelD: Annotated[PS5000A_TRIGGER_STATE, PS5000A_TRIGGER_STATE_T]
+    external: Annotated[PS5000A_TRIGGER_STATE, PS5000A_TRIGGER_STATE_T]
+    aux: Annotated[PS5000A_TRIGGER_STATE, PS5000A_TRIGGER_STATE_T]
+    pulseWidthQualifier: Annotated[PS5000A_TRIGGER_STATE, PS5000A_TRIGGER_STATE_T]
 
 
 @final
-class PS5000A_CONDITION(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("source", PS5000A_CHANNEL_T),
-        ("condition", PS5000A_TRIGGER_STATE_T),
-    ]
+class PS5000A_CONDITION(CStruct):
+    source: Annotated[PS5000A_CHANNEL, PS5000A_CHANNEL_T]
+    condition: Annotated[PS5000A_TRIGGER_STATE, PS5000A_TRIGGER_STATE_T]
 
 
 @final
-class PS5000A_DIRECTION(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("source", PS5000A_CHANNEL_T),
-        ("direction", PS5000A_THRESHOLD_DIRECTION_T),
-        ("mode", PS5000A_THRESHOLD_MODE_T),
-    ]
+class PS5000A_DIRECTION(CStruct):
+    source: Annotated[PS5000A_CHANNEL, PS5000A_CHANNEL_T]
+    direction: Annotated[PS5000A_THRESHOLD_DIRECTION, PS5000A_THRESHOLD_DIRECTION_T]
+    mode: Annotated[PS5000A_THRESHOLD_MODE, PS5000A_THRESHOLD_MODE_T]
 
 
 @final
-class PS5000A_PWQ_CONDITIONS(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("channelA", PS5000A_TRIGGER_STATE_T),
-        ("channelB", PS5000A_TRIGGER_STATE_T),
-        ("channelC", PS5000A_TRIGGER_STATE_T),
-        ("channelD", PS5000A_TRIGGER_STATE_T),
-        ("external", PS5000A_TRIGGER_STATE_T),
-        ("aux", PS5000A_TRIGGER_STATE_T),
-    ]
+class PS5000A_PWQ_CONDITIONS(CStruct):
+    channelA: Annotated[PS5000A_TRIGGER_STATE, PS5000A_TRIGGER_STATE_T]
+    channelB: Annotated[PS5000A_TRIGGER_STATE, PS5000A_TRIGGER_STATE_T]
+    channelC: Annotated[PS5000A_TRIGGER_STATE, PS5000A_TRIGGER_STATE_T]
+    channelD: Annotated[PS5000A_TRIGGER_STATE, PS5000A_TRIGGER_STATE_T]
+    external: Annotated[PS5000A_TRIGGER_STATE, PS5000A_TRIGGER_STATE_T]
+    aux: Annotated[PS5000A_TRIGGER_STATE, PS5000A_TRIGGER_STATE_T]
 
 
 @final
-class PS5000A_SCALING_FACTORS_VALUES(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("source", PS5000A_CHANNEL_T),
-        ("range", PS5000A_RANGE_T),
-        ("offset", c_int16),
-        ("scalingFactor", c_double),
-    ]
+class PS5000A_SCALING_FACTORS_VALUES(CStruct):
+    source: Annotated[PS5000A_CHANNEL, PS5000A_CHANNEL_T]
+    range: Annotated[PS5000A_RANGE, PS5000A_RANGE_T]
+    offset: Annotated[int, c_int16]
+    scalingFactor: Annotated[float, c_double]
 
 
 @final
-class PS5000A_TRIGGER_CHANNEL_PROPERTIES(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("thresholdUpper", c_int16),
-        ("thresholdUpperHysteresis", c_uint16),
-        ("thresholdLower", c_int16),
-        ("thresholdLowerHysteresis", c_uint16),
-        ("channel", PS5000A_CHANNEL_T),
-        ("thresholdMode", PS5000A_THRESHOLD_MODE_T),
-    ]
+class PS5000A_TRIGGER_CHANNEL_PROPERTIES(CStruct):
+    thresholdUpper: Annotated[int, c_int16]
+    thresholdUpperHysteresis: Annotated[int, c_uint16]
+    thresholdLower: Annotated[int, c_int16]
+    thresholdLowerHysteresis: Annotated[int, c_uint16]
+    channel: Annotated[PS5000A_CHANNEL, PS5000A_CHANNEL_T]
+    thresholdMode: Annotated[PS5000A_THRESHOLD_MODE, PS5000A_THRESHOLD_MODE_T]
 
 
 @final
-class PS5000A_TRIGGER_CHANNEL_PROPERTIES_V2(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("thresholdUpper", c_int16),
-        ("thresholdUpperHysteresis", c_uint16),
-        ("thresholdLower", c_int16),
-        ("thresholdLowerHysteresis", c_uint16),
-        ("channel", PS5000A_CHANNEL_T),
-    ]
+class PS5000A_TRIGGER_CHANNEL_PROPERTIES_V2(CStruct):
+    thresholdUpper: Annotated[int, c_int16]
+    thresholdUpperHysteresis: Annotated[int, c_uint16]
+    thresholdLower: Annotated[int, c_int16]
+    thresholdLowerHysteresis: Annotated[int, c_uint16]
+    channel: Annotated[PS5000A_CHANNEL, PS5000A_CHANNEL_T]
 
 
 @final
-class PS5000A_DIGITAL_CHANNEL_DIRECTIONS(Structure):
-    _pack_ = 1
-    _fields_ = [
-        ("channel", PS5000A_DIGITAL_CHANNEL_T),
-        ("direction", PS5000A_DIGITAL_DIRECTION_T),
-    ]
+class PS5000A_DIGITAL_CHANNEL_DIRECTIONS(CStruct):
+    channel: Annotated[PS5000A_DIGITAL_CHANNEL, PS5000A_DIGITAL_CHANNEL_T]
+    direction: Annotated[PS5000A_DIGITAL_DIRECTION, PS5000A_DIGITAL_DIRECTION_T]
 
 
 ps5000aBlockReady = CALLBACK_FUNCTYPE(None, c_int16, PICO_STATUS_T, c_void_p)
@@ -745,7 +718,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
             "ps5000aSetTriggerChannelProperties",
             [
                 c_int16,
-                POINTER(PS5000A_TRIGGER_CHANNEL_PROPERTIES),
+                POINTER(PS5000A_TRIGGER_CHANNEL_PROPERTIES.c_type),
                 c_int16,
                 c_int16,
                 c_int32,
@@ -755,7 +728,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
             "ps5000aSetTriggerChannelPropertiesV2",
             [
                 c_int16,
-                POINTER(PS5000A_TRIGGER_CHANNEL_PROPERTIES_V2),
+                POINTER(PS5000A_TRIGGER_CHANNEL_PROPERTIES_V2.c_type),
                 c_int16,
                 c_int16,
             ],
@@ -765,13 +738,13 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         )
         self._ps5000aSetTriggerChannelConditions = self._bind(
             "ps5000aSetTriggerChannelConditions",
-            [c_int16, POINTER(PS5000A_TRIGGER_CONDITIONS), c_int16],
+            [c_int16, POINTER(PS5000A_TRIGGER_CONDITIONS.c_type), c_int16],
         )
         self._ps5000aSetTriggerChannelConditionsV2 = self._bind(
             "ps5000aSetTriggerChannelConditionsV2",
             [
                 c_int16,
-                POINTER(PS5000A_CONDITION),
+                POINTER(PS5000A_CONDITION.c_type),
                 c_int16,
                 PS5000A_CONDITIONS_INFO_T,
             ],
@@ -790,7 +763,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         )
         self._ps5000aSetTriggerChannelDirectionsV2 = self._bind(
             "ps5000aSetTriggerChannelDirectionsV2",
-            [c_int16, POINTER(PS5000A_DIRECTION), c_uint16],
+            [c_int16, POINTER(PS5000A_DIRECTION.c_type), c_uint16],
         )
         self._ps5000aSetSimpleTrigger = self._bind(
             "ps5000aSetSimpleTrigger",
@@ -806,11 +779,11 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         )
         self._ps5000aSetTriggerDigitalPortProperties = self._bind(
             "ps5000aSetTriggerDigitalPortProperties",
-            [c_int16, POINTER(PS5000A_DIGITAL_CHANNEL_DIRECTIONS), c_int16],
+            [c_int16, POINTER(PS5000A_DIGITAL_CHANNEL_DIRECTIONS.c_type), c_int16],
         )
         self._ps5000aSetPulseWidthDigitalPortProperties = self._bind(
             "ps5000aSetPulseWidthDigitalPortProperties",
-            [c_int16, POINTER(PS5000A_DIGITAL_CHANNEL_DIRECTIONS), c_int16],
+            [c_int16, POINTER(PS5000A_DIGITAL_CHANNEL_DIRECTIONS.c_type), c_int16],
         )
         self._ps5000aSetTriggerDelay = self._bind(
             "ps5000aSetTriggerDelay", [c_int16, c_uint32]
@@ -819,7 +792,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
             "ps5000aSetPulseWidthQualifier",
             [
                 c_int16,
-                POINTER(PS5000A_PWQ_CONDITIONS),
+                POINTER(PS5000A_PWQ_CONDITIONS.c_type),
                 c_int16,
                 PS5000A_THRESHOLD_DIRECTION_T,
                 c_uint32,
@@ -835,14 +808,14 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
             "ps5000aSetPulseWidthQualifierConditions",
             [
                 c_int16,
-                POINTER(PS5000A_CONDITION),
+                POINTER(PS5000A_CONDITION.c_type),
                 c_int16,
                 PS5000A_CONDITIONS_INFO_T,
             ],
         )
         self._ps5000aSetPulseWidthQualifierDirections = self._bind(
             "ps5000aSetPulseWidthQualifierDirections",
-            [c_int16, POINTER(PS5000A_DIRECTION), c_int16],
+            [c_int16, POINTER(PS5000A_DIRECTION.c_type), c_int16],
         )
         self._ps5000aIsTriggerOrPulseWidthQualifierEnabled = self._bind(
             "ps5000aIsTriggerOrPulseWidthQualifierEnabled",
@@ -1035,7 +1008,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         )
         self._ps5000aGetTriggerInfoBulk = self._bind(
             "ps5000aGetTriggerInfoBulk",
-            [c_int16, POINTER(PS5000A_TRIGGER_INFO), c_uint32, c_uint32],
+            [c_int16, POINTER(PS5000A_TRIGGER_INFO.c_type), c_uint32, c_uint32],
         )
         self._ps5000aEnumerateUnits = self._bind(
             "ps5000aEnumerateUnits",
@@ -1115,14 +1088,14 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         )
         self._ps5000aGetScalingValues = self._bind(
             "ps5000aGetScalingValues",
-            [c_int16, POINTER(PS5000A_SCALING_FACTORS_VALUES), c_int16],
+            [c_int16, POINTER(PS5000A_SCALING_FACTORS_VALUES.c_type), c_int16],
         )
         self._ps5000aCheckForUpdate = self._bind(
             "ps5000aCheckForUpdate",
             [
                 c_int16,
-                POINTER(PICO_VERSION),
-                POINTER(PICO_VERSION),
+                POINTER(PICO_VERSION.c_type),
+                POINTER(PICO_VERSION.c_type),
                 POINTER(c_uint16),
             ],
         )
@@ -1132,65 +1105,58 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
 
     def ps5000aOpenUnit(
         self, serial: str | None, resolution: PS5000A_DEVICE_RESOLUTION
-    ) -> tuple[PICO_STATUS, c_int16]:
+    ) -> tuple[c_int16, PICO_STATUS]:
+        """Returns the handle and the status, which tells the power source
+        (PICO_POWER_SUPPLY_NOT_CONNECTED etc.) if not PICO_OK."""
         handle = c_int16(0)
         ser = serial.encode() if serial is not None else None
-        return (
-            self._ps5000aOpenUnit(byref(handle), ser, resolution),
-            handle,
-        )
+        status = self._ps5000aOpenUnit(byref(handle), ser, resolution)
+        return handle, status
 
     def ps5000aOpenUnitAsync(
         self, serial: str | None, resolution: PS5000A_DEVICE_RESOLUTION
-    ) -> tuple[PICO_STATUS, bool]:
-        """Start opening a unit; the flag tells whether the operation started."""
+    ) -> tuple[bool, PICO_STATUS]:
+        """Start opening a unit; returns whether the operation started and the
+        status, which tells the power source if not PICO_OK."""
         started = c_int16(0)
         ser = serial.encode() if serial is not None else None
         status = self._ps5000aOpenUnitAsync(byref(started), ser, resolution)
-        return status, started.value == 1
+        return started.value == 1, status
 
-    def ps5000aOpenUnitProgress(self) -> tuple[PICO_STATUS, c_int16, int, bool]:
+    def ps5000aOpenUnitProgress(self) -> tuple[c_int16, int, bool, PICO_STATUS]:
+        """Returns the handle, the progress, whether the open is complete and
+        the status, which tells the power source if not PICO_OK."""
         handle = c_int16(0)
         progressPercent = c_int16(0)
         complete = c_int16(0)
         status = self._ps5000aOpenUnitProgress(
             byref(handle), byref(progressPercent), byref(complete)
         )
-        return status, handle, progressPercent.value, complete.value != 0
+        return handle, progressPercent.value, complete.value != 0, status
 
-    def ps5000aCloseUnit(self, handle: c_int16) -> PICO_STATUS:
-        return self._ps5000aCloseUnit(handle)
+    def ps5000aCloseUnit(self, handle: c_int16) -> None:
+        self._ps5000aCloseUnit(handle)
 
-    def ps5000aGetUnitInfo(
-        self, handle: c_int16, info: PICO_INFO
-    ) -> tuple[PICO_STATUS, str]:
+    def ps5000aGetUnitInfo(self, handle: c_int16, info: PICO_INFO) -> str:
         buf = create_string_buffer(bytes(255))
         size = c_int16(0)
-        status = self._ps5000aGetUnitInfo(handle, buf, 255, byref(size), info)
-        if status == PICO_STATUS.PICO_OK:
-            infostr = buf.raw[: size.value - 1].decode("utf-8")
-        else:
-            infostr = ""
-        return status, infostr
+        self._ps5000aGetUnitInfo(handle, buf, 255, byref(size), info)
+        return buf.raw[: size.value - 1].decode("utf-8")
 
-    def ps5000aFlashLed(self, handle: c_int16, start: int) -> PICO_STATUS:
+    def ps5000aFlashLed(self, handle: c_int16, start: int) -> None:
         """Flash the LED ``start`` times; -1 flashes indefinitely, 0 stops."""
-        return self._ps5000aFlashLed(handle, start)
+        self._ps5000aFlashLed(handle, start)
 
-    def ps5000aIsLedFlashing(self, handle: c_int16) -> tuple[PICO_STATUS, bool]:
+    def ps5000aIsLedFlashing(self, handle: c_int16) -> bool:
         flashing = c_int16(0)
-        status = self._ps5000aIsLedFlashing(handle, byref(flashing))
-        return status, flashing.value != 0
+        self._ps5000aIsLedFlashing(handle, byref(flashing))
+        return flashing.value != 0
 
-    def ps5000aMemorySegments(
-        self, handle: c_int16, nsegments: int
-    ) -> tuple[PICO_STATUS, int]:
+    def ps5000aMemorySegments(self, handle: c_int16, nsegments: int) -> int:
         assert nsegments > 0
         maxSamples = c_int32(0)
-        return (
-            self._ps5000aMemorySegments(handle, nsegments, byref(maxSamples)),
-            maxSamples.value,
-        )
+        self._ps5000aMemorySegments(handle, nsegments, byref(maxSamples))
+        return maxSamples.value
 
     def ps5000aSetChannel(
         self,
@@ -1200,8 +1166,8 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         coupling: PS5000A_COUPLING,
         range: PS5000A_RANGE,
         analog_offset: float,
-    ) -> PICO_STATUS:
-        return self._ps5000aSetChannel(
+    ) -> None:
+        self._ps5000aSetChannel(
             handle,
             channel,
             1 if enabled else 0,
@@ -1212,25 +1178,23 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
 
     def ps5000aSetDigitalPort(
         self, handle: c_int16, port: PS5000A_CHANNEL, enabled: bool, logicLevel: int
-    ) -> PICO_STATUS:
-        return self._ps5000aSetDigitalPort(
-            handle, port, 1 if enabled else 0, logicLevel
-        )
+    ) -> None:
+        self._ps5000aSetDigitalPort(handle, port, 1 if enabled else 0, logicLevel)
 
     def ps5000aSetBandwidthFilter(
         self,
         handle: c_int16,
         channel: PS5000A_CHANNEL,
         bandwidth: PS5000A_BANDWIDTH_LIMITER,
-    ) -> PICO_STATUS:
-        return self._ps5000aSetBandwidthFilter(handle, channel, bandwidth)
+    ) -> None:
+        self._ps5000aSetBandwidthFilter(handle, channel, bandwidth)
 
     def ps5000aGetTimebase(
         self, handle: c_int16, timebase: int, noSamples: int, segmentIndex: int
-    ) -> tuple[PICO_STATUS, int, int]:
+    ) -> tuple[int, int]:
         timeIntervalNanoseconds = c_int32(0)
         maxSamples = c_int32(0)
-        status = self._ps5000aGetTimebase(
+        self._ps5000aGetTimebase(
             handle,
             timebase,
             noSamples,
@@ -1238,25 +1202,22 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
             byref(maxSamples),
             segmentIndex,
         )
-        return status, timeIntervalNanoseconds.value, maxSamples.value
+        return timeIntervalNanoseconds.value, maxSamples.value
 
     def ps5000aGetTimebase2(
         self, handle: c_int16, timebase: int, noSamples: int, segmentIndex: int
-    ) -> tuple[PICO_STATUS, float, int]:
+    ) -> tuple[float, int]:
         timeIntervalNS = c_float(0)
         maxSamples = c_int32(0)
-        return (
-            self._ps5000aGetTimebase2(
-                handle,
-                timebase,
-                noSamples,
-                byref(timeIntervalNS),
-                byref(maxSamples),
-                segmentIndex,
-            ),
-            timeIntervalNS.value,
-            maxSamples.value,
+        self._ps5000aGetTimebase2(
+            handle,
+            timebase,
+            noSamples,
+            byref(timeIntervalNS),
+            byref(maxSamples),
+            segmentIndex,
         )
+        return timeIntervalNS.value, maxSamples.value
 
     def ps5000aNearestSampleIntervalStateless(
         self,
@@ -1265,10 +1226,10 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         timeIntervalRequested: float,
         resolution: PS5000A_DEVICE_RESOLUTION,
         useEts: bool,
-    ) -> tuple[PICO_STATUS, int, float]:
+    ) -> tuple[int, float]:
         timebase = c_uint32(0)
         timeIntervalAvailable = c_double(0)
-        status = self._ps5000aNearestSampleIntervalStateless(
+        self._ps5000aNearestSampleIntervalStateless(
             handle,
             enabledChannelOrPortFlags,
             timeIntervalRequested,
@@ -1277,24 +1238,24 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
             byref(timebase),
             byref(timeIntervalAvailable),
         )
-        return status, timebase.value, timeIntervalAvailable.value
+        return timebase.value, timeIntervalAvailable.value
 
     def ps5000aGetMinimumTimebaseStateless(
         self,
         handle: c_int16,
         enabledChannelOrPortFlags: PS5000A_CHANNEL_FLAGS,
         resolution: PS5000A_DEVICE_RESOLUTION,
-    ) -> tuple[PICO_STATUS, int, float]:
+    ) -> tuple[int, float]:
         timebase = c_uint32(0)
         timeInterval = c_double(0)
-        status = self._ps5000aGetMinimumTimebaseStateless(
+        self._ps5000aGetMinimumTimebaseStateless(
             handle,
             enabledChannelOrPortFlags,
             byref(timebase),
             byref(timeInterval),
             resolution,
         )
-        return status, timebase.value, timeInterval.value
+        return timebase.value, timeInterval.value
 
     def ps5000aChannelCombinationsStateless(
         self,
@@ -1303,12 +1264,12 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         resolution: PS5000A_DEVICE_RESOLUTION,
         timebase: int,
         hasDcPowerSupplyConnected: bool,
-    ) -> tuple[PICO_STATUS, list[PS5000A_CHANNEL_FLAGS]]:
+    ) -> list[PS5000A_CHANNEL_FLAGS]:
         """``nChannelCombinations`` is the capacity of the result array."""
         assert nChannelCombinations > 0
         combinations = (PS5000A_CHANNEL_FLAGS_T * nChannelCombinations)()
         count = c_uint32(nChannelCombinations)
-        status = self._ps5000aChannelCombinationsStateless(
+        self._ps5000aChannelCombinationsStateless(
             handle,
             combinations,
             byref(count),
@@ -1317,7 +1278,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
             1 if hasDcPowerSupplyConnected else 0,
         )
         n = min(count.value, nChannelCombinations)
-        return status, [PS5000A_CHANNEL_FLAGS(c) for c in combinations[:n]]
+        return [PS5000A_CHANNEL_FLAGS(c) for c in combinations[:n]]
 
     def ps5000aSetSigGenArbitrary(
         self,
@@ -1337,9 +1298,9 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         triggerType: PS5000A_SIGGEN_TRIG_TYPE,
         triggerSource: PS5000A_SIGGEN_TRIG_SOURCE,
         extInThreshold: int,
-    ) -> PICO_STATUS:
+    ) -> None:
         waveform = (c_int16 * len(arbitraryWaveform))(*arbitraryWaveform)
-        return self._ps5000aSetSigGenArbitrary(
+        self._ps5000aSetSigGenArbitrary(
             handle,
             offsetVoltage,
             pkToPk,
@@ -1376,8 +1337,8 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         triggerType: PS5000A_SIGGEN_TRIG_TYPE,
         triggerSource: PS5000A_SIGGEN_TRIG_SOURCE,
         extInThreshold: int,
-    ) -> PICO_STATUS:
-        return self._ps5000aSetSigGenBuiltIn(
+    ) -> None:
+        self._ps5000aSetSigGenBuiltIn(
             handle,
             offsetVoltage,
             pkToPk,
@@ -1412,8 +1373,8 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         triggerType: PS5000A_SIGGEN_TRIG_TYPE,
         triggerSource: PS5000A_SIGGEN_TRIG_SOURCE,
         extInThreshold: int,
-    ) -> PICO_STATUS:
-        return self._ps5000aSetSigGenBuiltInV2(
+    ) -> None:
+        self._ps5000aSetSigGenBuiltInV2(
             handle,
             offsetVoltage,
             pkToPk,
@@ -1444,8 +1405,8 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         triggerType: PS5000A_SIGGEN_TRIG_TYPE,
         triggerSource: PS5000A_SIGGEN_TRIG_SOURCE,
         extInThreshold: int,
-    ) -> PICO_STATUS:
-        return self._ps5000aSetSigGenPropertiesArbitrary(
+    ) -> None:
+        self._ps5000aSetSigGenPropertiesArbitrary(
             handle,
             startDeltaPhase,
             stopDeltaPhase,
@@ -1472,8 +1433,8 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         triggerType: PS5000A_SIGGEN_TRIG_TYPE,
         triggerSource: PS5000A_SIGGEN_TRIG_SOURCE,
         extInThreshold: int,
-    ) -> PICO_STATUS:
-        return self._ps5000aSetSigGenPropertiesBuiltIn(
+    ) -> None:
+        self._ps5000aSetSigGenPropertiesBuiltIn(
             handle,
             startFrequency,
             stopFrequency,
@@ -1493,27 +1454,27 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         frequency: float,
         indexMode: PS5000A_INDEX_MODE,
         bufferLength: int,
-    ) -> tuple[PICO_STATUS, int]:
+    ) -> int:
         phase = c_uint32(0)
-        status = self._ps5000aSigGenFrequencyToPhase(
+        self._ps5000aSigGenFrequencyToPhase(
             handle, frequency, indexMode, bufferLength, byref(phase)
         )
-        return status, phase.value
+        return phase.value
 
     def ps5000aSigGenArbitraryMinMaxValues(
         self, handle: c_int16
-    ) -> tuple[PICO_STATUS, int, int, int, int]:
+    ) -> tuple[int, int, int, int]:
         minValue = c_int16(0)
         maxValue = c_int16(0)
         minSize = c_uint32(0)
         maxSize = c_uint32(0)
-        status = self._ps5000aSigGenArbitraryMinMaxValues(
+        self._ps5000aSigGenArbitraryMinMaxValues(
             handle, byref(minValue), byref(maxValue), byref(minSize), byref(maxSize)
         )
-        return status, minValue.value, maxValue.value, minSize.value, maxSize.value
+        return minValue.value, maxValue.value, minSize.value, maxSize.value
 
-    def ps5000aSigGenSoftwareControl(self, handle: c_int16, state: int) -> PICO_STATUS:
-        return self._ps5000aSigGenSoftwareControl(handle, state)
+    def ps5000aSigGenSoftwareControl(self, handle: c_int16, state: int) -> None:
+        self._ps5000aSigGenSoftwareControl(handle, state)
 
     def ps5000aSetEts(
         self,
@@ -1521,20 +1482,18 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         mode: PS5000A_ETS_MODE,
         etsCycles: int,
         etsInterleave: int,
-    ) -> tuple[PICO_STATUS, int]:
+    ) -> int:
         sampleTimePicoseconds = c_int32(0)
-        status = self._ps5000aSetEts(
+        self._ps5000aSetEts(
             handle, mode, etsCycles, etsInterleave, byref(sampleTimePicoseconds)
         )
-        return status, sampleTimePicoseconds.value
+        return sampleTimePicoseconds.value
 
-    def ps5000aGetMaxEtsValues(self, handle: c_int16) -> tuple[PICO_STATUS, int, int]:
+    def ps5000aGetMaxEtsValues(self, handle: c_int16) -> tuple[int, int]:
         etsCycles = c_int16(0)
         etsInterleave = c_int16(0)
-        status = self._ps5000aGetMaxEtsValues(
-            handle, byref(etsCycles), byref(etsInterleave)
-        )
-        return status, etsCycles.value, etsInterleave.value
+        self._ps5000aGetMaxEtsValues(handle, byref(etsCycles), byref(etsInterleave))
+        return etsCycles.value, etsInterleave.value
 
     def ps5000aSetTriggerChannelProperties(
         self,
@@ -1542,13 +1501,10 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         channelProperties: Sequence[PS5000A_TRIGGER_CHANNEL_PROPERTIES],
         auxOutputEnable: bool,
         autoTriggerMilliseconds: int,
-    ) -> PICO_STATUS:
-        props = (PS5000A_TRIGGER_CHANNEL_PROPERTIES * len(channelProperties))(
-            *channelProperties
-        )
-        return self._ps5000aSetTriggerChannelProperties(
+    ) -> None:
+        self._ps5000aSetTriggerChannelProperties(
             handle,
-            props,
+            c_array(PS5000A_TRIGGER_CHANNEL_PROPERTIES, channelProperties),
             len(channelProperties),
             1 if auxOutputEnable else 0,
             autoTriggerMilliseconds,
@@ -1559,34 +1515,34 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         handle: c_int16,
         channelProperties: Sequence[PS5000A_TRIGGER_CHANNEL_PROPERTIES_V2],
         auxOutputEnable: bool,
-    ) -> PICO_STATUS:
-        props = (PS5000A_TRIGGER_CHANNEL_PROPERTIES_V2 * len(channelProperties))(
-            *channelProperties
-        )
-        return self._ps5000aSetTriggerChannelPropertiesV2(
-            handle, props, len(channelProperties), 1 if auxOutputEnable else 0
+    ) -> None:
+        self._ps5000aSetTriggerChannelPropertiesV2(
+            handle,
+            c_array(PS5000A_TRIGGER_CHANNEL_PROPERTIES_V2, channelProperties),
+            len(channelProperties),
+            1 if auxOutputEnable else 0,
         )
 
     def ps5000aSetAutoTriggerMicroSeconds(
         self, handle: c_int16, autoTriggerMicroseconds: int
-    ) -> PICO_STATUS:
-        return self._ps5000aSetAutoTriggerMicroSeconds(handle, autoTriggerMicroseconds)
+    ) -> None:
+        self._ps5000aSetAutoTriggerMicroSeconds(handle, autoTriggerMicroseconds)
 
     def ps5000aSetTriggerChannelConditions(
         self, handle: c_int16, conditions: Sequence[PS5000A_TRIGGER_CONDITIONS]
-    ) -> PICO_STATUS:
-        conds = (PS5000A_TRIGGER_CONDITIONS * len(conditions))(*conditions)
-        return self._ps5000aSetTriggerChannelConditions(handle, conds, len(conditions))
+    ) -> None:
+        self._ps5000aSetTriggerChannelConditions(
+            handle, c_array(PS5000A_TRIGGER_CONDITIONS, conditions), len(conditions)
+        )
 
     def ps5000aSetTriggerChannelConditionsV2(
         self,
         handle: c_int16,
         conditions: Sequence[PS5000A_CONDITION],
         info: PS5000A_CONDITIONS_INFO,
-    ) -> PICO_STATUS:
-        conds = (PS5000A_CONDITION * len(conditions))(*conditions)
-        return self._ps5000aSetTriggerChannelConditionsV2(
-            handle, conds, len(conditions), info
+    ) -> None:
+        self._ps5000aSetTriggerChannelConditionsV2(
+            handle, c_array(PS5000A_CONDITION, conditions), len(conditions), info
         )
 
     def ps5000aSetTriggerChannelDirections(
@@ -1598,16 +1554,17 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         channelD: PS5000A_THRESHOLD_DIRECTION,
         ext: PS5000A_THRESHOLD_DIRECTION,
         aux: PS5000A_THRESHOLD_DIRECTION,
-    ) -> PICO_STATUS:
-        return self._ps5000aSetTriggerChannelDirections(
+    ) -> None:
+        self._ps5000aSetTriggerChannelDirections(
             handle, channelA, channelB, channelC, channelD, ext, aux
         )
 
     def ps5000aSetTriggerChannelDirectionsV2(
         self, handle: c_int16, directions: Sequence[PS5000A_DIRECTION]
-    ) -> PICO_STATUS:
-        dirs = (PS5000A_DIRECTION * len(directions))(*directions)
-        return self._ps5000aSetTriggerChannelDirectionsV2(handle, dirs, len(directions))
+    ) -> None:
+        self._ps5000aSetTriggerChannelDirectionsV2(
+            handle, c_array(PS5000A_DIRECTION, directions), len(directions)
+        )
 
     def ps5000aSetSimpleTrigger(
         self,
@@ -1618,9 +1575,9 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         direction: PS5000A_THRESHOLD_DIRECTION,
         delay: int,
         autoTriggerMS: int,
-    ) -> PICO_STATUS:
+    ) -> None:
         assert autoTriggerMS >= 0
-        return self._ps5000aSetSimpleTrigger(
+        self._ps5000aSetSimpleTrigger(
             handle,
             1 if enable else 0,
             source,
@@ -1634,24 +1591,26 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         self,
         handle: c_int16,
         directions: Sequence[PS5000A_DIGITAL_CHANNEL_DIRECTIONS],
-    ) -> PICO_STATUS:
-        dirs = (PS5000A_DIGITAL_CHANNEL_DIRECTIONS * len(directions))(*directions)
-        return self._ps5000aSetTriggerDigitalPortProperties(
-            handle, dirs, len(directions)
+    ) -> None:
+        self._ps5000aSetTriggerDigitalPortProperties(
+            handle,
+            c_array(PS5000A_DIGITAL_CHANNEL_DIRECTIONS, directions),
+            len(directions),
         )
 
     def ps5000aSetPulseWidthDigitalPortProperties(
         self,
         handle: c_int16,
         directions: Sequence[PS5000A_DIGITAL_CHANNEL_DIRECTIONS],
-    ) -> PICO_STATUS:
-        dirs = (PS5000A_DIGITAL_CHANNEL_DIRECTIONS * len(directions))(*directions)
-        return self._ps5000aSetPulseWidthDigitalPortProperties(
-            handle, dirs, len(directions)
+    ) -> None:
+        self._ps5000aSetPulseWidthDigitalPortProperties(
+            handle,
+            c_array(PS5000A_DIGITAL_CHANNEL_DIRECTIONS, directions),
+            len(directions),
         )
 
-    def ps5000aSetTriggerDelay(self, handle: c_int16, delay: int) -> PICO_STATUS:
-        return self._ps5000aSetTriggerDelay(handle, delay)
+    def ps5000aSetTriggerDelay(self, handle: c_int16, delay: int) -> None:
+        self._ps5000aSetTriggerDelay(handle, delay)
 
     def ps5000aSetPulseWidthQualifier(
         self,
@@ -1661,10 +1620,15 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         lower: int,
         upper: int,
         type: PS5000A_PULSE_WIDTH_TYPE,
-    ) -> PICO_STATUS:
-        conds = (PS5000A_PWQ_CONDITIONS * len(conditions))(*conditions)
-        return self._ps5000aSetPulseWidthQualifier(
-            handle, conds, len(conditions), direction, lower, upper, type
+    ) -> None:
+        self._ps5000aSetPulseWidthQualifier(
+            handle,
+            c_array(PS5000A_PWQ_CONDITIONS, conditions),
+            len(conditions),
+            direction,
+            lower,
+            upper,
+            type,
         )
 
     def ps5000aSetPulseWidthQualifierProperties(
@@ -1673,49 +1637,46 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         lower: int,
         upper: int,
         type: PS5000A_PULSE_WIDTH_TYPE,
-    ) -> PICO_STATUS:
-        return self._ps5000aSetPulseWidthQualifierProperties(handle, lower, upper, type)
+    ) -> None:
+        self._ps5000aSetPulseWidthQualifierProperties(handle, lower, upper, type)
 
     def ps5000aSetPulseWidthQualifierConditions(
         self,
         handle: c_int16,
         conditions: Sequence[PS5000A_CONDITION],
         info: PS5000A_CONDITIONS_INFO,
-    ) -> PICO_STATUS:
-        conds = (PS5000A_CONDITION * len(conditions))(*conditions)
-        return self._ps5000aSetPulseWidthQualifierConditions(
-            handle, conds, len(conditions), info
+    ) -> None:
+        self._ps5000aSetPulseWidthQualifierConditions(
+            handle, c_array(PS5000A_CONDITION, conditions), len(conditions), info
         )
 
     def ps5000aSetPulseWidthQualifierDirections(
         self, handle: c_int16, directions: Sequence[PS5000A_DIRECTION]
-    ) -> PICO_STATUS:
-        dirs = (PS5000A_DIRECTION * len(directions))(*directions)
-        return self._ps5000aSetPulseWidthQualifierDirections(
-            handle, dirs, len(directions)
+    ) -> None:
+        self._ps5000aSetPulseWidthQualifierDirections(
+            handle, c_array(PS5000A_DIRECTION, directions), len(directions)
         )
 
     def ps5000aIsTriggerOrPulseWidthQualifierEnabled(
         self, handle: c_int16
-    ) -> tuple[PICO_STATUS, bool, bool]:
+    ) -> tuple[bool, bool]:
         triggerEnabled = c_int16(0)
         pulseWidthQualifierEnabled = c_int16(0)
-        status = self._ps5000aIsTriggerOrPulseWidthQualifierEnabled(
+        self._ps5000aIsTriggerOrPulseWidthQualifierEnabled(
             handle, byref(triggerEnabled), byref(pulseWidthQualifierEnabled)
         )
-        return status, triggerEnabled.value != 0, pulseWidthQualifierEnabled.value != 0
+        return triggerEnabled.value != 0, pulseWidthQualifierEnabled.value != 0
 
     def ps5000aGetTriggerTimeOffset(
         self, handle: c_int16, segmentIndex: int
-    ) -> tuple[PICO_STATUS, int, int, PS5000A_TIME_UNITS]:
+    ) -> tuple[int, int, PS5000A_TIME_UNITS]:
         timeUpper = c_uint32(0)
         timeLower = c_uint32(0)
         timeUnits = PS5000A_TIME_UNITS_T(0)
-        status = self._ps5000aGetTriggerTimeOffset(
+        self._ps5000aGetTriggerTimeOffset(
             handle, byref(timeUpper), byref(timeLower), byref(timeUnits), segmentIndex
         )
         return (
-            status,
             timeUpper.value,
             timeLower.value,
             PS5000A_TIME_UNITS(timeUnits.value),
@@ -1723,27 +1684,26 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
 
     def ps5000aGetTriggerTimeOffset64(
         self, handle: c_int16, segmentIndex: int
-    ) -> tuple[PICO_STATUS, int, PS5000A_TIME_UNITS]:
+    ) -> tuple[int, PS5000A_TIME_UNITS]:
         time = c_int64(0)
         timeUnits = PS5000A_TIME_UNITS_T(0)
-        status = self._ps5000aGetTriggerTimeOffset64(
+        self._ps5000aGetTriggerTimeOffset64(
             handle, byref(time), byref(timeUnits), segmentIndex
         )
-        return status, time.value, PS5000A_TIME_UNITS(timeUnits.value)
+        return time.value, PS5000A_TIME_UNITS(timeUnits.value)
 
     def ps5000aGetValuesTriggerTimeOffsetBulk(
         self, handle: c_int16, fromSegmentIndex: int, toSegmentIndex: int
-    ) -> tuple[PICO_STATUS, list[int], list[int], list[PS5000A_TIME_UNITS]]:
+    ) -> tuple[list[int], list[int], list[PS5000A_TIME_UNITS]]:
         assert fromSegmentIndex <= toSegmentIndex
         n = toSegmentIndex - fromSegmentIndex + 1
         timesUpper = (c_uint32 * n)()
         timesLower = (c_uint32 * n)()
         timeUnits = (PS5000A_TIME_UNITS_T * n)()
-        status = self._ps5000aGetValuesTriggerTimeOffsetBulk(
+        self._ps5000aGetValuesTriggerTimeOffsetBulk(
             handle, timesUpper, timesLower, timeUnits, fromSegmentIndex, toSegmentIndex
         )
         return (
-            status,
             list(timesUpper),
             list(timesLower),
             [PS5000A_TIME_UNITS(u) for u in timeUnits],
@@ -1751,15 +1711,15 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
 
     def ps5000aGetValuesTriggerTimeOffsetBulk64(
         self, handle: c_int16, fromSegmentIndex: int, toSegmentIndex: int
-    ) -> tuple[PICO_STATUS, list[int], list[PS5000A_TIME_UNITS]]:
+    ) -> tuple[list[int], list[PS5000A_TIME_UNITS]]:
         assert fromSegmentIndex <= toSegmentIndex
         n = toSegmentIndex - fromSegmentIndex + 1
         times = (c_int64 * n)()
         timeUnits = (PS5000A_TIME_UNITS_T * n)()
-        status = self._ps5000aGetValuesTriggerTimeOffsetBulk64(
+        self._ps5000aGetValuesTriggerTimeOffsetBulk64(
             handle, times, timeUnits, fromSegmentIndex, toSegmentIndex
         )
-        return status, list(times), [PS5000A_TIME_UNITS(u) for u in timeUnits]
+        return list(times), [PS5000A_TIME_UNITS(u) for u in timeUnits]
 
     def ps5000aSetDataBuffers(
         self,
@@ -1770,8 +1730,8 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         bufferLth: int,
         segmentIndex: int,
         mode: PS5000A_RATIO_MODE,
-    ) -> PICO_STATUS:
-        return self._ps5000aSetDataBuffers(
+    ) -> None:
+        self._ps5000aSetDataBuffers(
             handle, source, bufferMax, bufferMin, bufferLth, segmentIndex, mode
         )
 
@@ -1783,8 +1743,8 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         bufferLth: int,
         segmentIndex: int,
         mode: PS5000A_RATIO_MODE,
-    ) -> PICO_STATUS:
-        return self._ps5000aSetDataBuffer(
+    ) -> None:
+        self._ps5000aSetDataBuffer(
             handle, channel, buffer, bufferLth, segmentIndex, mode
         )
 
@@ -1797,17 +1757,17 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         bufferLth: int,
         segmentIndex: int,
         mode: PS5000A_RATIO_MODE,
-    ) -> PICO_STATUS:
+    ) -> None:
         """Like ``ps5000aSetDataBuffers`` but with ``int8_t`` buffers."""
-        return self._ps5000aSetUnscaledDataBuffers(
+        self._ps5000aSetUnscaledDataBuffers(
             handle, source, bufferMax, bufferMin, bufferLth, segmentIndex, mode
         )
 
     def ps5000aSetEtsTimeBuffer(
         self, handle: c_int16, buffer: c_void_p | int | None, bufferLth: int
-    ) -> PICO_STATUS:
+    ) -> None:
         """``buffer`` points to ``int64_t`` values."""
-        return self._ps5000aSetEtsTimeBuffer(handle, buffer, bufferLth)
+        self._ps5000aSetEtsTimeBuffer(handle, buffer, bufferLth)
 
     def ps5000aSetEtsTimeBuffers(
         self,
@@ -1815,13 +1775,14 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         timeUpper: c_void_p | int | None,
         timeLower: c_void_p | int | None,
         bufferLth: int,
-    ) -> PICO_STATUS:
+    ) -> None:
         """``timeUpper`` and ``timeLower`` point to ``uint32_t`` values."""
-        return self._ps5000aSetEtsTimeBuffers(handle, timeUpper, timeLower, bufferLth)
+        self._ps5000aSetEtsTimeBuffers(handle, timeUpper, timeLower, bufferLth)
 
-    def ps5000aIsReady(self, handle: c_int16) -> tuple[PICO_STATUS, bool]:
+    def ps5000aIsReady(self, handle: c_int16) -> bool:
         ready = c_int16(0)
-        return self._ps5000aIsReady(handle, byref(ready)), ready.value == 1
+        self._ps5000aIsReady(handle, byref(ready))
+        return ready.value == 1
 
     def ps5000aRunBlock(
         self,
@@ -1831,7 +1792,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         timebase: int,
         segment: int,
         callback: Callable[[c_int16, PICO_STATUS], None] | None,
-    ) -> tuple[PICO_STATUS, int]:
+    ) -> int:
         assert preSamples >= 0
         assert postSamples >= 0
         timeInd = c_int32(0)
@@ -1844,7 +1805,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         else:
             # ctypes only accepts NULL for a function pointer as a NULL instance.
             lpReady = ps5000aBlockReady()
-        status = self._with_callback(
+        self._with_callback(
             self._callback_key("ps5000aRunBlock", handle),
             lpReady,
             lambda: self._ps5000aRunBlock(
@@ -1858,7 +1819,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
                 None,
             ),
         )
-        return status, timeInd.value
+        return timeInd.value
 
     def ps5000aRunStreaming(
         self,
@@ -1871,10 +1832,10 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         downSampleRatio: int,
         downSampleRatioMode: PS5000A_RATIO_MODE,
         overviewBufferSize: int,
-    ) -> tuple[PICO_STATUS, int]:
+    ) -> int:
         """Returns the actual sample interval chosen by the driver."""
         interval = c_uint32(sampleInterval)
-        status = self._ps5000aRunStreaming(
+        self._ps5000aRunStreaming(
             handle,
             byref(interval),
             sampleIntervalTimeUnits,
@@ -1885,7 +1846,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
             downSampleRatioMode,
             overviewBufferSize,
         )
-        return status, interval.value
+        return interval.value
 
     def ps5000aGetStreamingLatestValues(
         self,
@@ -1893,7 +1854,10 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         callback: Callable[[int, int, int, int, int, bool, bool], None],
     ) -> PICO_STATUS:
         """``callback(handle, noOfSamples, startIndex, overflow, triggerAt,
-        triggered, autoStop)`` is called when new data has been copied."""
+        triggered, autoStop)`` is called when new data has been copied.
+
+        Returns PICO_OK, or PICO_BUSY if there is no new data yet (poll again).
+        """
 
         def cbwrapper(
             handle: int,
@@ -1922,10 +1886,10 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
             lambda: self._ps5000aGetStreamingLatestValues(handle, lpPs5000aReady, None),
         )
 
-    def ps5000aNoOfStreamingValues(self, handle: c_int16) -> tuple[PICO_STATUS, int]:
+    def ps5000aNoOfStreamingValues(self, handle: c_int16) -> int:
         noOfValues = c_uint32(0)
-        status = self._ps5000aNoOfStreamingValues(handle, byref(noOfValues))
-        return status, noOfValues.value
+        self._ps5000aNoOfStreamingValues(handle, byref(noOfValues))
+        return noOfValues.value
 
     def ps5000aGetMaxDownSampleRatio(
         self,
@@ -1933,16 +1897,16 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         noOfUnaggreatedSamples: int,
         downSampleRatioMode: PS5000A_RATIO_MODE,
         segmentIndex: int,
-    ) -> tuple[PICO_STATUS, int]:
+    ) -> int:
         maxDownSampleRatio = c_uint32(0)
-        status = self._ps5000aGetMaxDownSampleRatio(
+        self._ps5000aGetMaxDownSampleRatio(
             handle,
             noOfUnaggreatedSamples,
             byref(maxDownSampleRatio),
             downSampleRatioMode,
             segmentIndex,
         )
-        return status, maxDownSampleRatio.value
+        return maxDownSampleRatio.value
 
     def ps5000aGetValues(
         self,
@@ -1952,11 +1916,11 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         downSampleRatio: int,
         downSampleRatioMode: PS5000A_RATIO_MODE,
         segmentIndex: int,
-    ) -> tuple[PICO_STATUS, int, int]:
+    ) -> tuple[int, int]:
         """Returns the number of samples retrieved and the overflow channel bits."""
         noOfSamples_ = c_uint32(noOfSamples)
         overflow = c_int16(0)
-        status = self._ps5000aGetValues(
+        self._ps5000aGetValues(
             handle,
             startIndex,
             byref(noOfSamples_),
@@ -1965,7 +1929,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
             segmentIndex,
             byref(overflow),
         )
-        return status, noOfSamples_.value, overflow.value
+        return noOfSamples_.value, overflow.value
 
     def ps5000aGetValuesAsync(
         self,
@@ -1976,7 +1940,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         downSampleRatioMode: PS5000A_RATIO_MODE,
         segmentIndex: int,
         callback: Callable[[int, PICO_STATUS, int, int], None],
-    ) -> PICO_STATUS:
+    ) -> None:
         """``callback(handle, status, noOfSamples, overflow)`` is called when done."""
 
         def cbwrapper(
@@ -1985,7 +1949,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
             callback(handle, PICO_STATUS(status), noOfSamples, overflow)
 
         lpDataReady = ps5000aDataReady(cbwrapper)
-        return self._with_callback(
+        self._with_callback(
             self._callback_key("ps5000aGetValuesAsync", handle),
             lpDataReady,
             lambda: self._ps5000aGetValuesAsync(
@@ -2008,25 +1972,22 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         toSegment: int,
         downsampleRatio: int,
         downsampleMode: PS5000A_RATIO_MODE,
-    ) -> tuple[PICO_STATUS, int, list[int]]:
+    ) -> tuple[int, list[int]]:
         assert nosamples > 0
         assert fromSegment <= toSegment
         nosamples_ = c_uint32(nosamples)
         nsegments = (toSegment - fromSegment) + 1
         overflow = (c_int16 * nsegments)(0)
-        return (
-            self._ps5000aGetValuesBulk(
-                handle,
-                byref(nosamples_),
-                fromSegment,
-                toSegment,
-                downsampleRatio,
-                downsampleMode,
-                overflow,
-            ),
-            nosamples_.value,
-            [int(f) for f in overflow],
+        self._ps5000aGetValuesBulk(
+            handle,
+            byref(nosamples_),
+            fromSegment,
+            toSegment,
+            downsampleRatio,
+            downsampleMode,
+            overflow,
         )
+        return nosamples_.value, [int(f) for f in overflow]
 
     def ps5000aGetValuesOverlapped(
         self,
@@ -2036,7 +1997,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         downSampleRatio: int,
         downSampleRatioMode: PS5000A_RATIO_MODE,
         segmentIndex: int,
-    ) -> tuple[PICO_STATUS, c_uint32, c_int16]:
+    ) -> tuple[c_uint32, c_int16]:
         """Set up a data retrieval that is performed during the next run.
 
         The driver writes the number of samples and the overflow bits after
@@ -2045,7 +2006,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         """
         noOfSamples_ = c_uint32(noOfSamples)
         overflow = c_int16(0)
-        status = self._with_callback(
+        self._with_callback(
             self._callback_key("ps5000aGetValuesOverlapped", handle),
             (noOfSamples_, overflow),
             lambda: self._ps5000aGetValuesOverlapped(
@@ -2058,7 +2019,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
                 byref(overflow),
             ),
         )
-        return status, noOfSamples_, overflow
+        return noOfSamples_, overflow
 
     def ps5000aGetValuesOverlappedBulk(
         self,
@@ -2069,7 +2030,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         downSampleRatioMode: PS5000A_RATIO_MODE,
         fromSegmentIndex: int,
         toSegmentIndex: int,
-    ) -> tuple[PICO_STATUS, c_uint32, Array[c_int16]]:
+    ) -> tuple[c_uint32, Array[c_int16]]:
         """Bulk variant of ``ps5000aGetValuesOverlapped``.
 
         The returned ctypes objects (sample count and per-segment overflow
@@ -2078,7 +2039,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         assert fromSegmentIndex <= toSegmentIndex
         noOfSamples_ = c_uint32(noOfSamples)
         overflow = (c_int16 * (toSegmentIndex - fromSegmentIndex + 1))()
-        status = self._with_callback(
+        self._with_callback(
             self._callback_key("ps5000aGetValuesOverlappedBulk", handle),
             (noOfSamples_, overflow),
             lambda: self._ps5000aGetValuesOverlappedBulk(
@@ -2092,31 +2053,33 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
                 overflow,
             ),
         )
-        return status, noOfSamples_, overflow
+        return noOfSamples_, overflow
 
     def ps5000aTriggerWithinPreTriggerSamples(
         self, handle: c_int16, state: PS5000A_TRIGGER_WITHIN_PRE_TRIGGER
-    ) -> PICO_STATUS:
-        return self._ps5000aTriggerWithinPreTriggerSamples(handle, state)
+    ) -> None:
+        self._ps5000aTriggerWithinPreTriggerSamples(handle, state)
 
     def ps5000aGetTriggerInfoBulk(
         self, handle: c_int16, fromSegmentIndex: int, toSegmentIndex: int
-    ) -> tuple[PICO_STATUS, list[PS5000A_TRIGGER_INFO]]:
+    ) -> list[PS5000A_TRIGGER_INFO]:
         assert fromSegmentIndex <= toSegmentIndex
-        triggerInfo = (PS5000A_TRIGGER_INFO * (toSegmentIndex - fromSegmentIndex + 1))()
-        status = self._ps5000aGetTriggerInfoBulk(
+        triggerInfo = (
+            PS5000A_TRIGGER_INFO.c_type * (toSegmentIndex - fromSegmentIndex + 1)
+        )()
+        self._ps5000aGetTriggerInfoBulk(
             handle, triggerInfo, fromSegmentIndex, toSegmentIndex
         )
-        return status, list(triggerInfo)
+        return PS5000A_TRIGGER_INFO.from_c_array(triggerInfo)
 
-    def ps5000aEnumerateUnits(self) -> tuple[PICO_STATUS, int, list[str]]:
+    def ps5000aEnumerateUnits(self) -> tuple[int, list[str]]:
         """Returns the number of units found and their serial numbers."""
         count = c_int16(0)
         serials = create_string_buffer(4096)
         serialLth = c_int16(len(serials))
-        status = self._ps5000aEnumerateUnits(byref(count), serials, byref(serialLth))
+        self._ps5000aEnumerateUnits(byref(count), serials, byref(serialLth))
         text = serials.value.decode("utf-8")
-        return status, count.value, [s for s in text.split(",") if s]
+        return count.value, [s for s in text.split(",") if s]
 
     def ps5000aGetChannelInformation(
         self,
@@ -2124,129 +2087,126 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         info: PS5000A_CHANNEL_INFO,
         probe: int,
         channels: PS5000A_CHANNEL,
-    ) -> tuple[PICO_STATUS, list[PS5000A_RANGE]]:
+    ) -> list[PS5000A_RANGE]:
         """Returns the input ranges available on ``channels``."""
         ranges = (c_int32 * PS5000A_RANGE.PS5000A_MAX_RANGES)()
         length = c_int32(len(ranges))
-        status = self._ps5000aGetChannelInformation(
+        self._ps5000aGetChannelInformation(
             handle, info, probe, ranges, byref(length), channels
         )
         n = min(length.value, len(ranges))
-        return status, [PS5000A_RANGE(r) for r in ranges[:n]]
+        return [PS5000A_RANGE(r) for r in ranges[:n]]
 
-    def ps5000aGetMaxSegments(self, handle: c_int16) -> tuple[PICO_STATUS, int]:
+    def ps5000aGetMaxSegments(self, handle: c_int16) -> int:
         value = c_uint32(0)
-        return (
-            self._ps5000aGetMaxSegments(handle, byref(value)),
-            value.value,
-        )
+        self._ps5000aGetMaxSegments(handle, byref(value))
+        return value.value
 
-    def ps5000aMinimumValue(self, handle: c_int16) -> tuple[PICO_STATUS, int]:
+    def ps5000aMinimumValue(self, handle: c_int16) -> int:
         value = c_int16(0)
-        return self._ps5000aMinimumValue(handle, byref(value)), value.value
+        self._ps5000aMinimumValue(handle, byref(value))
+        return value.value
 
-    def ps5000aMaximumValue(self, handle: c_int16) -> tuple[PICO_STATUS, int]:
+    def ps5000aMaximumValue(self, handle: c_int16) -> int:
         value = c_int16(0)
-        return self._ps5000aMaximumValue(handle, byref(value)), value.value
+        self._ps5000aMaximumValue(handle, byref(value))
+        return value.value
 
     def ps5000aGetAnalogueOffset(
         self, handle: c_int16, range: PS5000A_RANGE, coupling: PS5000A_COUPLING
-    ) -> tuple[PICO_STATUS, float, float]:
-        minv = c_float(0)
+    ) -> tuple[float, float]:
+        """Returns the maximum and the minimum analogue offset (in C order)."""
         maxv = c_float(0)
-        return (
-            self._ps5000aGetAnalogueOffset(
-                handle, range, coupling, byref(maxv), byref(minv)
-            ),
-            minv.value,
-            maxv.value,
+        minv = c_float(0)
+        self._ps5000aGetAnalogueOffset(
+            handle, range, coupling, byref(maxv), byref(minv)
         )
+        return maxv.value, minv.value
 
     def ps5000aChangePowerSource(
         self, handle: c_int16, source: PICO_STATUS
     ) -> PICO_STATUS:
+        """Returns the status, which tells the power source if not PICO_OK."""
         return self._ps5000aChangePowerSource(handle, source)
 
     def ps5000aCurrentPowerSource(self, handle: c_int16) -> PICO_STATUS:
         """Returns ``PICO_POWER_SUPPLY_CONNECTED`` or ``..._NOT_CONNECTED``."""
         return self._ps5000aCurrentPowerSource(handle)
 
-    def ps5000aStop(self, handle: c_int16) -> PICO_STATUS:
-        return self._ps5000aStop(handle)
+    def ps5000aStop(self, handle: c_int16) -> None:
+        self._ps5000aStop(handle)
 
     def ps5000aPingUnit(self, handle: c_int16) -> PICO_STATUS:
+        """Returns the status, which tells the power source if not PICO_OK."""
         return self._ps5000aPingUnit(handle)
 
-    def ps5000aSetNoOfCaptures(self, handle: c_int16, ncaptures: int) -> PICO_STATUS:
+    def ps5000aSetNoOfCaptures(self, handle: c_int16, ncaptures: int) -> None:
         assert ncaptures > 0
-        return self._ps5000aSetNoOfCaptures(handle, ncaptures)
+        self._ps5000aSetNoOfCaptures(handle, ncaptures)
 
-    def ps5000aGetNoOfCaptures(self, handle: c_int16) -> tuple[PICO_STATUS, int]:
+    def ps5000aGetNoOfCaptures(self, handle: c_int16) -> int:
         captures = c_uint32()
-        return (
-            self._ps5000aGetNoOfCaptures(handle, byref(captures)),
-            captures.value,
-        )
+        self._ps5000aGetNoOfCaptures(handle, byref(captures))
+        return captures.value
 
-    def ps5000aGetNoOfProcessedCaptures(
-        self, handle: c_int16
-    ) -> tuple[PICO_STATUS, int]:
+    def ps5000aGetNoOfProcessedCaptures(self, handle: c_int16) -> int:
         captures = c_uint32()
-        return (
-            self._ps5000aGetNoOfProcessedCaptures(handle, byref(captures)),
-            captures.value,
-        )
+        self._ps5000aGetNoOfProcessedCaptures(handle, byref(captures))
+        return captures.value
 
     def ps5000aSetDeviceResolution(
         self, handle: c_int16, resolution: PS5000A_DEVICE_RESOLUTION
     ) -> PICO_STATUS:
+        """Returns the status, which tells the power source if not PICO_OK."""
         return self._ps5000aSetDeviceResolution(handle, resolution)
 
-    def ps5000aGetDeviceResolution(
-        self, handle: c_int16
-    ) -> tuple[PICO_STATUS, PS5000A_DEVICE_RESOLUTION]:
+    def ps5000aGetDeviceResolution(self, handle: c_int16) -> PS5000A_DEVICE_RESOLUTION:
         resolution = PS5000A_DEVICE_RESOLUTION_T(0)
-        status = self._ps5000aGetDeviceResolution(handle, byref(resolution))
-        return status, PS5000A_DEVICE_RESOLUTION(resolution.value)
+        self._ps5000aGetDeviceResolution(handle, byref(resolution))
+        return PS5000A_DEVICE_RESOLUTION(resolution.value)
 
-    def ps5000aQueryOutputEdgeDetect(self, handle: c_int16) -> tuple[PICO_STATUS, bool]:
+    def ps5000aQueryOutputEdgeDetect(self, handle: c_int16) -> bool:
         state = c_int16(0)
-        status = self._ps5000aQueryOutputEdgeDetect(handle, byref(state))
-        return status, state.value != 0
+        self._ps5000aQueryOutputEdgeDetect(handle, byref(state))
+        return state.value != 0
 
-    def ps5000aSetOutputEdgeDetect(self, handle: c_int16, state: bool) -> PICO_STATUS:
-        return self._ps5000aSetOutputEdgeDetect(handle, 1 if state else 0)
+    def ps5000aSetOutputEdgeDetect(self, handle: c_int16, state: bool) -> None:
+        self._ps5000aSetOutputEdgeDetect(handle, 1 if state else 0)
 
     def ps5000aGetScalingValues(
         self, handle: c_int16, nChannels: int
-    ) -> tuple[PICO_STATUS, list[PS5000A_SCALING_FACTORS_VALUES]]:
-        scalingValues = (PS5000A_SCALING_FACTORS_VALUES * nChannels)()
-        status = self._ps5000aGetScalingValues(handle, scalingValues, nChannels)
-        return status, list(scalingValues)
+    ) -> list[PS5000A_SCALING_FACTORS_VALUES]:
+        scalingValues = (PS5000A_SCALING_FACTORS_VALUES.c_type * nChannels)()
+        self._ps5000aGetScalingValues(handle, scalingValues, nChannels)
+        return PS5000A_SCALING_FACTORS_VALUES.from_c_array(scalingValues)
 
     def ps5000aCheckForUpdate(
         self, handle: c_int16
-    ) -> tuple[PICO_STATUS, PICO_VERSION, PICO_VERSION, bool]:
+    ) -> tuple[PICO_VERSION, PICO_VERSION, bool]:
         """Returns the current and available firmware versions and whether an
         update is required."""
-        current = PICO_VERSION()
-        update = PICO_VERSION()
+        current = PICO_VERSION.c_type()
+        update = PICO_VERSION.c_type()
         updateRequired = c_uint16(0)
-        status = self._ps5000aCheckForUpdate(
+        self._ps5000aCheckForUpdate(
             handle, byref(current), byref(update), byref(updateRequired)
         )
-        return status, current, update, updateRequired.value != 0
+        return (
+            PICO_VERSION.from_c(current),
+            PICO_VERSION.from_c(update),
+            updateRequired.value != 0,
+        )
 
     def ps5000aStartFirmwareUpdate(
         self, handle: c_int16, progress: Callable[[int, int], None]
-    ) -> PICO_STATUS:
+    ) -> None:
         """``progress(handle, progressPercent)`` reports the update progress."""
 
         def cbwrapper(handle: int, progressPercent: int) -> None:
             progress(handle, progressPercent)
 
         cprogress = PicoUpdateFirmwareProgress(cbwrapper)
-        return self._with_callback(
+        self._with_callback(
             self._callback_key("ps5000aStartFirmwareUpdate", handle),
             cprogress,
             lambda: self._ps5000aStartFirmwareUpdate(handle, cprogress),
@@ -2265,18 +2225,20 @@ class PicoScope5000aDevice(PicoScopeDeviceBase[PicoScope5000aWrapper]):
     @classmethod
     def ps5000aOpenUnit(
         cls, serial: str | None, resolution: PS5000A_DEVICE_RESOLUTION
-    ) -> tuple[PICO_STATUS, Self]:
+    ) -> tuple[Self, PICO_STATUS]:
         """Like :meth:`PicoScope5000aWrapper.ps5000aOpenUnit`, returning a device instead of the handle."""
-        status, handle = cls.shared_wrapper().ps5000aOpenUnit(serial, resolution)
-        return status, cls(handle)
+        handle, status = cls.shared_wrapper().ps5000aOpenUnit(serial, resolution)
+        return cls(handle), status
 
     @classmethod
-    def ps5000aOpenUnitProgress(cls) -> tuple[PICO_STATUS, Self | None, int, bool]:
+    def ps5000aOpenUnitProgress(
+        cls,
+    ) -> tuple[Self | None, int, bool, PICO_STATUS]:
         """Like :meth:`PicoScope5000aWrapper.ps5000aOpenUnitProgress`, with a device instead of the handle once opened."""
-        status, handle, progressPercent, complete = (
+        handle, progressPercent, complete, status = (
             cls.shared_wrapper().ps5000aOpenUnitProgress()
         )
-        return status, cls(handle) if complete else None, progressPercent, complete
+        return cls(handle) if complete else None, progressPercent, complete, status
 
     ps5000aOpenUnitAsync = wrapper_function(PicoScope5000aWrapper.ps5000aOpenUnitAsync)
     ps5000aEnumerateUnits = wrapper_function(

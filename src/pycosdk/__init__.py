@@ -1,4 +1,5 @@
 from ._device import PicoScopeDeviceBase
+from ._struct import CStruct
 from .connectprobe import (
     PICO_CONNECT_PROBE,
     PICO_CONNECT_PROBE_RANGE,
@@ -72,7 +73,6 @@ from .exceptions import (
     MissingFunctionException,
     MissingLibraryException,
     ResultException,
-    ResultWarning,
     StatusException,
     StatusWarning,
 )
@@ -512,12 +512,12 @@ __all__ = (
     "PS6000_TRIGGER_STATE",
     "PS6000_WAVE_TYPE",
     "WARNING_STATUSES",
+    "CStruct",
     "DriverException",
     "DriverWarning",
     "MissingFunctionException",
     "MissingLibraryException",
     "ResultException",
-    "ResultWarning",
     "StatusAction",
     "StatusConfig",
     "StatusException",

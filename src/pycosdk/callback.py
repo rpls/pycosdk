@@ -12,7 +12,7 @@ from .status import PICO_STATUS_T
 PicoUpdateFirmwareProgress = CALLBACK_FUNCTYPE(None, c_int16, c_uint16)
 
 PicoProbeInteractions = CALLBACK_FUNCTYPE(
-    None, c_int16, PICO_STATUS_T, POINTER(PICO_USER_PROBE_INTERACTIONS), c_uint32
+    None, c_int16, PICO_STATUS_T, POINTER(PICO_USER_PROBE_INTERACTIONS.c_type), c_uint32
 )
 
 PicoDataReadyUsingReads = CALLBACK_FUNCTYPE(

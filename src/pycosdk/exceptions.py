@@ -25,14 +25,15 @@ class DriverException(Exception):
 
 
 class DriverWarning(UserWarning):
-    """Base class of the warnings emitted instead of a :class:`DriverException`."""
+    """Base class of the warnings emitted for driver statuses, see :class:`StatusWarning`."""
 
 
 class StatusException(DriverException):
     """A driver function returned a ``PICO_STATUS`` that is treated as an error.
 
-    Whether a status raises this exception is configured through
-    :func:`pycosdk.seterr` and :class:`pycosdk.errstate`.
+    Errors always raise it; warning and info statuses raise it only if their
+    category is configured to ``"raise"`` through :func:`pycosdk.seterr` or
+    :class:`pycosdk.errstate`.
     """
 
     def __init__(self, status: PICO_STATUS, function: str | None = None) -> None:
@@ -72,28 +73,8 @@ class ResultException(DriverException):
     Legacy drivers (``ps2000``, ``ps3000``) predate ``PICO_STATUS``; whether a
     return value means failure is defined per function. ``result`` is the raw
     return value and ``error_code`` the driver's error code (e.g.
-    ``PS2000_ERROR``), if it could be determined. Whether a failure raises this
-    exception is configured through the ``error`` category of
-    :func:`pycosdk.seterr` and :class:`pycosdk.errstate`.
+    ``PS2000_ERROR``), if it could be determined.
     """
-
-    def __init__(
-        self,
-        result: Any,
-        function: str | None = None,
-        error_code: int | None = None,
-    ) -> None:
-        super().__init__(result, function, error_code)
-        self.result: Any = result
-        self.function: str | None = function
-        self.error_code: int | None = error_code
-
-    def __str__(self) -> str:
-        return _describe_result(self.result, self.function, self.error_code)
-
-
-class ResultWarning(DriverWarning):
-    """Emitted instead of a :class:`ResultException` when ``error`` is set to ``"warn"``."""
 
     def __init__(
         self,
@@ -116,7 +97,6 @@ __all__ = (
     "MissingFunctionException",
     "MissingLibraryException",
     "ResultException",
-    "ResultWarning",
     "StatusException",
     "StatusWarning",
 )

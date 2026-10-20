@@ -160,11 +160,11 @@ class PicoScopeWrapperBase:
         """Bind the function ``name`` of a legacy (pre-``PICO_STATUS``) driver.
 
         ``restype`` is the ctypes return type (``None`` for ``void``). ``failed``
-        tells from the raw return value whether the call failed; a failure is
-        handled by :func:`pycosdk.statusconfig.check_result`. Without ``failed``
+        tells from the raw return value whether the call failed; a failure raises
+        a :class:`ResultException`, see :func:`pycosdk.statusconfig.check_result`. Without ``failed``
         the function cannot fail and its result is returned unchecked.
         ``error_code`` receives the call's arguments and looks up the driver
-        error code to attach to the exception or warning.
+        error code to attach to the exception.
 
         Each call binds a separate function object, so a function can be bound
         more than once, e.g., unchecked for use inside an ``error_code`` lookup.
@@ -189,10 +189,7 @@ class PicoScopeWrapperBase:
 
             def errcheck(result: Any, _func: Any, args: tuple[Any, ...]) -> Any:
                 lookup = None if error_code is None else partial(error_code, args)
-                # Frames: check_result <- errcheck <- wrapper method <- user code
-                return check_result(
-                    result, is_failure(result), name, lookup, stacklevel=3
-                )
+                return check_result(result, is_failure(result), name, lookup)
 
             func.errcheck = errcheck
         return func

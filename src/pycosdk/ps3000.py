@@ -2,17 +2,16 @@
 """Wrapper of the legacy ``ps3000`` driver (PicoScope 3000 series, ``ps3000.h``).
 
 The driver predates ``PICO_STATUS``: its functions return plain integers whose
-meaning differs per function. The wrapper methods return that value (as a more
-fitting Python type where it carries meaning) followed by any outputs, and
-report failed calls according to the ``error`` category of
-:func:`pycosdk.seterr`, as :class:`~pycosdk.exceptions.ResultException` or
-:class:`~pycosdk.exceptions.ResultWarning`.
+meaning differs per function. Failed calls raise
+:class:`~pycosdk.exceptions.ResultException`. The wrapper methods return that
+value (as a more fitting Python type) followed by any outputs, but only where it
+carries meaning beyond success, e.g. a handle or a number of values; values
+that only signal success are not returned.
 """
 
 from collections.abc import Callable, Sequence
 from ctypes import (
     POINTER,
-    Structure,
     byref,
     c_char_p,
     c_double,
@@ -27,10 +26,11 @@ from ctypes import (
 )
 from enum import IntEnum
 from functools import partial
-from typing import Any, Self, final
+from typing import Annotated, Any, Self, final
 
 from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._base import CALLBACK_FUNCTYPE, PicoScopeWrapperBase
+from ._struct import CStruct, c_array
 from .ps2000 import (
     OverviewBuffersCallback,
     _is_negative,
@@ -257,43 +257,34 @@ PS3000_PULSE_WIDTH_TYPE_T = c_int32
 
 
 @final
-class PS3000_TRIGGER_CHANNEL_PROPERTIES(Structure):
+class PS3000_TRIGGER_CHANNEL_PROPERTIES(CStruct):
     # C: TRIGGER_CHANNEL_PROPERTIES
-    _pack_ = 1
-    _fields_ = [
-        ("thresholdMajor", c_int16),
-        ("thresholdMinor", c_int16),
-        ("hysteresis", c_uint16),
-        ("channel", c_int16),
-        ("thresholdMode", PS3000_THRESHOLD_MODE_T),
-    ]
+    thresholdMajor: Annotated[int, c_int16]
+    thresholdMinor: Annotated[int, c_int16]
+    hysteresis: Annotated[int, c_uint16]
+    channel: Annotated[PS3000_CHANNEL, c_int16]
+    thresholdMode: Annotated[PS3000_THRESHOLD_MODE, PS3000_THRESHOLD_MODE_T]
 
 
 @final
-class PS3000_TRIGGER_CONDITIONS(Structure):
+class PS3000_TRIGGER_CONDITIONS(CStruct):
     # C: TRIGGER_CONDITIONS
-    _pack_ = 1
-    _fields_ = [
-        ("channelA", PS3000_TRIGGER_STATE_T),
-        ("channelB", PS3000_TRIGGER_STATE_T),
-        ("channelC", PS3000_TRIGGER_STATE_T),
-        ("channelD", PS3000_TRIGGER_STATE_T),
-        ("external", PS3000_TRIGGER_STATE_T),
-        ("pulseWidthQualifier", PS3000_TRIGGER_STATE_T),
-    ]
+    channelA: Annotated[PS3000_TRIGGER_STATE, PS3000_TRIGGER_STATE_T]
+    channelB: Annotated[PS3000_TRIGGER_STATE, PS3000_TRIGGER_STATE_T]
+    channelC: Annotated[PS3000_TRIGGER_STATE, PS3000_TRIGGER_STATE_T]
+    channelD: Annotated[PS3000_TRIGGER_STATE, PS3000_TRIGGER_STATE_T]
+    external: Annotated[PS3000_TRIGGER_STATE, PS3000_TRIGGER_STATE_T]
+    pulseWidthQualifier: Annotated[PS3000_TRIGGER_STATE, PS3000_TRIGGER_STATE_T]
 
 
 @final
-class PS3000_PWQ_CONDITIONS(Structure):
+class PS3000_PWQ_CONDITIONS(CStruct):
     # C: PWQ_CONDITIONS
-    _pack_ = 1
-    _fields_ = [
-        ("channelA", PS3000_TRIGGER_STATE_T),
-        ("channelB", PS3000_TRIGGER_STATE_T),
-        ("channelC", PS3000_TRIGGER_STATE_T),
-        ("channelD", PS3000_TRIGGER_STATE_T),
-        ("external", PS3000_TRIGGER_STATE_T),
-    ]
+    channelA: Annotated[PS3000_TRIGGER_STATE, PS3000_TRIGGER_STATE_T]
+    channelB: Annotated[PS3000_TRIGGER_STATE, PS3000_TRIGGER_STATE_T]
+    channelC: Annotated[PS3000_TRIGGER_STATE, PS3000_TRIGGER_STATE_T]
+    channelD: Annotated[PS3000_TRIGGER_STATE, PS3000_TRIGGER_STATE_T]
+    external: Annotated[PS3000_TRIGGER_STATE, PS3000_TRIGGER_STATE_T]
 
 
 PS3000_CALLBACK_FUNC = CALLBACK_FUNCTYPE(c_int16, POINTER(c_int16), c_int16)
@@ -553,7 +544,7 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
             failed=_is_zero,
             error_code=unit_error,
         )
-        # Undocumented return value, so it is not checked.
+        # The guide documents the return value as undefined, so it is not checked.
         self._ps3000_save_streaming_data = self._bind_legacy(
             "ps3000_save_streaming_data",
             [c_int16, PS3000_CALLBACK_FUNC, c_void_p, c_int16],
@@ -561,14 +552,19 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         )
         self._ps3000SetAdvTriggerChannelProperties = self._bind_legacy(
             "ps3000SetAdvTriggerChannelProperties",
-            [c_int16, POINTER(PS3000_TRIGGER_CHANNEL_PROPERTIES), c_int16, c_int32],
+            [
+                c_int16,
+                POINTER(PS3000_TRIGGER_CHANNEL_PROPERTIES.c_type),
+                c_int16,
+                c_int32,
+            ],
             c_int16,
             failed=_is_zero,
             error_code=unit_error,
         )
         self._ps3000SetAdvTriggerChannelConditions = self._bind_legacy(
             "ps3000SetAdvTriggerChannelConditions",
-            [c_int16, POINTER(PS3000_TRIGGER_CONDITIONS), c_int16],
+            [c_int16, POINTER(PS3000_TRIGGER_CONDITIONS.c_type), c_int16],
             c_int16,
             failed=_is_zero,
             error_code=unit_error,
@@ -591,7 +587,7 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
             "ps3000SetPulseWidthQualifier",
             [
                 c_int16,
-                POINTER(PS3000_PWQ_CONDITIONS),
+                POINTER(PS3000_PWQ_CONDITIONS.c_type),
                 c_int16,
                 PS3000_THRESHOLD_DIRECTION_T,
                 c_uint32,
@@ -635,26 +631,25 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
     def ps3000_open_unit(self) -> c_int16:
         """Open the first unit found and return its handle.
 
-        The handle is 0 if no unit was found and -1 if it failed to open.
+        Raises :class:`~pycosdk.exceptions.ResultException` if no unit was found
+        (result 0) or it failed to open (result -1).
         """
         return c_int16(self._ps3000_open_unit())
 
-    def ps3000_get_unit_info(
-        self, handle: c_int16, line: PS3000_INFO
-    ) -> tuple[int, str]:
-        """Return the length of the info string and the string itself.
+    def ps3000_get_unit_info(self, handle: c_int16, line: PS3000_INFO) -> str:
+        """Return the info string.
 
         With handle 0, ``PS3000_ERROR_CODE`` gives the error of the last failed open.
         """
         buf = create_string_buffer(256)
-        length = self._ps3000_get_unit_info(handle, buf, len(buf), line)
-        return length, buf.value.decode("utf-8", errors="replace")
+        self._ps3000_get_unit_info(handle, buf, len(buf), line)
+        return buf.value.decode("utf-8", errors="replace")
 
-    def ps3000_flash_led(self, handle: c_int16) -> int:
-        return self._ps3000_flash_led(handle)
+    def ps3000_flash_led(self, handle: c_int16) -> None:
+        self._ps3000_flash_led(handle)
 
-    def ps3000_close_unit(self, handle: c_int16) -> int:
-        return self._ps3000_close_unit(handle)
+    def ps3000_close_unit(self, handle: c_int16) -> None:
+        self._ps3000_close_unit(handle)
 
     def ps3000_set_channel(
         self,
@@ -663,8 +658,8 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         enabled: bool,
         dc: bool,
         range: PS3000_RANGE,
-    ) -> int:
-        return self._ps3000_set_channel(
+    ) -> None:
+        self._ps3000_set_channel(
             handle, channel, 1 if enabled else 0, 1 if dc else 0, range
         )
 
@@ -674,12 +669,12 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         timebase: int,
         no_of_samples: int,
         oversample: int,
-    ) -> tuple[int, int, PS3000_TIME_UNITS, int]:
-        """Return ``(result, time_interval, time_units, max_samples)``."""
+    ) -> tuple[int, PS3000_TIME_UNITS, int]:
+        """Return ``(time_interval, time_units, max_samples)``."""
         time_interval = c_int32(0)
         time_units = c_int16(0)
         max_samples = c_int32(0)
-        result = self._ps3000_get_timebase(
+        self._ps3000_get_timebase(
             handle,
             timebase,
             no_of_samples,
@@ -689,7 +684,6 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
             byref(max_samples),
         )
         return (
-            result,
             time_interval.value,
             PS3000_TIME_UNITS(time_units.value),
             max_samples.value,
@@ -751,8 +745,8 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         direction: PS3000_TDIR,
         delay: int,
         auto_trigger_ms: int,
-    ) -> int:
-        return self._ps3000_set_trigger(
+    ) -> None:
+        self._ps3000_set_trigger(
             handle, source, threshold, direction, delay, auto_trigger_ms
         )
 
@@ -764,20 +758,20 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         direction: PS3000_TDIR,
         delay: float,
         auto_trigger_ms: int,
-    ) -> int:
-        return self._ps3000_set_trigger2(
+    ) -> None:
+        self._ps3000_set_trigger2(
             handle, source, threshold, direction, delay, auto_trigger_ms
         )
 
     def ps3000_run_block(
         self, handle: c_int16, no_of_values: int, timebase: int, oversample: int
-    ) -> tuple[int, int]:
-        """Return ``(result, time_indisposed_ms)``."""
+    ) -> int:
+        """Return ``time_indisposed_ms``."""
         time_indisposed_ms = c_int32(0)
-        result = self._ps3000_run_block(
+        self._ps3000_run_block(
             handle, no_of_values, timebase, oversample, byref(time_indisposed_ms)
         )
-        return result, time_indisposed_ms.value
+        return time_indisposed_ms.value
 
     def ps3000_run_streaming_ns(
         self,
@@ -788,8 +782,8 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         auto_stop: bool,
         noOfSamplesPerAggregate: int,
         overview_buffer_size: int,
-    ) -> int:
-        return self._ps3000_run_streaming_ns(
+    ) -> None:
+        self._ps3000_run_streaming_ns(
             handle,
             sample_interval,
             time_units,
@@ -805,21 +799,21 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         sample_interval_ms: int,
         max_samples: int,
         windowed: bool,
-    ) -> int:
-        return self._ps3000_run_streaming(
+    ) -> None:
+        self._ps3000_run_streaming(
             handle, sample_interval_ms, max_samples, 1 if windowed else 0
         )
 
     def ps3000_ready(self, handle: c_int16) -> bool:
         """Return whether the block capture has finished.
 
-        A negative result (unit unplugged) is a failure; if it is ignored, it
-        reads as not ready.
+        A negative result (unit unplugged) raises
+        :class:`~pycosdk.exceptions.ResultException`.
         """
         return self._ps3000_ready(handle) > 0
 
-    def ps3000_stop(self, handle: c_int16) -> int:
-        return self._ps3000_stop(handle)
+    def ps3000_stop(self, handle: c_int16) -> None:
+        self._ps3000_stop(handle)
 
     def ps3000_get_values(
         self,
@@ -834,8 +828,9 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
 
         The buffers hold ``no_of_values`` int16 values, or are None for channels
         not read. ``overflow`` has bit 0 set for channel A, bit 1 for B, etc.
-        Returning 0 values counts as a failure; with the compatible streaming
-        mode, use ``errstate(error="ignore")`` if that is expected.
+        Returning 0 values counts as a failure and raises
+        :class:`~pycosdk.exceptions.ResultException`; with the compatible
+        streaming mode, catch it if that is expected.
         """
         overflow = c_int16(0)
         result = self._ps3000_get_values(
@@ -881,9 +876,13 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         )
         return result, overflow.value
 
-    def ps3000_open_unit_async(self) -> int:
-        """Start opening a unit; returns 0 if an open operation is in progress."""
-        return self._ps3000_open_unit_async()
+    def ps3000_open_unit_async(self) -> None:
+        """Start opening a unit.
+
+        Raises :class:`~pycosdk.exceptions.ResultException` if an open operation
+        is already in progress.
+        """
+        self._ps3000_open_unit_async()
 
     def ps3000_open_unit_progress(self) -> tuple[PS3000_OPEN_PROGRESS, c_int16, int]:
         """Return ``(progress, handle, progress_percent)``.
@@ -900,7 +899,8 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
     ) -> tuple[int, int]:
         """Return ``(result, sample_interval)`` as adjusted by the driver.
 
-        Undocumented; ``sample_interval`` is passed by reference.
+        Undocumented; ``sample_interval`` is passed by reference. A 0 result
+        is assumed to be a failure, other values are returned as is.
         """
         interval = c_uint32(sample_interval)
         result = self._ps3000_streaming_ns_get_interval_stateless(
@@ -932,13 +932,11 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         )
         return result != 0
 
-    def ps3000_overview_buffer_status(self, handle: c_int16) -> tuple[int, bool]:
-        """Return ``(result, previous_buffer_overrun)``; ``result`` is 0 on success."""
+    def ps3000_overview_buffer_status(self, handle: c_int16) -> bool:
+        """Return ``previous_buffer_overrun``."""
         previous_buffer_overrun = c_int16(0)
-        result = self._ps3000_overview_buffer_status(
-            handle, byref(previous_buffer_overrun)
-        )
-        return result, previous_buffer_overrun.value != 0
+        self._ps3000_overview_buffer_status(handle, byref(previous_buffer_overrun))
+        return previous_buffer_overrun.value != 0
 
     def ps3000_get_streaming_values(
         self,
@@ -1031,7 +1029,7 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         dataBuffers: c_void_p | int | None,
         dataBufferSize: int,
     ) -> int:
-        """Undocumented; the raw return value is returned unchecked.
+        """The return value is documented as undefined; it is returned raw and unchecked.
 
         Callback args: the address of the ``int16_t *dataBuffer`` (``None`` if
         NULL) and ``noOfBuffers``; its return value is passed to the driver. The
@@ -1058,20 +1056,19 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         handle: c_int16,
         channelProperties: Sequence[PS3000_TRIGGER_CHANNEL_PROPERTIES],
         autoTriggerMilliseconds: int,
-    ) -> int:
-        n = len(channelProperties)
-        properties = (PS3000_TRIGGER_CHANNEL_PROPERTIES * n)(*channelProperties)
-        return self._ps3000SetAdvTriggerChannelProperties(
-            handle, properties if n else None, n, autoTriggerMilliseconds
+    ) -> None:
+        self._ps3000SetAdvTriggerChannelProperties(
+            handle,
+            c_array(PS3000_TRIGGER_CHANNEL_PROPERTIES, channelProperties),
+            len(channelProperties),
+            autoTriggerMilliseconds,
         )
 
     def ps3000SetAdvTriggerChannelConditions(
         self, handle: c_int16, conditions: Sequence[PS3000_TRIGGER_CONDITIONS]
-    ) -> int:
-        n = len(conditions)
-        conds = (PS3000_TRIGGER_CONDITIONS * n)(*conditions)
-        return self._ps3000SetAdvTriggerChannelConditions(
-            handle, conds if n else None, n
+    ) -> None:
+        self._ps3000SetAdvTriggerChannelConditions(
+            handle, c_array(PS3000_TRIGGER_CONDITIONS, conditions), len(conditions)
         )
 
     def ps3000SetAdvTriggerChannelDirections(
@@ -1082,8 +1079,8 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         channelC: PS3000_THRESHOLD_DIRECTION,
         channelD: PS3000_THRESHOLD_DIRECTION,
         ext: PS3000_THRESHOLD_DIRECTION,
-    ) -> int:
-        return self._ps3000SetAdvTriggerChannelDirections(
+    ) -> None:
+        self._ps3000SetAdvTriggerChannelDirections(
             handle, channelA, channelB, channelC, channelD, ext
         )
 
@@ -1095,20 +1092,24 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         lower: int,
         upper: int,
         type: PS3000_PULSE_WIDTH_TYPE,
-    ) -> int:
-        n = len(conditions)
-        conds = (PS3000_PWQ_CONDITIONS * n)(*conditions)
-        return self._ps3000SetPulseWidthQualifier(
-            handle, conds if n else None, n, direction, lower, upper, type
+    ) -> None:
+        self._ps3000SetPulseWidthQualifier(
+            handle,
+            c_array(PS3000_PWQ_CONDITIONS, conditions),
+            len(conditions),
+            direction,
+            lower,
+            upper,
+            type,
         )
 
     def ps3000SetAdvTriggerDelay(
         self, handle: c_int16, delay: int, preTriggerDelay: float
-    ) -> int:
-        return self._ps3000SetAdvTriggerDelay(handle, delay, preTriggerDelay)
+    ) -> None:
+        self._ps3000SetAdvTriggerDelay(handle, delay, preTriggerDelay)
 
-    def ps3000PingUnit(self, handle: c_int16) -> int:
-        return self._ps3000PingUnit(handle)
+    def ps3000PingUnit(self, handle: c_int16) -> None:
+        self._ps3000PingUnit(handle)
 
 
 @final
