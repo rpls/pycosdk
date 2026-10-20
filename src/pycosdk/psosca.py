@@ -109,6 +109,17 @@ def _range_value(value: float) -> int:
 
 
 class PicoScope3000eWrapper(PicoScopeWrapperBase):
+    # TODO: Rename the parameters that differ from the C prototypes:
+    # GetMinimumTimebaseStateless/NearestSampleIntervalStateless (enabledChannels
+    # -> enabledChannelFlags), GetValuesBulk (startindex, nosamples, fromSegment,
+    # toSegment, downsampleRatio, downsampleMode), MemorySegments (nsegments),
+    # MemorySegmentsBySamples (nsamples), QueryMaxSegmentsBySamples (nsamples,
+    # nchannels -> nChannelEnabled), RunBlock (preSamples, postSamples, segment,
+    # callback -> noOfPreTriggerSamples, noOfPostTriggerSamples, segmentIndex,
+    # lpReady), SetChannelOn (analog_offset), SetDataBuffer (nsamples, datatype,
+    # downsampleMode), SetDigitalPortOn (logicThreshold ->
+    # logicThresholdLevelVolts), SetNoOfCaptures (ncaptures) and SetSimpleTrigger
+    # (autoTriggerUS -> autoTriggerMicroSeconds).
     _library_name = "psospa"
 
     def __init__(self, library_path: str | None = None) -> None:
@@ -568,8 +579,12 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
                 POINTER(c_uint16),
             ],
         )
+        # The guide documents PICO_FIRMWARE_UP_TO_DATE as the result of a
+        # successful update (or of one that was not needed).
         self._psospaStartFirmwareUpdate = self._bind(
-            "psospaStartFirmwareUpdate", [c_int16, PicoUpdateFirmwareProgress]
+            "psospaStartFirmwareUpdate",
+            [c_int16, PicoUpdateFirmwareProgress],
+            info={PICO_STATUS.PICO_FIRMWARE_UP_TO_DATE},
         )
         self._psospaResetChannelsAndReportAllChannelsOvervoltageTripStatus = self._bind(
             "psospaResetChannelsAndReportAllChannelsOvervoltageTripStatus",
@@ -593,6 +608,12 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         self._psospaSetAuxIoMode = self._bind(
             "psospaSetAuxIoMode", [c_int16, PICO_AUXIO_MODE_T]
         )
+        # TODO: Wrap the functions the psospa guide documents for driver 1.0.178+
+        # once the SDK headers declare them (up to 1.0.158, headers and library
+        # lack them): psospaGetAutoTriggerStatus, psospaRunAutomaticOffsetAdjustment,
+        # psospaCommitCurrentAdjustmentSettingsToDevice, psospaResetAdjustmentSettings,
+        # psospaSetAdjustmentSettingDetails and psospaGetAdjustmentSettingDetails.
+        # The ps6000a wrappers of the same functions can serve as a template.
 
     def psospaOpenUnit(
         self, serial: str | None, resolution: PICO_DEVICE_RESOLUTION
@@ -986,6 +1007,11 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
     def psospaGetValuesTriggerTimeOffsetBulk(
         self, handle: c_int16, fromSegmentIndex: int, toSegmentIndex: int
     ) -> tuple[list[int], list[PICO_TIME_UNITS]]:
+        """Returns the time offsets and their units, one per segment.
+
+        The driver wraps around from the last segment to the first if
+        ``toSegmentIndex < fromSegmentIndex``; the wrapper does not support this.
+        """
         assert fromSegmentIndex <= toSegmentIndex
         n = (toSegmentIndex - fromSegmentIndex) + 1
         times = (c_int64 * n)()
@@ -1201,6 +1227,11 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         downsampleRatio: int,
         downsampleMode: PICO_RATIO_MODE,
     ) -> tuple[int, list[PICO_CHANNEL_FLAGS]]:
+        """Returns the number of samples and the overflow flags of each segment.
+
+        The driver wraps around from the last segment to the first if
+        ``toSegment < fromSegment``; the wrapper does not support this.
+        """
         assert startindex >= 0
         assert nosamples > 0
         assert fromSegment <= toSegment
@@ -1304,6 +1335,9 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         objects once the capture has completed, so they are returned as is
         (read ``noOfSamples.value`` and ``overflow[i]`` afterwards). The wrapper
         keeps them alive until they are replaced by a later call.
+
+        The driver wraps around from the last segment to the first if
+        ``toSegmentIndex < fromSegmentIndex``; the wrapper does not support this.
         """
         assert fromSegmentIndex <= toSegmentIndex
         noOfSamples_ = c_uint64(noOfSamples)
@@ -1479,8 +1513,12 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
 
     def psospaStartFirmwareUpdate(
         self, handle: c_int16, progress: Callable[[int, int], None] | None
-    ) -> None:
-        """``progress(handle, progressPercent)`` is called during the update."""
+    ) -> PICO_STATUS:
+        """``progress(handle, progressPercent)`` is called during the update.
+
+        Returns the status, PICO_FIRMWARE_UP_TO_DATE once the firmware has been
+        updated or did not need an update.
+        """
         cb = PicoUpdateFirmwareProgress()  # NULL; ctypes rejects None here
         if progress is not None:
 
@@ -1488,10 +1526,13 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
                 progress(handle, percent)
 
             cb = PicoUpdateFirmwareProgress(cbwrapper)
-        self._with_callback(
+        return self._with_callback(
             self._callback_key("psospaStartFirmwareUpdate", handle),
             cb,
             lambda: self._psospaStartFirmwareUpdate(handle, cb),
+            accepted=lambda status: (
+                status in (PICO_STATUS.PICO_OK, PICO_STATUS.PICO_FIRMWARE_UP_TO_DATE)
+            ),
         )
 
     def psospaResetChannelsAndReportAllChannelsOvervoltageTripStatus(
