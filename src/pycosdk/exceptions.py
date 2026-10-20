@@ -34,12 +34,17 @@ class StatusException(DriverException):
     Errors always raise it; warning and info statuses raise it only if their
     category is configured to ``"raise"`` through :func:`pycosdk.seterr` or
     :class:`pycosdk.errstate`.
+
+    ``outputs`` holds what the method would have returned, for functions whose
+    outputs stay (partly) valid on errors, as documented by the method; it is
+    None otherwise.
     """
 
     def __init__(self, status: PICO_STATUS, function: str | None = None) -> None:
         super().__init__(status, function)
         self.status: PICO_STATUS = status
         self.function: str | None = function
+        self.outputs: Any = None
 
     def __str__(self) -> str:
         prefix = f"{self.function} returned " if self.function else ""
