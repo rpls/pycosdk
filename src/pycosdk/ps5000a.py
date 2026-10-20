@@ -25,6 +25,7 @@ from ._buffer import DataBuffer, InputValues, buffer_argument, input_argument
 from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._struct import CStruct, c_array
 from .callback import PicoUpdateFirmwareProgress
+from .exceptions import StatusException
 from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
 from .version import PICO_VERSION
 
@@ -274,7 +275,7 @@ class PS5000A_WAVE_TYPE(IntEnum):
 PS5000A_WAVE_TYPE_T = c_int32
 
 
-class PS5000A_CONDITIONS_INFO(IntEnum):
+class PS5000A_CONDITIONS_INFO(IntFlag):
     PS5000A_CLEAR = 0x00000001
     PS5000A_ADD = 0x00000002
 
@@ -1273,24 +1274,25 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
     def ps5000aChannelCombinationsStateless(
         self,
         handle: c_int16,
-        nChannelCombinations: int,
         resolution: PS5000A_DEVICE_RESOLUTION,
         timebase: int,
         hasDcPowerSupplyConnected: bool,
     ) -> list[PS5000A_CHANNEL_FLAGS]:
-        """``nChannelCombinations`` is the capacity of the result array."""
-        assert nChannelCombinations > 0
-        combinations = (PS5000A_CHANNEL_FLAGS_T * nChannelCombinations)()
-        count = c_uint32(nChannelCombinations)
+        """Returns the channel combinations available in the proposed configuration."""
+        dcPower = 1 if hasDcPowerSupplyConnected else 0
+        # The first call (NULL array) only queries the number of combinations.
+        count = c_uint32(0)
         self._ps5000aChannelCombinationsStateless(
-            handle,
-            combinations,
-            byref(count),
-            resolution,
-            timebase,
-            1 if hasDcPowerSupplyConnected else 0,
+            handle, None, byref(count), resolution, timebase, dcPower
         )
-        n = min(count.value, nChannelCombinations)
+        capacity = count.value
+        if capacity == 0:
+            return []
+        combinations = (PS5000A_CHANNEL_FLAGS_T * capacity)()
+        self._ps5000aChannelCombinationsStateless(
+            handle, combinations, byref(count), resolution, timebase, dcPower
+        )
+        n = min(count.value, capacity)
         return [PS5000A_CHANNEL_FLAGS(c) for c in combinations[:n]]
 
     def ps5000aSetSigGenArbitrary(
@@ -1860,7 +1862,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
     def ps5000aIsReady(self, handle: c_int16) -> bool:
         ready = c_int16(0)
         self._ps5000aIsReady(handle, byref(ready))
-        return ready.value == 1
+        return ready.value != 0
 
     def ps5000aRunBlock(
         self,
@@ -2156,6 +2158,10 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
     ) -> list[PS5000A_TRIGGER_INFO]:
         """Returns the trigger information of each segment.
 
+        If the driver returns an error, some segments may still be valid (guide
+        p45): the raised :class:`~pycosdk.exceptions.StatusException` carries the
+        list as ``outputs``; check each element's ``status``.
+
         The driver wraps around from the last segment to the first if
         ``toSegmentIndex < fromSegmentIndex``; the wrapper does not support this.
         """
@@ -2163,9 +2169,13 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         triggerInfo = (
             PS5000A_TRIGGER_INFO.c_type * (toSegmentIndex - fromSegmentIndex + 1)
         )()
-        self._ps5000aGetTriggerInfoBulk(
-            handle, triggerInfo, fromSegmentIndex, toSegmentIndex
-        )
+        try:
+            self._ps5000aGetTriggerInfoBulk(
+                handle, triggerInfo, fromSegmentIndex, toSegmentIndex
+            )
+        except StatusException as e:
+            e.outputs = PS5000A_TRIGGER_INFO.from_c_array(triggerInfo)
+            raise
         return PS5000A_TRIGGER_INFO.from_c_array(triggerInfo)
 
     def ps5000aEnumerateUnits(self) -> tuple[int, list[str]]:
