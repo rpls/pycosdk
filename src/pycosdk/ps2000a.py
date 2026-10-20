@@ -16,7 +16,7 @@ from ctypes import (
     c_void_p,
     create_string_buffer,
 )
-from enum import IntEnum
+from enum import IntEnum, IntFlag
 from typing import Annotated, Any, Self, final
 
 from ._base import CALLBACK_FUNCTYPE, PicoScopeWrapperBase
@@ -391,7 +391,7 @@ class PS2000A_TRIGGER_CHANNEL_PROPERTIES(CStruct):
 PS2000A_RATIO_MODE_T = c_int32
 
 
-class PS2000A_RATIO_MODE(IntEnum):
+class PS2000A_RATIO_MODE(IntFlag):
     PS2000A_RATIO_MODE_NONE = 0
     PS2000A_RATIO_MODE_AGGREGATE = 1
     PS2000A_RATIO_MODE_DECIMATE = 2
@@ -1610,7 +1610,7 @@ class PicoScope2000aWrapper(PicoScopeWrapperBase):
     def ps2000aIsReady(self, handle: c_int16) -> bool:
         ready = c_int16(0)
         self._ps2000aIsReady(handle, byref(ready))
-        return ready.value == 1
+        return ready.value != 0
 
     def ps2000aRunBlock(
         self,
