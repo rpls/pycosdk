@@ -7,6 +7,7 @@ from ctypes import (
     c_char_p,
     c_double,
     c_float,
+    c_int8,
     c_int16,
     c_int32,
     c_int64,
@@ -20,6 +21,7 @@ from enum import IntEnum, IntFlag
 from typing import Annotated, Self, final
 
 from ._base import CALLBACK_FUNCTYPE, POWER_SOURCE_STATUSES, PicoScopeWrapperBase
+from ._buffer import DataBuffer, InputValues, buffer_argument, input_argument
 from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._struct import CStruct, c_array
 from .callback import PicoUpdateFirmwareProgress
@@ -606,7 +608,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
                 c_uint32,
                 c_uint32,
                 c_uint32,
-                POINTER(c_int16),
+                c_void_p,
                 c_int32,
                 PS5000A_SWEEP_TYPE_T,
                 PS5000A_EXTRA_OPERATIONS_T,
@@ -1136,6 +1138,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
 
     def ps5000aCloseUnit(self, handle: c_int16) -> None:
         self._ps5000aCloseUnit(handle)
+        self._release_buffers(handle)
 
     def ps5000aGetUnitInfo(self, handle: c_int16, info: PICO_INFO) -> str:
         buf = create_string_buffer(bytes(255))
@@ -1289,7 +1292,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         stopDeltaPhase: int,
         deltaPhaseIncrement: int,
         dwellCount: int,
-        arbitraryWaveform: Sequence[int],
+        arbitraryWaveform: InputValues,
         sweepType: PS5000A_SWEEP_TYPE,
         operation: PS5000A_EXTRA_OPERATIONS,
         indexMode: PS5000A_INDEX_MODE,
@@ -1299,7 +1302,14 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         triggerSource: PS5000A_SIGGEN_TRIG_SOURCE,
         extInThreshold: int,
     ) -> None:
-        waveform = (c_int16 * len(arbitraryWaveform))(*arbitraryWaveform)
+        """``arbitraryWaveform`` holds the int16 arbitrary waveform samples.
+
+        It is a sequence of ints or a buffer of int16 (e.g. a numpy array with
+        ``dtype=np.int16``), which is passed without copying.
+        """
+        waveform, arbitraryWaveformSize = input_argument(
+            arbitraryWaveform, c_int16, "arbitraryWaveform"
+        )
         self._ps5000aSetSigGenArbitrary(
             handle,
             offsetVoltage,
@@ -1309,7 +1319,7 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
             deltaPhaseIncrement,
             dwellCount,
             waveform,
-            len(arbitraryWaveform),
+            arbitraryWaveformSize,
             sweepType,
             operation,
             indexMode,
@@ -1725,59 +1735,103 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         self,
         handle: c_int16,
         source: PS5000A_CHANNEL,
-        bufferMax: c_void_p | int | None,
-        bufferMin: c_void_p | int | None,
+        bufferMax: DataBuffer,
+        bufferMin: DataBuffer,
         bufferLth: int,
         segmentIndex: int,
         mode: PS5000A_RATIO_MODE,
     ) -> None:
-        self._ps5000aSetDataBuffers(
-            handle, source, bufferMax, bufferMin, bufferLth, segmentIndex, mode
+        """Like :meth:`ps5000aSetDataBuffer`, with buffers for the maxima and minima."""
+        argMax = buffer_argument(
+            bufferMax, c_int16, bufferLth, writable=True, name="bufferMax"
         )
+        argMin = buffer_argument(
+            bufferMin, c_int16, bufferLth, writable=True, name="bufferMin"
+        )
+        self._ps5000aSetDataBuffers(
+            handle, source, argMax, argMin, bufferLth, segmentIndex, mode
+        )
+        both = None if argMax is None and argMin is None else (argMax, argMin)
+        self._keep_buffer((handle.value, "data", source, segmentIndex, mode), both)
 
     def ps5000aSetDataBuffer(
         self,
         handle: c_int16,
         channel: PS5000A_CHANNEL,
-        buffer: c_void_p,
+        buffer: DataBuffer,
         bufferLth: int,
         segmentIndex: int,
         mode: PS5000A_RATIO_MODE,
     ) -> None:
-        self._ps5000aSetDataBuffer(
-            handle, channel, buffer, bufferLth, segmentIndex, mode
-        )
+        """Set the buffer the driver writes the samples of ``channel`` to.
+
+        ``buffer`` is a writable, C-contiguous buffer of at least ``bufferLth``
+        int16 elements (e.g. ``np.empty(bufferLth, np.int16)``), or None. The
+        wrapper keeps it from being freed or resized until it is replaced (per
+        channel, segment and mode, also by :meth:`ps5000aSetDataBuffers`), set
+        to None or the unit is closed. A raw address (int or ``c_void_p``) is
+        passed unchecked and must be kept valid by the caller.
+        """
+        arg = buffer_argument(buffer, c_int16, bufferLth, writable=True, name="buffer")
+        self._ps5000aSetDataBuffer(handle, channel, arg, bufferLth, segmentIndex, mode)
+        self._keep_buffer((handle.value, "data", channel, segmentIndex, mode), arg)
 
     def ps5000aSetUnscaledDataBuffers(
         self,
         handle: c_int16,
         source: PS5000A_CHANNEL,
-        bufferMax: c_void_p | int | None,
-        bufferMin: c_void_p | int | None,
+        bufferMax: DataBuffer,
+        bufferMin: DataBuffer,
         bufferLth: int,
         segmentIndex: int,
         mode: PS5000A_RATIO_MODE,
     ) -> None:
-        """Like ``ps5000aSetDataBuffers`` but with ``int8_t`` buffers."""
-        self._ps5000aSetUnscaledDataBuffers(
-            handle, source, bufferMax, bufferMin, bufferLth, segmentIndex, mode
+        """Like :meth:`ps5000aSetDataBuffers`, but with int8 buffers."""
+        argMax = buffer_argument(
+            bufferMax, c_int8, bufferLth, writable=True, name="bufferMax"
         )
+        argMin = buffer_argument(
+            bufferMin, c_int8, bufferLth, writable=True, name="bufferMin"
+        )
+        self._ps5000aSetUnscaledDataBuffers(
+            handle, source, argMax, argMin, bufferLth, segmentIndex, mode
+        )
+        both = None if argMax is None and argMin is None else (argMax, argMin)
+        self._keep_buffer((handle.value, "unscaled", source, segmentIndex, mode), both)
 
     def ps5000aSetEtsTimeBuffer(
-        self, handle: c_int16, buffer: c_void_p | int | None, bufferLth: int
+        self, handle: c_int16, buffer: DataBuffer, bufferLth: int
     ) -> None:
-        """``buffer`` points to ``int64_t`` values."""
-        self._ps5000aSetEtsTimeBuffer(handle, buffer, bufferLth)
+        """Set the buffer the driver writes the ETS sample times to.
+
+        ``buffer`` is a writable, C-contiguous buffer of at least ``bufferLth``
+        int64 elements, or None. The wrapper keeps it from being freed or
+        resized until it is replaced (also by :meth:`ps5000aSetEtsTimeBuffers`),
+        set to None or the unit is closed. A raw address (int or ``c_void_p``)
+        is passed unchecked and must be kept valid by the caller.
+        """
+        arg = buffer_argument(buffer, c_int64, bufferLth, writable=True, name="buffer")
+        self._ps5000aSetEtsTimeBuffer(handle, arg, bufferLth)
+        self._keep_buffer((handle.value, "ets"), arg)
 
     def ps5000aSetEtsTimeBuffers(
         self,
         handle: c_int16,
-        timeUpper: c_void_p | int | None,
-        timeLower: c_void_p | int | None,
+        timeUpper: DataBuffer,
+        timeLower: DataBuffer,
         bufferLth: int,
     ) -> None:
-        """``timeUpper`` and ``timeLower`` point to ``uint32_t`` values."""
-        self._ps5000aSetEtsTimeBuffers(handle, timeUpper, timeLower, bufferLth)
+        """Like :meth:`ps5000aSetEtsTimeBuffer`, with uint32 buffers for the upper
+        and lower 32 bits of the times."""
+        argUpper = buffer_argument(
+            timeUpper, c_uint32, bufferLth, writable=True, name="timeUpper"
+        )
+        argLower = buffer_argument(
+            timeLower, c_uint32, bufferLth, writable=True, name="timeLower"
+        )
+        self._ps5000aSetEtsTimeBuffers(handle, argUpper, argLower, bufferLth)
+        both = None if argUpper is None and argLower is None else (argUpper, argLower)
+        self._keep_buffer((handle.value, "ets"), both)
 
     def ps5000aIsReady(self, handle: c_int16) -> bool:
         ready = c_int16(0)

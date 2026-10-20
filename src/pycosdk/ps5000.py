@@ -18,6 +18,7 @@ from enum import IntEnum
 from typing import Annotated, Self, final
 
 from ._base import CALLBACK_FUNCTYPE, PicoScopeWrapperBase
+from ._buffer import DataBuffer, InputValues, buffer_argument, input_argument
 from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._struct import CStruct, c_array
 from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
@@ -657,6 +658,7 @@ class PicoScope5000Wrapper(PicoScopeWrapperBase):
 
     def ps5000CloseUnit(self, handle: c_int16) -> None:
         self._ps5000CloseUnit(handle)
+        self._release_buffers(handle)
 
     def ps5000GetUnitInfo(self, handle: c_int16, info: PICO_INFO) -> str:
         buf = create_string_buffer(bytes(255))
@@ -744,7 +746,7 @@ class PicoScope5000Wrapper(PicoScopeWrapperBase):
         stopDeltaPhase: int,
         deltaPhaseIncrement: int,
         dwellCount: int,
-        arbitraryWaveform: Sequence[int],
+        arbitraryWaveform: InputValues,
         sweepType: PS5000_SWEEP_TYPE,
         whiteNoise: bool,
         indexMode: PS5000_INDEX_MODE,
@@ -754,7 +756,14 @@ class PicoScope5000Wrapper(PicoScopeWrapperBase):
         triggerSource: PS5000_SIGGEN_TRIG_SOURCE,
         extInThreshold: int,
     ) -> None:
-        waveform = c_array(c_int16, arbitraryWaveform)
+        """``arbitraryWaveform`` holds the int16 arbitrary waveform samples.
+
+        It is a sequence of ints or a buffer of int16 (e.g. a numpy array with
+        ``dtype=np.int16``), which is passed without copying.
+        """
+        waveform, arbitraryWaveformSize = input_argument(
+            arbitraryWaveform, c_int16, "arbitraryWaveform"
+        )
         self._ps5000SetSigGenArbitrary(
             handle,
             offsetVoltage,
@@ -764,7 +773,7 @@ class PicoScope5000Wrapper(PicoScopeWrapperBase):
             deltaPhaseIncrement,
             dwellCount,
             waveform,
-            len(arbitraryWaveform),
+            arbitraryWaveformSize,
             sweepType,
             1 if whiteNoise else 0,
             indexMode,
@@ -1038,49 +1047,90 @@ class PicoScope5000Wrapper(PicoScopeWrapperBase):
         self,
         handle: c_int16,
         channel: PS5000_CHANNEL,
-        bufferMax: c_void_p | int | None,
-        bufferMin: c_void_p | int | None,
+        bufferMax: DataBuffer,
+        bufferMin: DataBuffer,
         bufferLth: int,
     ) -> None:
-        """The buffers hold ``int16_t`` values and must outlive the capture."""
-        self._ps5000SetDataBuffers(handle, channel, bufferMax, bufferMin, bufferLth)
+        """Like :meth:`ps5000SetDataBuffer`, with buffers for the maxima and minima."""
+        argMax = buffer_argument(
+            bufferMax, c_int16, bufferLth, writable=True, name="bufferMax"
+        )
+        argMin = buffer_argument(
+            bufferMin, c_int16, bufferLth, writable=True, name="bufferMin"
+        )
+        self._ps5000SetDataBuffers(handle, channel, argMax, argMin, bufferLth)
+        both = None if argMax is None and argMin is None else (argMax, argMin)
+        self._keep_buffer((handle.value, "data", channel), both)
 
     def ps5000SetDataBuffer(
         self,
         handle: c_int16,
         channel: PS5000_CHANNEL,
-        buffer: c_void_p | int | None,
+        buffer: DataBuffer,
         bufferLth: int,
     ) -> None:
-        """``buffer`` holds ``int16_t`` values and must outlive the capture."""
-        self._ps5000SetDataBuffer(handle, channel, buffer, bufferLth)
+        """Set the buffer the driver writes the samples of ``channel`` to.
+
+        ``buffer`` is a writable, C-contiguous buffer of at least ``bufferLth``
+        int16 elements (e.g. ``np.empty(bufferLth, np.int16)``), or None. The
+        wrapper keeps it from being freed or resized until it is replaced (also
+        by :meth:`ps5000SetDataBuffers`), set to None or the unit is closed. A
+        raw address (int or ``c_void_p``) is passed unchecked and must be kept
+        valid by the caller.
+        """
+        arg = buffer_argument(buffer, c_int16, bufferLth, writable=True, name="buffer")
+        self._ps5000SetDataBuffer(handle, channel, arg, bufferLth)
+        self._keep_buffer((handle.value, "data", channel), arg)
 
     def ps5000SetDataBufferBulk(
         self,
         handle: c_int16,
         channel: PS5000_CHANNEL,
-        buffer: c_void_p | int | None,
+        buffer: DataBuffer,
         bufferLth: int,
         waveform: int,
     ) -> None:
-        """``buffer`` holds ``int16_t`` values and must outlive the capture."""
-        self._ps5000SetDataBufferBulk(handle, channel, buffer, bufferLth, waveform)
+        """Like :meth:`ps5000SetDataBuffer`, for one ``waveform`` in rapid block mode.
+
+        The wrapper keeps one buffer per channel and waveform.
+        """
+        arg = buffer_argument(buffer, c_int16, bufferLth, writable=True, name="buffer")
+        self._ps5000SetDataBufferBulk(handle, channel, arg, bufferLth, waveform)
+        self._keep_buffer((handle.value, "bulk", channel, waveform), arg)
 
     def ps5000SetEtsTimeBuffer(
-        self, handle: c_int16, buffer: c_void_p | int | None, bufferLth: int
+        self, handle: c_int16, buffer: DataBuffer, bufferLth: int
     ) -> None:
-        """``buffer`` must hold ``bufferLth`` int64 values and outlive the capture."""
-        self._ps5000SetEtsTimeBuffer(handle, buffer, bufferLth)
+        """Set the buffer the driver writes the ETS sample times to.
+
+        ``buffer`` is a writable, C-contiguous buffer of at least ``bufferLth``
+        int64 elements, or None. The wrapper keeps it from being freed or
+        resized until it is replaced (also by :meth:`ps5000SetEtsTimeBuffers`),
+        set to None or the unit is closed. A raw address (int or ``c_void_p``)
+        is passed unchecked and must be kept valid by the caller.
+        """
+        arg = buffer_argument(buffer, c_int64, bufferLth, writable=True, name="buffer")
+        self._ps5000SetEtsTimeBuffer(handle, arg, bufferLth)
+        self._keep_buffer((handle.value, "ets"), arg)
 
     def ps5000SetEtsTimeBuffers(
         self,
         handle: c_int16,
-        timeUpper: c_void_p | int | None,
-        timeLower: c_void_p | int | None,
+        timeUpper: DataBuffer,
+        timeLower: DataBuffer,
         bufferLth: int,
     ) -> None:
-        """The buffers must hold ``bufferLth`` uint32 values and outlive the capture."""
-        self._ps5000SetEtsTimeBuffers(handle, timeUpper, timeLower, bufferLth)
+        """Like :meth:`ps5000SetEtsTimeBuffer`, with uint32 buffers for the upper
+        and lower 32 bits of the times."""
+        argUpper = buffer_argument(
+            timeUpper, c_uint32, bufferLth, writable=True, name="timeUpper"
+        )
+        argLower = buffer_argument(
+            timeLower, c_uint32, bufferLth, writable=True, name="timeLower"
+        )
+        self._ps5000SetEtsTimeBuffers(handle, argUpper, argLower, bufferLth)
+        both = None if argUpper is None and argLower is None else (argUpper, argLower)
+        self._keep_buffer((handle.value, "ets"), both)
 
     def ps5000IsReady(self, handle: c_int16) -> bool:
         ready = c_int16(0)

@@ -224,6 +224,38 @@ unlike with a plain `ctypes.Structure`. Values returned by the driver are
 copies: in/out arrays, e.g. the `streamingDataInfo` of
 `ps6000aGetStreamingLatestValues`, come back as new lists.
 
+## Buffers
+
+Sample buffers and arbitrary waveforms take any object supporting Python's
+buffer protocol, such as a numpy array, `array.array` or a ctypes array, so
+`pycosdk` works with numpy without depending on it. Buffers are passed to the
+driver without copying and checked first: they must be C-contiguous, hold
+elements of the type the driver expects (e.g. `int16` samples), hold at least
+as many elements as passed to the driver, and be writable if the driver writes
+to them. Waveforms may also be plain sequences of ints.
+
+```python
+import numpy as np
+
+samples = np.empty((nSegments, nSamples), dtype=np.int16)
+for segment in range(nSegments):
+    scope.ps6000aSetDataBuffer(
+        PICO_CHANNEL.PICO_CHANNEL_A,
+        samples[segment],  # each row is one segment's buffer
+        nSamples,
+        PICO_DATA_TYPE.PICO_INT16_T,
+        segment,
+        PICO_RATIO_MODE.PICO_RATIO_MODE_RAW,
+        PICO_ACTION.PICO_ADD,
+    )
+```
+
+The driver writes to such buffers after the call that set them, so the wrapper
+keeps them alive (and numpy from resizing them) until they are replaced, set to
+`None`, cleared with `PICO_CLEAR_ALL`, or the unit is closed. A raw address (an
+`int` or `c_void_p`) is passed on unchecked and must be kept valid by the
+caller.
+
 ## Type checking
 
 The package ships a `py.typed` marker, so annotations are visible to `mypy`,

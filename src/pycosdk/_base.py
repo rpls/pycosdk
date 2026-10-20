@@ -111,6 +111,9 @@ class PicoScopeWrapperBase:
         # stay alive for as long as the driver may call them.
         self._callbacks: dict[str, Any] = {}
         self._retired_callbacks: deque[Any] = deque(maxlen=_RETIRED_CALLBACKS)
+        # Views of the data buffers the driver writes to after the call that
+        # set them (see _keep_buffer), keyed by (handle, ...).
+        self._buffers: dict[tuple[Any, ...], Any] = {}
 
     def _bind(
         self,
@@ -235,6 +238,43 @@ class PicoScopeWrapperBase:
                     self._callbacks[key] = previous
             if retired is not None:
                 self._retired_callbacks.append(retired)
+
+    def _keep_buffer(self, key: tuple[Any, ...], buffer: Any) -> None:
+        """Keep ``buffer``, set for the driver to write to later, alive under ``key``.
+
+        ``key`` starts with the device handle and identifies the buffer slot
+        (e.g. channel, segment and ratio mode); ``buffer`` (an argument from
+        :func:`pycosdk._buffer.buffer_argument`, or a tuple of them) replaces the
+        previous one, ``None`` releases it. Call this only after the driver has
+        accepted the buffer: it stops using a replaced buffer once the replacing
+        call has returned, so the old one needs no retiring.
+        """
+        if buffer is None:
+            self._buffers.pop(key, None)
+        else:
+            self._buffers[key] = buffer
+
+    def _keep_action_buffer(
+        self, key: tuple[Any, ...], action: Any, buffer: Any
+    ) -> None:
+        """Track a buffer set with a ``PICO_ACTION`` (ps6000a, psospa).
+
+        ``key`` starts with the handle's value, see
+        :func:`pycosdk._buffer.action_buffer_changes`.
+        """
+        from ._buffer import action_buffer_changes
+
+        for change_key, change_buffer in action_buffer_changes(action, key, buffer):
+            if change_key is None:
+                self._release_buffers(key[0])
+            else:
+                self._keep_buffer(change_key, change_buffer)
+
+    def _release_buffers(self, handle: Any) -> None:
+        """Release all buffers kept for the device ``handle``, see :meth:`_keep_buffer`."""
+        handle = getattr(handle, "value", handle)
+        for key in [k for k in self._buffers if k[0] == handle]:
+            del self._buffers[key]
 
 
 __all__ = (

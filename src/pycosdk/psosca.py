@@ -20,6 +20,13 @@ from ctypes import (
 
 from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._base import CALLBACK_FUNCTYPE, PicoScopeWrapperBase
+from ._buffer import (
+    SAMPLE_TYPES,
+    DataBuffer,
+    InputValues,
+    buffer_argument,
+    input_argument,
+)
 from ._struct import c_array
 from .callback import PicoUpdateFirmwareProgress
 from .connectprobe import (
@@ -604,6 +611,7 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
 
     def psospaCloseUnit(self, handle: c_int16) -> None:
         self._psospaCloseUnit(handle)
+        self._release_buffers(handle)
 
     def psospaGetUnitInfo(self, handle: c_int16, info: PICO_INFO) -> str:
         buf = create_string_buffer(bytes(255))
@@ -703,12 +711,19 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         return timeIntervalNS.value, maxSamples.value
 
     def psospaSigGenWaveform(
-        self, handle: c_int16, waveType: PICO_WAVE_TYPE, buffer: Sequence[int] | None
+        self, handle: c_int16, waveType: PICO_WAVE_TYPE, buffer: InputValues | None
     ) -> None:
-        samples = c_array(c_int16, buffer) if buffer is not None else None
-        self._psospaSigGenWaveform(
-            handle, waveType, samples, len(buffer) if buffer is not None else 0
+        """``buffer`` holds the int16 arbitrary waveform samples (only for PICO_ARBITRARY).
+
+        It is a sequence of ints or a buffer of int16 (e.g. a numpy array with
+        ``dtype=np.int16``), which is passed without copying.
+        """
+        samples, bufferLength = (
+            input_argument(buffer, c_int16, "buffer")
+            if buffer is not None
+            else (None, 0)
         )
+        self._psospaSigGenWaveform(handle, waveType, samples, bufferLength)
 
     def psospaSigGenRange(
         self, handle: c_int16, peakToPeakVolts: float, offsetVolts: float
@@ -984,47 +999,79 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         self,
         handle: c_int16,
         channel: PICO_CHANNEL,
-        buffer: c_void_p,
+        buffer: DataBuffer,
         nsamples: int,
         datatype: PICO_DATA_TYPE,
         waveform: int,
         downsampleMode: PICO_RATIO_MODE,
         action: PICO_ACTION,
     ) -> None:
-        assert nsamples > 0
+        """Set the buffer the driver writes the samples of ``channel`` to.
+
+        ``buffer`` is a writable, C-contiguous buffer of at least ``nsamples``
+        elements of ``datatype`` (e.g. ``np.empty(nsamples, np.int16)`` for
+        ``PICO_INT16_T``), or None. The wrapper keeps it from being freed or
+        resized until it is replaced, cleared (``PICO_CLEAR_ALL``, None) or the
+        unit is closed. A raw address (int or ``c_void_p``) is passed unchecked
+        and must be kept valid by the caller.
+        """
+        if nsamples < 0:
+            raise ValueError("nsamples must not be negative")
+        arg = buffer_argument(
+            buffer, SAMPLE_TYPES[datatype], nsamples, writable=True, name="buffer"
+        )
         self._psospaSetDataBuffer(
             handle,
             channel,
-            buffer,
+            arg,
             nsamples,
             datatype,
             waveform,
             downsampleMode,
             action,
         )
+        self._keep_action_buffer(
+            (handle.value, channel, waveform, downsampleMode, datatype), action, arg
+        )
 
     def psospaSetDataBuffers(
         self,
         handle: c_int16,
         channel: PICO_CHANNEL,
-        bufferMax: c_void_p | int | None,
-        bufferMin: c_void_p | int | None,
+        bufferMax: DataBuffer,
+        bufferMin: DataBuffer,
         nSamples: int,
         dataType: PICO_DATA_TYPE,
         waveform: int,
         downSampleRatioMode: PICO_RATIO_MODE,
         action: PICO_ACTION,
     ) -> None:
+        """Like :meth:`psospaSetDataBuffer`, with buffers for the maxima and minima."""
+        if nSamples < 0:
+            raise ValueError("nSamples must not be negative")
+        ctype = SAMPLE_TYPES[dataType]
+        argMax = buffer_argument(
+            bufferMax, ctype, nSamples, writable=True, name="bufferMax"
+        )
+        argMin = buffer_argument(
+            bufferMin, ctype, nSamples, writable=True, name="bufferMin"
+        )
         self._psospaSetDataBuffers(
             handle,
             channel,
-            bufferMax,
-            bufferMin,
+            argMax,
+            argMin,
             nSamples,
             dataType,
             waveform,
             downSampleRatioMode,
             action,
+        )
+        both = None if argMax is None and argMin is None else (argMax, argMin)
+        self._keep_action_buffer(
+            (handle.value, channel, waveform, downSampleRatioMode, dataType),
+            action,
+            both,
         )
 
     def psospaRunBlock(

@@ -6,6 +6,7 @@ from ctypes import (
     c_char_p,
     c_double,
     c_float,
+    c_int8,
     c_int16,
     c_int32,
     c_int64,
@@ -19,6 +20,7 @@ from enum import IntEnum
 from typing import Annotated, Any, Self, final
 
 from ._base import CALLBACK_FUNCTYPE, POWER_SOURCE_STATUSES, PicoScopeWrapperBase
+from ._buffer import DataBuffer, InputValues, buffer_argument, input_argument
 from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._struct import CStruct, c_array
 from .callback import PicoUpdateFirmwareProgress
@@ -1045,6 +1047,7 @@ class PicoScope3000aWrapper(PicoScopeWrapperBase):
 
     def ps3000aCloseUnit(self, handle: c_int16) -> None:
         self._ps3000aCloseUnit(handle)
+        self._release_buffers(handle)
 
     def ps3000aGetUnitInfo(self, handle: c_int16, info: PICO_INFO) -> str:
         buf = create_string_buffer(bytes(255))
@@ -1152,7 +1155,7 @@ class PicoScope3000aWrapper(PicoScopeWrapperBase):
         stopDeltaPhase: int,
         deltaPhaseIncrement: int,
         dwellCount: int,
-        arbitraryWaveform: Sequence[int],
+        arbitraryWaveform: InputValues,
         sweepType: PS3000A_SWEEP_TYPE,
         operation: PS3000A_EXTRA_OPERATIONS,
         indexMode: PS3000A_INDEX_MODE,
@@ -1162,7 +1165,14 @@ class PicoScope3000aWrapper(PicoScopeWrapperBase):
         triggerSource: PS3000A_SIGGEN_TRIG_SOURCE,
         extInThreshold: int,
     ) -> None:
-        waveform = c_array(c_int16, arbitraryWaveform)
+        """``arbitraryWaveform`` holds the int16 samples of the arbitrary waveform.
+
+        It is a sequence of ints or a buffer of int16 (e.g. a numpy array with
+        ``dtype=np.int16``), which is passed without copying.
+        """
+        waveform, arbitraryWaveformSize = input_argument(
+            arbitraryWaveform, c_int16, "arbitraryWaveform"
+        )
         self._ps3000aSetSigGenArbitrary(
             handle,
             offsetVoltage,
@@ -1172,7 +1182,7 @@ class PicoScope3000aWrapper(PicoScopeWrapperBase):
             deltaPhaseIncrement,
             dwellCount,
             waveform,
-            len(arbitraryWaveform),
+            arbitraryWaveformSize,
             sweepType,
             operation,
             indexMode,
@@ -1564,61 +1574,125 @@ class PicoScope3000aWrapper(PicoScopeWrapperBase):
         self,
         handle: c_int16,
         channel: PS3000A_CHANNEL,
-        buffer: c_void_p,
+        buffer: DataBuffer,
         bufferLth: int,
         segmentIndex: int,
         mode: PS3000A_RATIO_MODE,
     ) -> None:
-        """Register an ``int16_t`` buffer; it must stay alive until it is read."""
-        self._ps3000aSetDataBuffer(
-            handle, channel, buffer, bufferLth, segmentIndex, mode
-        )
+        """Set the buffer the driver writes the samples of ``channel`` to.
+
+        ``buffer`` is a writable, C-contiguous buffer of at least ``bufferLth``
+        int16 elements (e.g. ``np.empty(bufferLth, np.int16)``), or None. The
+        wrapper keeps it from being freed or resized until it is replaced (same
+        channel, segment and mode, also by :meth:`ps3000aSetDataBuffers`), set to
+        None or the unit is closed. A raw address (int or ``c_void_p``) is
+        passed unchecked and must be kept valid by the caller.
+        """
+        if bufferLth < 0:
+            raise ValueError("bufferLth must not be negative")
+        arg = buffer_argument(buffer, c_int16, bufferLth, writable=True, name="buffer")
+        self._ps3000aSetDataBuffer(handle, channel, arg, bufferLth, segmentIndex, mode)
+        self._keep_buffer((handle.value, "data", channel, segmentIndex, mode), arg)
 
     def ps3000aSetDataBuffers(
         self,
         handle: c_int16,
         channelOrPort: PS3000A_CHANNEL | PS3000A_DIGITAL_PORT,
-        bufferMax: c_void_p | int | None,
-        bufferMin: c_void_p | int | None,
+        bufferMax: DataBuffer,
+        bufferMin: DataBuffer,
         bufferLth: int,
         segmentIndex: int,
         mode: PS3000A_RATIO_MODE,
     ) -> None:
-        """Register ``int16_t`` buffers; they must stay alive until they are read."""
+        """Like :meth:`ps3000aSetDataBuffer`, with buffers for the maxima and minima."""
+        if bufferLth < 0:
+            raise ValueError("bufferLth must not be negative")
+        argMax = buffer_argument(
+            bufferMax, c_int16, bufferLth, writable=True, name="bufferMax"
+        )
+        argMin = buffer_argument(
+            bufferMin, c_int16, bufferLth, writable=True, name="bufferMin"
+        )
         self._ps3000aSetDataBuffers(
-            handle, channelOrPort, bufferMax, bufferMin, bufferLth, segmentIndex, mode
+            handle, channelOrPort, argMax, argMin, bufferLth, segmentIndex, mode
+        )
+        both = None if argMax is None and argMin is None else (argMax, argMin)
+        self._keep_buffer(
+            (handle.value, "data", channelOrPort, segmentIndex, mode), both
         )
 
     def ps3000aSetUnscaledDataBuffers(
         self,
         handle: c_int16,
         channelOrPort: PS3000A_CHANNEL | PS3000A_DIGITAL_PORT,
-        bufferMax: c_void_p | int | None,
-        bufferMin: c_void_p | int | None,
+        bufferMax: DataBuffer,
+        bufferMin: DataBuffer,
         bufferLth: int,
         segmentIndex: int,
         mode: PS3000A_RATIO_MODE,
     ) -> None:
-        """Register ``int8_t`` buffers; they must stay alive until they are read."""
+        """Like :meth:`ps3000aSetDataBuffers`, with buffers of int8 elements.
+
+        The wrapper keeps them alive separately from the int16 buffers, until
+        they are replaced by this function (same channel, segment and mode),
+        set to None or the unit is closed.
+        """
+        if bufferLth < 0:
+            raise ValueError("bufferLth must not be negative")
+        argMax = buffer_argument(
+            bufferMax, c_int8, bufferLth, writable=True, name="bufferMax"
+        )
+        argMin = buffer_argument(
+            bufferMin, c_int8, bufferLth, writable=True, name="bufferMin"
+        )
         self._ps3000aSetUnscaledDataBuffers(
-            handle, channelOrPort, bufferMax, bufferMin, bufferLth, segmentIndex, mode
+            handle, channelOrPort, argMax, argMin, bufferLth, segmentIndex, mode
+        )
+        both = None if argMax is None and argMin is None else (argMax, argMin)
+        self._keep_buffer(
+            (handle.value, "unscaled", channelOrPort, segmentIndex, mode), both
         )
 
     def ps3000aSetEtsTimeBuffer(
-        self, handle: c_int16, buffer: c_void_p | int | None, bufferLth: int
+        self, handle: c_int16, buffer: DataBuffer, bufferLth: int
     ) -> None:
-        """Register an ``int64_t`` buffer; it must stay alive until it is read."""
-        self._ps3000aSetEtsTimeBuffer(handle, buffer, bufferLth)
+        """Set the buffer the driver writes the ETS sample times to.
+
+        ``buffer`` is a writable, C-contiguous buffer of at least ``bufferLth``
+        int64 elements, or None. The wrapper keeps it alive until it is
+        replaced (also by :meth:`ps3000aSetEtsTimeBuffers`), set to None or the
+        unit is closed. A raw address (int or ``c_void_p``) is passed unchecked
+        and must be kept valid by the caller.
+        """
+        if bufferLth < 0:
+            raise ValueError("bufferLth must not be negative")
+        arg = buffer_argument(buffer, c_int64, bufferLth, writable=True, name="buffer")
+        self._ps3000aSetEtsTimeBuffer(handle, arg, bufferLth)
+        self._keep_buffer((handle.value, "ets"), arg)
 
     def ps3000aSetEtsTimeBuffers(
         self,
         handle: c_int16,
-        timeUpper: c_void_p | int | None,
-        timeLower: c_void_p | int | None,
+        timeUpper: DataBuffer,
+        timeLower: DataBuffer,
         bufferLth: int,
     ) -> None:
-        """Register ``uint32_t`` buffers; they must stay alive until they are read."""
-        self._ps3000aSetEtsTimeBuffers(handle, timeUpper, timeLower, bufferLth)
+        """Like :meth:`ps3000aSetEtsTimeBuffer`, with the times split in 32-bit halves.
+
+        ``timeUpper`` and ``timeLower`` hold at least ``bufferLth`` uint32
+        elements each.
+        """
+        if bufferLth < 0:
+            raise ValueError("bufferLth must not be negative")
+        argUpper = buffer_argument(
+            timeUpper, c_uint32, bufferLth, writable=True, name="timeUpper"
+        )
+        argLower = buffer_argument(
+            timeLower, c_uint32, bufferLth, writable=True, name="timeLower"
+        )
+        self._ps3000aSetEtsTimeBuffers(handle, argUpper, argLower, bufferLth)
+        both = None if argUpper is None and argLower is None else (argUpper, argLower)
+        self._keep_buffer((handle.value, "ets"), both)
 
     def ps3000aIsReady(self, handle: c_int16) -> bool:
         ready = c_int16(0)

@@ -30,6 +30,7 @@ from typing import Annotated, Any, Self, final, overload
 
 from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._base import CALLBACK_FUNCTYPE, PicoScopeWrapperBase
+from ._buffer import DataBuffer, InputValues, buffer_argument, input_argument
 from ._struct import CStruct, c_array
 from .statusconfig import check_result
 
@@ -335,6 +336,19 @@ def _query_error_code(
         return codes(code)
     except ValueError:
         return code
+
+
+def _sample_buffers(no_of_values: int, **buffers: DataBuffer) -> list[Any]:
+    """The int16 sample ``buffers`` (by parameter name) as ``int16_t *`` arguments.
+
+    Each must be a writable buffer of at least ``no_of_values`` int16 elements,
+    see :func:`~pycosdk._buffer.buffer_argument`. The driver writes to them
+    during the call only, so they are not kept.
+    """
+    return [
+        buffer_argument(buffer, c_int16, no_of_values, writable=True, name=name)
+        for name, buffer in buffers.items()
+    ]
 
 
 class _OverviewBuffers(Sequence[list[int] | None]):
@@ -791,6 +805,7 @@ class PicoScope2000Wrapper(PicoScopeWrapperBase):
 
     def ps2000_close_unit(self, handle: c_int16) -> None:
         self._ps2000_close_unit(handle)
+        self._release_buffers(handle)
 
     def ps2000_set_channel(
         self,
@@ -911,55 +926,67 @@ class PicoScope2000Wrapper(PicoScopeWrapperBase):
     def ps2000_get_values(
         self,
         handle: c_int16,
-        buffer_a: c_void_p | int | None,
-        buffer_b: c_void_p | int | None,
-        buffer_c: c_void_p | int | None,
-        buffer_d: c_void_p | int | None,
+        buffer_a: DataBuffer,
+        buffer_b: DataBuffer,
+        buffer_c: DataBuffer,
+        buffer_d: DataBuffer,
         no_of_values: int,
     ) -> tuple[int, int]:
         """Return ``(no_of_values_returned, overflow)``.
 
-        The buffers hold ``no_of_values`` int16 values, or are None for channels
-        not read. ``overflow`` has bit 0 set for channel A, bit 1 for B, etc.
+        The buffers are writable, C-contiguous buffers of at least
+        ``no_of_values`` int16 elements (e.g. ``np.empty(no_of_values, np.int16)``),
+        or None for channels not read; the driver writes to them during the call
+        only. A raw address (int or ``c_void_p``) is passed unchecked.
+        ``overflow`` has bit 0 set for channel A, bit 1 for B, etc.
         Returning 0 values counts as a failure and raises
         :class:`~pycosdk.exceptions.ResultException`; with the compatible
         streaming mode, catch it if that is expected.
         """
+        buffers = _sample_buffers(
+            no_of_values,
+            buffer_a=buffer_a,
+            buffer_b=buffer_b,
+            buffer_c=buffer_c,
+            buffer_d=buffer_d,
+        )
         overflow = c_int16(0)
         result = self._ps2000_get_values(
-            handle,
-            buffer_a,
-            buffer_b,
-            buffer_c,
-            buffer_d,
-            byref(overflow),
-            no_of_values,
+            handle, *buffers, byref(overflow), no_of_values
         )
         return result, overflow.value
 
     def ps2000_get_times_and_values(
         self,
         handle: c_int16,
-        times: c_void_p | int | None,
-        buffer_a: c_void_p | int | None,
-        buffer_b: c_void_p | int | None,
-        buffer_c: c_void_p | int | None,
-        buffer_d: c_void_p | int | None,
+        times: DataBuffer,
+        buffer_a: DataBuffer,
+        buffer_b: DataBuffer,
+        buffer_c: DataBuffer,
+        buffer_d: DataBuffer,
         time_units: PS2000_TIME_UNITS,
         no_of_values: int,
     ) -> tuple[int, int]:
         """Return ``(no_of_values_returned, overflow)``.
 
-        ``times`` holds ``no_of_values`` int32 values, see :meth:`ps2000_get_values`.
+        ``times`` is a buffer of at least ``no_of_values`` int32 elements, the
+        others are as in :meth:`ps2000_get_values`.
         """
+        times_arg = buffer_argument(
+            times, c_int32, no_of_values, writable=True, name="times"
+        )
+        buffers = _sample_buffers(
+            no_of_values,
+            buffer_a=buffer_a,
+            buffer_b=buffer_b,
+            buffer_c=buffer_c,
+            buffer_d=buffer_d,
+        )
         overflow = c_int16(0)
         result = self._ps2000_get_times_and_values(
             handle,
-            times,
-            buffer_a,
-            buffer_b,
-            buffer_c,
-            buffer_d,
+            times_arg,
+            *buffers,
             byref(overflow),
             time_units,
             no_of_values,
@@ -1039,21 +1066,33 @@ class PicoScope2000Wrapper(PicoScopeWrapperBase):
     def ps2000_get_streaming_values(
         self,
         handle: c_int16,
-        pbuffer_a_max: c_void_p | int | None,
-        pbuffer_a_min: c_void_p | int | None,
-        pbuffer_b_max: c_void_p | int | None,
-        pbuffer_b_min: c_void_p | int | None,
-        pbuffer_c_max: c_void_p | int | None,
-        pbuffer_c_min: c_void_p | int | None,
-        pbuffer_d_max: c_void_p | int | None,
-        pbuffer_d_min: c_void_p | int | None,
+        pbuffer_a_max: DataBuffer,
+        pbuffer_a_min: DataBuffer,
+        pbuffer_b_max: DataBuffer,
+        pbuffer_b_min: DataBuffer,
+        pbuffer_c_max: DataBuffer,
+        pbuffer_c_min: DataBuffer,
+        pbuffer_d_max: DataBuffer,
+        pbuffer_d_min: DataBuffer,
         no_of_values: int,
         noOfSamplesPerAggregate: int,
     ) -> tuple[int, float, int, int, bool]:
         """Return ``(no_of_values_returned, start_time, overflow, triggerAt, triggered)``.
 
-        The buffers hold ``no_of_values`` int16 values, or are None.
+        The buffers are as in :meth:`ps2000_get_values` (at least
+        ``no_of_values`` int16 elements, or None).
         """
+        buffers = _sample_buffers(
+            no_of_values,
+            pbuffer_a_max=pbuffer_a_max,
+            pbuffer_a_min=pbuffer_a_min,
+            pbuffer_b_max=pbuffer_b_max,
+            pbuffer_b_min=pbuffer_b_min,
+            pbuffer_c_max=pbuffer_c_max,
+            pbuffer_c_min=pbuffer_c_min,
+            pbuffer_d_max=pbuffer_d_max,
+            pbuffer_d_min=pbuffer_d_min,
+        )
         start_time = c_double(0)
         overflow = c_int16(0)
         triggerAt = c_uint32(0)
@@ -1061,14 +1100,7 @@ class PicoScope2000Wrapper(PicoScopeWrapperBase):
         result = self._ps2000_get_streaming_values(
             handle,
             byref(start_time),
-            pbuffer_a_max,
-            pbuffer_a_min,
-            pbuffer_b_max,
-            pbuffer_b_min,
-            pbuffer_c_max,
-            pbuffer_c_min,
-            pbuffer_d_max,
-            pbuffer_d_min,
+            *buffers,
             byref(overflow),
             byref(triggerAt),
             byref(triggered),
@@ -1086,16 +1118,24 @@ class PicoScope2000Wrapper(PicoScopeWrapperBase):
     def ps2000_get_streaming_values_no_aggregation(
         self,
         handle: c_int16,
-        pbuffer_a: c_void_p | int | None,
-        pbuffer_b: c_void_p | int | None,
-        pbuffer_c: c_void_p | int | None,
-        pbuffer_d: c_void_p | int | None,
+        pbuffer_a: DataBuffer,
+        pbuffer_b: DataBuffer,
+        pbuffer_c: DataBuffer,
+        pbuffer_d: DataBuffer,
         no_of_values: int,
     ) -> tuple[int, float, int, int, bool]:
         """Return ``(no_of_values_returned, start_time, overflow, triggerAt, trigger)``.
 
-        The buffers hold ``no_of_values`` int16 values, or are None.
+        The buffers are as in :meth:`ps2000_get_values` (at least
+        ``no_of_values`` int16 elements, or None).
         """
+        buffers = _sample_buffers(
+            no_of_values,
+            pbuffer_a=pbuffer_a,
+            pbuffer_b=pbuffer_b,
+            pbuffer_c=pbuffer_c,
+            pbuffer_d=pbuffer_d,
+        )
         start_time = c_double(0)
         overflow = c_int16(0)
         triggerAt = c_uint32(0)
@@ -1103,10 +1143,7 @@ class PicoScope2000Wrapper(PicoScopeWrapperBase):
         result = self._ps2000_get_streaming_values_no_aggregation(
             handle,
             byref(start_time),
-            pbuffer_a,
-            pbuffer_b,
-            pbuffer_c,
-            pbuffer_d,
+            *buffers,
             byref(overflow),
             byref(triggerAt),
             byref(trigger),
@@ -1132,12 +1169,18 @@ class PicoScope2000Wrapper(PicoScopeWrapperBase):
         stopDeltaPhase: int,
         deltaPhaseIncrement: int,
         dwellCount: int,
-        arbitraryWaveform: Sequence[int],
+        arbitraryWaveform: InputValues,
         sweepType: PS2000_SWEEP_TYPE,
         sweeps: int,
     ) -> None:
-        """``arbitraryWaveform`` holds uint8 samples; its length is passed as size."""
-        waveform = c_array(c_uint8, arbitraryWaveform)
+        """``arbitraryWaveform`` holds the uint8 samples; its length is passed as size.
+
+        It is a sequence of ints or a buffer of uint8 (e.g. a numpy array with
+        ``dtype=np.uint8``), which is passed without copying.
+        """
+        waveform, arbitraryWaveformSize = input_argument(
+            arbitraryWaveform, c_uint8, "arbitraryWaveform"
+        )
         self._ps2000_set_sig_gen_arbitrary(
             handle,
             offsetVoltage,
@@ -1147,7 +1190,7 @@ class PicoScope2000Wrapper(PicoScopeWrapperBase):
             deltaPhaseIncrement,
             dwellCount,
             waveform,
-            len(arbitraryWaveform),
+            arbitraryWaveformSize,
             sweepType,
             sweeps,
         )

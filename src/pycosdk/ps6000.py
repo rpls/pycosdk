@@ -21,6 +21,7 @@ from typing import Annotated, Self, final
 
 from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._base import CALLBACK_FUNCTYPE, POWER_SOURCE_STATUSES, PicoScopeWrapperBase
+from ._buffer import DataBuffer, InputValues, buffer_argument, input_argument
 from ._struct import CStruct, c_array
 from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
 
@@ -874,6 +875,7 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
 
     def ps6000CloseUnit(self, handle: c_int16) -> None:
         self._ps6000CloseUnit(handle)
+        self._release_buffers(handle)
 
     def ps6000GetUnitInfo(self, handle: c_int16, info: PICO_INFO) -> str:
         buf = create_string_buffer(bytes(255))
@@ -962,7 +964,7 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
         stopDeltaPhase: int,
         deltaPhaseIncrement: int,
         dwellCount: int,
-        arbitraryWaveform: Sequence[int],
+        arbitraryWaveform: InputValues,
         sweepType: PS6000_SWEEP_TYPE,
         operation: PS6000_EXTRA_OPERATIONS,
         indexMode: PS6000_INDEX_MODE,
@@ -972,7 +974,14 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
         triggerSource: PS6000_SIGGEN_TRIG_SOURCE,
         extInThreshold: int,
     ) -> None:
-        waveform = (c_int16 * len(arbitraryWaveform))(*arbitraryWaveform)
+        """``arbitraryWaveform`` holds the int16 samples of the arbitrary waveform.
+
+        It is a sequence of ints or a buffer of int16 (e.g. a numpy array with
+        ``dtype=np.int16``), which is passed without copying.
+        """
+        waveform, arbitraryWaveformSize = input_argument(
+            arbitraryWaveform, c_int16, "arbitraryWaveform"
+        )
         self._ps6000SetSigGenArbitrary(
             handle,
             offsetVoltage,
@@ -982,7 +991,7 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
             deltaPhaseIncrement,
             dwellCount,
             waveform,
-            len(arbitraryWaveform),
+            arbitraryWaveformSize,
             sweepType,
             operation,
             indexMode,
@@ -1319,73 +1328,141 @@ class PicoScope6000Wrapper(PicoScopeWrapperBase):
         self,
         handle: c_int16,
         channel: PS6000_CHANNEL,
-        bufferMax: c_void_p | int | None,
-        bufferMin: c_void_p | int | None,
+        bufferMax: DataBuffer,
+        bufferMin: DataBuffer,
         bufferLth: int,
         downSampleRatioMode: PS6000_RATIO_MODE,
     ) -> None:
-        self._ps6000SetDataBuffers(
-            handle, channel, bufferMax, bufferMin, bufferLth, downSampleRatioMode
+        """Like :meth:`ps6000SetDataBuffer`, with buffers for the maxima and minima."""
+        if bufferLth < 0:
+            raise ValueError("bufferLth must not be negative")
+        argMax = buffer_argument(
+            bufferMax, c_int16, bufferLth, writable=True, name="bufferMax"
         )
+        argMin = buffer_argument(
+            bufferMin, c_int16, bufferLth, writable=True, name="bufferMin"
+        )
+        self._ps6000SetDataBuffers(
+            handle, channel, argMax, argMin, bufferLth, downSampleRatioMode
+        )
+        both = None if argMax is None and argMin is None else (argMax, argMin)
+        self._keep_buffer((handle.value, "data", channel, downSampleRatioMode), both)
 
     def ps6000SetDataBuffer(
         self,
         handle: c_int16,
         channel: PS6000_CHANNEL,
-        buffer: c_void_p,
+        buffer: DataBuffer,
         bufferLth: int,
         mode: PS6000_RATIO_MODE,
     ) -> None:
-        self._ps6000SetDataBuffer(handle, channel, buffer, bufferLth, mode)
+        """Set the buffer the driver writes the samples of ``channel`` to.
+
+        ``buffer`` is a writable, C-contiguous buffer of at least ``bufferLth``
+        int16 elements (e.g. ``np.empty(bufferLth, np.int16)``), or None. The
+        wrapper keeps it from being freed or resized until it is replaced (same
+        channel and ``mode``), set to None or the unit is closed. A raw address
+        (int or ``c_void_p``) is passed unchecked and must be kept valid by the
+        caller.
+        """
+        if bufferLth < 0:
+            raise ValueError("bufferLth must not be negative")
+        arg = buffer_argument(buffer, c_int16, bufferLth, writable=True, name="buffer")
+        self._ps6000SetDataBuffer(handle, channel, arg, bufferLth, mode)
+        self._keep_buffer((handle.value, "data", channel, mode), arg)
 
     def ps6000SetDataBufferBulk(
         self,
         handle: c_int16,
         channel: PS6000_CHANNEL,
-        buffer: c_void_p,
+        buffer: DataBuffer,
         bufferLth: int,
         waveform: int,
         mode: PS6000_RATIO_MODE,
     ) -> None:
-        self._ps6000SetDataBufferBulk(
-            handle, channel, buffer, bufferLth, waveform, mode
-        )
+        """Like :meth:`ps6000SetDataBuffer`, for one ``waveform`` in rapid block mode.
+
+        The wrapper keeps ``buffer`` alive until it is replaced (same channel,
+        ``waveform`` and ``mode``), set to None or the unit is closed.
+        """
+        if bufferLth < 0:
+            raise ValueError("bufferLth must not be negative")
+        arg = buffer_argument(buffer, c_int16, bufferLth, writable=True, name="buffer")
+        self._ps6000SetDataBufferBulk(handle, channel, arg, bufferLth, waveform, mode)
+        self._keep_buffer((handle.value, "bulk", channel, waveform, mode), arg)
 
     def ps6000SetDataBuffersBulk(
         self,
         handle: c_int16,
         channel: PS6000_CHANNEL,
-        bufferMax: c_void_p | int | None,
-        bufferMin: c_void_p | int | None,
+        bufferMax: DataBuffer,
+        bufferMin: DataBuffer,
         bufferLth: int,
         waveform: int,
         downSampleRatioMode: PS6000_RATIO_MODE,
     ) -> None:
+        """Like :meth:`ps6000SetDataBufferBulk`, with buffers for the maxima and minima."""
+        if bufferLth < 0:
+            raise ValueError("bufferLth must not be negative")
+        argMax = buffer_argument(
+            bufferMax, c_int16, bufferLth, writable=True, name="bufferMax"
+        )
+        argMin = buffer_argument(
+            bufferMin, c_int16, bufferLth, writable=True, name="bufferMin"
+        )
         self._ps6000SetDataBuffersBulk(
             handle,
             channel,
-            bufferMax,
-            bufferMin,
+            argMax,
+            argMin,
             bufferLth,
             waveform,
             downSampleRatioMode,
         )
+        both = None if argMax is None and argMin is None else (argMax, argMin)
+        self._keep_buffer(
+            (handle.value, "bulk", channel, waveform, downSampleRatioMode), both
+        )
 
     def ps6000SetEtsTimeBuffer(
-        self, handle: c_int16, buffer: c_void_p | int | None, bufferLth: int
+        self, handle: c_int16, buffer: DataBuffer, bufferLth: int
     ) -> None:
-        """``buffer`` must hold ``bufferLth`` int64 values and outlive the capture."""
-        self._ps6000SetEtsTimeBuffer(handle, buffer, bufferLth)
+        """Set the buffer the driver writes the ETS sample times to.
+
+        ``buffer`` is a writable, C-contiguous buffer of at least ``bufferLth``
+        int64 elements, or None. The wrapper keeps it alive until it is
+        replaced (also by :meth:`ps6000SetEtsTimeBuffers`), set to None or the
+        unit is closed. A raw address (int or ``c_void_p``) is passed unchecked
+        and must be kept valid by the caller.
+        """
+        if bufferLth < 0:
+            raise ValueError("bufferLth must not be negative")
+        arg = buffer_argument(buffer, c_int64, bufferLth, writable=True, name="buffer")
+        self._ps6000SetEtsTimeBuffer(handle, arg, bufferLth)
+        self._keep_buffer((handle.value, "ets"), arg)
 
     def ps6000SetEtsTimeBuffers(
         self,
         handle: c_int16,
-        timeUpper: c_void_p | int | None,
-        timeLower: c_void_p | int | None,
+        timeUpper: DataBuffer,
+        timeLower: DataBuffer,
         bufferLth: int,
     ) -> None:
-        """The buffers must hold ``bufferLth`` uint32 values and outlive the capture."""
-        self._ps6000SetEtsTimeBuffers(handle, timeUpper, timeLower, bufferLth)
+        """Like :meth:`ps6000SetEtsTimeBuffer`, with the upper and lower 32 bits.
+
+        Both are buffers of at least ``bufferLth`` uint32 elements.
+        """
+        if bufferLth < 0:
+            raise ValueError("bufferLth must not be negative")
+        argUpper = buffer_argument(
+            timeUpper, c_uint32, bufferLth, writable=True, name="timeUpper"
+        )
+        argLower = buffer_argument(
+            timeLower, c_uint32, bufferLth, writable=True, name="timeLower"
+        )
+        self._ps6000SetEtsTimeBuffers(handle, argUpper, argLower, bufferLth)
+        both = None if argUpper is None and argLower is None else (argUpper, argLower)
+        self._keep_buffer((handle.value, "ets"), both)
 
     def ps6000IsReady(self, handle: c_int16) -> bool:
         ready = c_int16(0)

@@ -19,6 +19,13 @@ from enum import IntEnum
 from typing import TYPE_CHECKING, Annotated, Any, Self, final
 
 from ._base import CALLBACK_FUNCTYPE, PicoScopeWrapperBase
+from ._buffer import (
+    SAMPLE_TYPES,
+    DataBuffer,
+    InputValues,
+    buffer_argument,
+    input_argument,
+)
 from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._struct import CStruct, c_array
 from .callback import (
@@ -105,10 +112,6 @@ from .version import PICO_FIRMWARE_INFO
 
 if TYPE_CHECKING:
     from ctypes import Array
-
-    # Anything ctypes accepts for a PICO_POINTER sample buffer, e.g., a ctypes
-    # array, a c_void_p, or an address such as numpy's ``arr.ctypes.data``.
-    DataBuffer = c_void_p | int | Array[Any] | None
 
 
 # Definitions from PicoDeviceDefinitionsExperimental.h
@@ -788,6 +791,7 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
 
     def ps6000aCloseUnit(self, handle: c_int16) -> None:
         self._ps6000aCloseUnit(handle)
+        self._release_buffers(handle)
 
     def ps6000aGetUnitInfo(self, handle: c_int16, info: PICO_INFO) -> str:
         buf = create_string_buffer(255)
@@ -928,13 +932,19 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
         self,
         handle: c_int16,
         waveType: PICO_WAVE_TYPE,
-        buffer: Sequence[int] | None = None,
+        buffer: InputValues | None = None,
     ) -> None:
-        """``buffer`` holds the arbitrary waveform samples (only for PICO_ARBITRARY)."""
-        samples = c_array(c_int16, buffer) if buffer is not None else None
-        self._ps6000aSigGenWaveform(
-            handle, waveType, samples, len(buffer) if buffer is not None else 0
+        """``buffer`` holds the int16 arbitrary waveform samples (only for PICO_ARBITRARY).
+
+        It is a sequence of ints or a buffer of int16 (e.g. a numpy array with
+        ``dtype=np.int16``), which is passed without copying.
+        """
+        samples, bufferLength = (
+            input_argument(buffer, c_int16, "buffer")
+            if buffer is not None
+            else (None, 0)
         )
+        self._ps6000aSigGenWaveform(handle, waveType, samples, bufferLength)
 
     def ps6000aSigGenRange(
         self, handle: c_int16, peakToPeakVolts: float, offsetVolts: float
@@ -1388,47 +1398,79 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
         self,
         handle: c_int16,
         channel: PICO_CHANNEL,
-        buffer: "DataBuffer",
+        buffer: DataBuffer,
         nsamples: int,
         datatype: PICO_DATA_TYPE,
         waveform: int,
         downsampleMode: PICO_RATIO_MODE,
         action: PICO_ACTION,
     ) -> None:
-        assert nsamples >= 0
+        """Set the buffer the driver writes the samples of ``channel`` to.
+
+        ``buffer`` is a writable, C-contiguous buffer of at least ``nsamples``
+        elements of ``datatype`` (e.g. ``np.empty(nsamples, np.int16)`` for
+        ``PICO_INT16_T``), or None. The wrapper keeps it from being freed or
+        resized until it is replaced, cleared (``PICO_CLEAR_ALL``, None) or the
+        unit is closed. A raw address (int or ``c_void_p``) is passed unchecked
+        and must be kept valid by the caller.
+        """
+        if nsamples < 0:
+            raise ValueError("nsamples must not be negative")
+        arg = buffer_argument(
+            buffer, SAMPLE_TYPES[datatype], nsamples, writable=True, name="buffer"
+        )
         self._ps6000aSetDataBuffer(
             handle,
             channel,
-            buffer,
+            arg,
             nsamples,
             datatype,
             waveform,
             downsampleMode,
             action,
         )
+        self._keep_action_buffer(
+            (handle.value, channel, waveform, downsampleMode, datatype), action, arg
+        )
 
     def ps6000aSetDataBuffers(
         self,
         handle: c_int16,
         channel: PICO_CHANNEL,
-        bufferMax: "DataBuffer",
-        bufferMin: "DataBuffer",
+        bufferMax: DataBuffer,
+        bufferMin: DataBuffer,
         nSamples: int,
         dataType: PICO_DATA_TYPE,
         waveform: int,
         downSampleRatioMode: PICO_RATIO_MODE,
         action: PICO_ACTION,
     ) -> None:
+        """Like :meth:`ps6000aSetDataBuffer`, with buffers for the maxima and minima."""
+        if nSamples < 0:
+            raise ValueError("nSamples must not be negative")
+        ctype = SAMPLE_TYPES[dataType]
+        argMax = buffer_argument(
+            bufferMax, ctype, nSamples, writable=True, name="bufferMax"
+        )
+        argMin = buffer_argument(
+            bufferMin, ctype, nSamples, writable=True, name="bufferMin"
+        )
         self._ps6000aSetDataBuffers(
             handle,
             channel,
-            bufferMax,
-            bufferMin,
+            argMax,
+            argMin,
             nSamples,
             dataType,
             waveform,
             downSampleRatioMode,
             action,
+        )
+        both = None if argMax is None and argMin is None else (argMax, argMin)
+        self._keep_action_buffer(
+            (handle.value, channel, waveform, downSampleRatioMode, dataType),
+            action,
+            both,
         )
 
     def ps6000aGetValues(
