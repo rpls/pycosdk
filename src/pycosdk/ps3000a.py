@@ -16,7 +16,7 @@ from ctypes import (
     c_void_p,
     create_string_buffer,
 )
-from enum import IntEnum
+from enum import IntEnum, IntFlag
 from typing import Annotated, Any, Self, final
 
 from ._base import CALLBACK_FUNCTYPE, POWER_SOURCE_STATUSES, PicoScopeWrapperBase
@@ -345,7 +345,7 @@ class PS3000A_TRIGGER_STATE(IntEnum):
 PS3000A_RATIO_MODE_T = c_int32
 
 
-class PS3000A_RATIO_MODE(IntEnum):
+class PS3000A_RATIO_MODE(IntFlag):
     PS3000A_RATIO_MODE_NONE = 0
     PS3000A_RATIO_MODE_AGGREGATE = 1
     PS3000A_RATIO_MODE_DECIMATE = 2
@@ -970,9 +970,12 @@ class PicoScope3000aWrapper(PicoScopeWrapperBase):
             [POINTER(c_int16), c_char_p, POINTER(c_int16)],
             info=(PICO_STATUS.PICO_NOT_FOUND,),
         )
-        # Pinging reports a changed power source of a responsive unit.
+        # Pinging reports a changed power source of a responsive unit, or an
+        # undervoltage supply (guide p74).
         self._ps3000aPingUnit = self._bind(
-            "ps3000aPingUnit", [c_int16], info=POWER_SOURCE_STATUSES
+            "ps3000aPingUnit",
+            [c_int16],
+            info=POWER_SOURCE_STATUSES | {PICO_STATUS.PICO_POWER_SUPPLY_UNDERVOLTAGE},
         )
         self._ps3000aMaximumValue = self._bind(
             "ps3000aMaximumValue", [c_int16, POINTER(c_int16)]
@@ -1723,7 +1726,7 @@ class PicoScope3000aWrapper(PicoScopeWrapperBase):
     def ps3000aIsReady(self, handle: c_int16) -> bool:
         ready = c_int16(0)
         self._ps3000aIsReady(handle, byref(ready))
-        return ready.value == 1
+        return ready.value != 0
 
     def ps3000aRunBlock(
         self,
