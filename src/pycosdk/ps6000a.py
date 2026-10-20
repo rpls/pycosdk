@@ -684,8 +684,12 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
                 POINTER(c_uint16),
             ],
         )
+        # A successful update (or one that was not needed) returns
+        # PICO_FIRMWARE_UP_TO_DATE (psospa guide; same firmware update scheme).
         self._ps6000aStartFirmwareUpdate = self._bind(
-            "ps6000aStartFirmwareUpdate", [c_int16, PicoUpdateFirmwareProgress]
+            "ps6000aStartFirmwareUpdate",
+            [c_int16, PicoUpdateFirmwareProgress],
+            info={PICO_STATUS.PICO_FIRMWARE_UP_TO_DATE},
         )
         self._ps6000aResetChannelsAndReportAllChannelsOvervoltageTripStatus = (
             self._bind(
@@ -1732,8 +1736,12 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
 
     def ps6000aStartFirmwareUpdate(
         self, handle: c_int16, progress: Callable[[int, int], None] | None
-    ) -> None:
-        """``progress(handle, percent)`` is called while the update is running."""
+    ) -> PICO_STATUS:
+        """``progress(handle, percent)`` is called while the update is running.
+
+        Returns the status, PICO_FIRMWARE_UP_TO_DATE once the firmware has been
+        updated or did not need an update.
+        """
         cfunc = PicoUpdateFirmwareProgress()
         if progress is not None:
 
@@ -1741,10 +1749,13 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
                 progress(handle, percent)
 
             cfunc = PicoUpdateFirmwareProgress(cbwrapper)
-        self._with_callback(
+        return self._with_callback(
             self._callback_key("ps6000aStartFirmwareUpdate", handle),
             cfunc,
             lambda: self._ps6000aStartFirmwareUpdate(handle, cfunc),
+            accepted=lambda status: (
+                status in (PICO_STATUS.PICO_OK, PICO_STATUS.PICO_FIRMWARE_UP_TO_DATE)
+            ),
         )
 
     def ps6000aResetChannelsAndReportAllChannelsOvervoltageTripStatus(
