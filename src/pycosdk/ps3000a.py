@@ -1025,8 +1025,12 @@ class PicoScope3000aWrapper(PicoScopeWrapperBase):
                 POINTER(c_uint16),
             ],
         )
+        # A successful update (or one that was not needed) returns
+        # PICO_FIRMWARE_UP_TO_DATE (psospa guide; same firmware update scheme).
         self._ps3000aStartFirmwareUpdate = self._bind(
-            "ps3000aStartFirmwareUpdate", [c_int16, PicoUpdateFirmwareProgress]
+            "ps3000aStartFirmwareUpdate",
+            [c_int16, PicoUpdateFirmwareProgress],
+            info={PICO_STATUS.PICO_FIRMWARE_UP_TO_DATE},
         )
 
     def ps3000aOpenUnit(self, serial: str | None) -> tuple[c_int16, PICO_STATUS]:
@@ -2132,8 +2136,12 @@ class PicoScope3000aWrapper(PicoScopeWrapperBase):
 
     def ps3000aStartFirmwareUpdate(
         self, handle: c_int16, progress: Callable[[int, int], None] | None
-    ) -> None:
-        """Update the firmware; ``progress`` receives ``(handle, percent)``."""
+    ) -> PICO_STATUS:
+        """Update the firmware; ``progress`` receives ``(handle, percent)``.
+
+        Returns the status, PICO_FIRMWARE_UP_TO_DATE once the firmware has been
+        updated or did not need an update.
+        """
         cb = PicoUpdateFirmwareProgress()  # NULL; ctypes rejects None here
         if progress is not None:
 
@@ -2141,10 +2149,13 @@ class PicoScope3000aWrapper(PicoScopeWrapperBase):
                 progress(handle, percent)
 
             cb = PicoUpdateFirmwareProgress(cbwrapper)
-        self._with_callback(
+        return self._with_callback(
             self._callback_key("ps3000aStartFirmwareUpdate", handle),
             cb,
             lambda: self._ps3000aStartFirmwareUpdate(handle, cb),
+            accepted=lambda status: (
+                status in (PICO_STATUS.PICO_OK, PICO_STATUS.PICO_FIRMWARE_UP_TO_DATE)
+            ),
         )
 
 

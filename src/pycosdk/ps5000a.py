@@ -1112,8 +1112,12 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
                 POINTER(c_uint16),
             ],
         )
+        # A successful update (or one that was not needed) returns
+        # PICO_FIRMWARE_UP_TO_DATE (psospa guide; same firmware update scheme).
         self._ps5000aStartFirmwareUpdate = self._bind(
-            "ps5000aStartFirmwareUpdate", [c_int16, PicoUpdateFirmwareProgress]
+            "ps5000aStartFirmwareUpdate",
+            [c_int16, PicoUpdateFirmwareProgress],
+            info={PICO_STATUS.PICO_FIRMWARE_UP_TO_DATE},
         )
 
     def ps5000aOpenUnit(
@@ -2304,18 +2308,27 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         )
 
     def ps5000aStartFirmwareUpdate(
-        self, handle: c_int16, progress: Callable[[int, int], None]
-    ) -> None:
-        """``progress(handle, progressPercent)`` reports the update progress."""
+        self, handle: c_int16, progress: Callable[[int, int], None] | None
+    ) -> PICO_STATUS:
+        """``progress(handle, progressPercent)`` reports the update progress.
 
-        def cbwrapper(handle: int, progressPercent: int) -> None:
-            progress(handle, progressPercent)
+        Returns the status, PICO_FIRMWARE_UP_TO_DATE once the firmware has been
+        updated or did not need an update.
+        """
+        cprogress = PicoUpdateFirmwareProgress()  # NULL; ctypes rejects None here
+        if progress is not None:
 
-        cprogress = PicoUpdateFirmwareProgress(cbwrapper)
-        self._with_callback(
+            def cbwrapper(handle: int, progressPercent: int) -> None:
+                progress(handle, progressPercent)
+
+            cprogress = PicoUpdateFirmwareProgress(cbwrapper)
+        return self._with_callback(
             self._callback_key("ps5000aStartFirmwareUpdate", handle),
             cprogress,
             lambda: self._ps5000aStartFirmwareUpdate(handle, cprogress),
+            accepted=lambda status: (
+                status in (PICO_STATUS.PICO_OK, PICO_STATUS.PICO_FIRMWARE_UP_TO_DATE)
+            ),
         )
 
 
