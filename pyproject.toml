@@ -1,10 +1,10 @@
 [build-system]
-requires = ["uv_build>=0.12.1,<0.13"]
-build-backend = "uv_build"
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
 
 [project]
 name = "pycosdk"
-version = "1.0.0"
+dynamic = ["version"]
 description = "Yet another wrapper for the PicoSDK"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -39,6 +39,24 @@ dev = [
 "Homepage" = "https://github.com/rpls/pycosdk"
 "Bug Reports" = "https://github.com/rpls/pycosdk/issues"
 "Source" = "https://github.com/rpls/pycosdk/"
+
+[tool.uv]
+# Rebuild on new commits/tags so the dynamic version stays current.
+cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.uv-dynamic-versioning]
+vcs = "git"
+style = "pep440"
+# Untagged commits get the next minor version with a .devN suffix (N = commits
+# since the last tag) and the commit as local version, e.g. 1.1.0.dev1+d5495c1
+# after v1.0.0. Only builds of a tag are uploadable to PyPI.
+bump = { enable = true, index = 1 }
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/README.md", "/LICENSE"]
 
 [tool.mypy]
 python_version = "3.11"
