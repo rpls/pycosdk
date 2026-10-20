@@ -25,6 +25,7 @@ from ._buffer import DataBuffer, InputValues, buffer_argument, input_argument
 from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._struct import CStruct, c_array
 from .callback import PicoUpdateFirmwareProgress
+from .devicestructs import PICO_TRIGGER_INFO_STATUS
 from .exceptions import StatusException
 from .status import PICO_INFO, PICO_INFO_T, PICO_STATUS, PICO_STATUS_T
 from .version import PICO_VERSION
@@ -404,7 +405,7 @@ PS5000A_CHANNEL_INFO_T = c_int32
 
 @final
 class PS5000A_TRIGGER_INFO(CStruct):
-    status: Annotated[PICO_STATUS, PICO_STATUS_T]
+    status: Annotated[PICO_TRIGGER_INFO_STATUS, PICO_STATUS_T]
     segmentIndex: Annotated[int, c_uint32]
     triggerIndex: Annotated[int, c_uint32]
     triggerTime: Annotated[int, c_int64]
