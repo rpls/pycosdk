@@ -441,6 +441,16 @@ _ENUMERATE_BUFFER_SIZE = 4096
 
 
 class PicoScope2000aWrapper(PicoScopeWrapperBase):
+    # TODO: Rename the parameters that differ from the C prototypes:
+    # GetStreamingLatestValues (callback -> lpPs2000aReady), GetValuesAsync
+    # (callback -> lpDataReady), GetValuesBulk (nosamples, fromSegment, toSegment,
+    # downsampleRatio, downsampleMode), MemorySegments (nsegments), RunBlock
+    # (preSamples, postSamples, segment, callback -> noOfPreTriggerSamples,
+    # noOfPostTriggerSamples, segmentIndex, lpReady), SetChannel (coupling,
+    # analog_offset -> type, analogOffset), SetNoOfCaptures (ncaptures) and
+    # SetSimpleTrigger (autoTriggerMS -> autoTrigger_ms). Also restore the C
+    # order of oversample in RunBlock, GetTimebase and GetTimebase2.
+    # RunStreaming keeps the guide's maxPostTriggerSamples (header typo).
     _library_name = "ps2000a"
 
     def __init__(self, library_path: str | None = None) -> None:
@@ -1419,6 +1429,11 @@ class PicoScope2000aWrapper(PicoScopeWrapperBase):
     def ps2000aGetValuesTriggerTimeOffsetBulk(
         self, handle: c_int16, fromSegmentIndex: int, toSegmentIndex: int
     ) -> tuple[list[int], list[int], list[PS2000A_TIME_UNITS]]:
+        """Returns the upper and lower 32 bits of the time offsets and their units.
+
+        The driver wraps around from the last segment to the first if
+        ``toSegmentIndex < fromSegmentIndex``; the wrapper does not support this.
+        """
         assert fromSegmentIndex <= toSegmentIndex
         nsegments = (toSegmentIndex - fromSegmentIndex) + 1
         timesUpper = (c_uint32 * nsegments)()
@@ -1436,6 +1451,11 @@ class PicoScope2000aWrapper(PicoScopeWrapperBase):
     def ps2000aGetValuesTriggerTimeOffsetBulk64(
         self, handle: c_int16, fromSegmentIndex: int, toSegmentIndex: int
     ) -> tuple[list[int], list[PS2000A_TIME_UNITS]]:
+        """Returns the time offsets and their units, one per segment.
+
+        The driver wraps around from the last segment to the first if
+        ``toSegmentIndex < fromSegmentIndex``; the wrapper does not support this.
+        """
         assert fromSegmentIndex <= toSegmentIndex
         nsegments = (toSegmentIndex - fromSegmentIndex) + 1
         times = (c_int64 * nsegments)()
@@ -1557,6 +1577,10 @@ class PicoScope2000aWrapper(PicoScopeWrapperBase):
             raise ValueError("bufferLth must not be negative")
         arg = buffer_argument(buffer, c_int64, bufferLth, writable=True, name="buffer")
         self._ps2000aSetEtsTimeBuffer(handle, arg, bufferLth)
+        # TODO: SetEtsTimeBuffer and SetEtsTimeBuffers share this key, so setting
+        # one releases the other's buffer. The guide doesn't say whether the
+        # driver drops the other; if it keeps both, it writes into a released
+        # buffer. Use separate keys (as AGENTS.md advises when in doubt).
         self._keep_buffer((handle.value, "ets"), arg)
 
     def ps2000aSetEtsTimeBuffers(
@@ -1746,6 +1770,11 @@ class PicoScope2000aWrapper(PicoScopeWrapperBase):
         downsampleRatio: int,
         downsampleMode: PS2000A_RATIO_MODE,
     ) -> tuple[int, list[int]]:
+        """Returns the number of samples and the overflow flags of each segment.
+
+        The driver wraps around from the last segment to the first if
+        ``toSegment < fromSegment``; the wrapper does not support this.
+        """
         assert nosamples > 0
         assert fromSegment <= toSegment
         nosamples_ = c_uint32(nosamples)
@@ -1776,6 +1805,11 @@ class PicoScope2000aWrapper(PicoScopeWrapperBase):
 
         ``callback`` receives ``(handle, status, noOfSamples, overflow)``.
         """
+        # TODO: The guide allows a ps2000aStreamingReady callback here for
+        # streaming-mode data (the header declares lpDataReady as void*), but the
+        # binding is typed ps2000aDataReady and always passes a block-mode thunk.
+        # Bind it as c_void_p and offer the streaming callback (separate method or
+        # parameter), or document this method as block-mode only.
 
         def cbwrapper(
             handle: int, status: int, noOfSamples: int, overflow: int, _: int | None
@@ -1845,6 +1879,9 @@ class PicoScope2000aWrapper(PicoScopeWrapperBase):
         The driver writes the sample count and per-segment overflow flags later,
         so they are returned as ctypes objects (a ``c_uint32`` and a ``c_int16``
         array); read them after the capture.
+
+        The driver wraps around from the last segment to the first if
+        ``toSegmentIndex < fromSegmentIndex``; the wrapper does not support this.
         """
         assert fromSegmentIndex <= toSegmentIndex
         nsegments = (toSegmentIndex - fromSegmentIndex) + 1
