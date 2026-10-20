@@ -497,8 +497,8 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
             failed=_is_zero,
             error_code=unit_error,
         )
-        # Returns whether the callback will be called; 0 is not necessarily an
-        # error (no new data), so it is not checked.
+        # Returns the number of values per channel passed to the callback; 0 is
+        # not necessarily an error (no new data), so it is not checked.
         self._ps3000_get_streaming_last_values = self._bind_legacy(
             "ps3000_get_streaming_last_values",
             [c_int16, ps3000GetOverviewBuffersMaxMin],
@@ -841,7 +841,8 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         ``no_of_values`` int16 elements (e.g. ``np.empty(no_of_values, np.int16)``),
         or None for channels not read; the driver writes to them during the call
         only. A raw address (int or ``c_void_p``) is passed unchecked.
-        ``overflow`` has bit 0 set for channel A, bit 1 for B, etc.
+        ``overflow`` has bits 0 to 3 set for a differential overflow (3425 only)
+        and bits 8 to 11 for a common-mode overflow of channels A to D.
         Returning 0 values counts as a failure and raises
         :class:`~pycosdk.exceptions.ResultException`; with the compatible
         streaming mode, catch it if that is expected.
@@ -929,28 +930,29 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
 
     def ps3000_streaming_ns_get_interval_stateless(
         self, handle: c_int16, nChannels: int, sample_interval: int
-    ) -> tuple[int, int]:
-        """Return ``(result, sample_interval)`` as adjusted by the driver.
+    ) -> int:
+        """Return ``sample_interval`` as adjusted by the driver.
 
         Undocumented; ``sample_interval`` is passed by reference. A 0 result
-        is assumed to be a failure, other values are returned as is.
+        is assumed to be a failure, other results to only signal success.
         """
         interval = c_uint32(sample_interval)
-        result = self._ps3000_streaming_ns_get_interval_stateless(
+        self._ps3000_streaming_ns_get_interval_stateless(
             handle, nChannels, byref(interval)
         )
-        return result, interval.value
+        return interval.value
 
     def ps3000_get_streaming_last_values(
         self, handle: c_int16, callback: OverviewBuffersCallback
-    ) -> bool:
+    ) -> int:
         """Pass the latest fast streaming data to ``callback``.
 
         Callback args: overviewBuffers, overflow, triggeredAt, triggered,
         auto_stop, nValues. ``overviewBuffers[i]`` copies the ``nValues``
         samples of buffer ``i`` (A max, A min, B max, B min, ...) and can only
         be accessed during the callback; as in C, only access the buffers of
-        enabled channels. Returns whether the callback will be called.
+        enabled channels. Returns the number of values per channel passed to
+        the callback (0: none, or a parameter is out of range).
         """
         lpGetOverviewBuffersMaxMin = ps3000GetOverviewBuffersMaxMin(
             _overview_callback(callback, _OVERVIEW_BUFFERS)
@@ -963,7 +965,7 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
             ),
             accepted=bool,
         )
-        return result != 0
+        return int(result)
 
     def ps3000_overview_buffer_status(self, handle: c_int16) -> bool:
         """Return ``previous_buffer_overrun``."""
@@ -1073,8 +1075,8 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
         callback: Callable[[int | None, int], int],
         dataBuffers: DataBuffer,
         dataBufferSize: int,
-    ) -> int:
-        """The return value is documented as undefined; it is returned raw and unchecked.
+    ) -> None:
+        """Pass all available fast streaming data to ``callback``.
 
         Callback args: the address of the ``int16_t *dataBuffer`` (``None`` if
         NULL) and ``noOfBuffers``; its return value is passed to the driver. The
@@ -1094,13 +1096,15 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
             return int(callback(cast(dataBuffer, c_void_p).value, noOfBuffers))
 
         lpCallbackFunc = PS3000_CALLBACK_FUNC(cbwrapper)
-        return self._with_callback(
+        # The return value is documented as undefined (guide p34), so it neither
+        # tells whether the driver took the callback nor is returned.
+        self._with_callback(
             self._callback_key("ps3000_save_streaming_data", handle),
             (lpCallbackFunc, dataBuffersArg),
             lambda: self._ps3000_save_streaming_data(
                 handle, lpCallbackFunc, dataBuffersArg, dataBufferSize
             ),
-            accepted=bool,
+            accepted=lambda _: True,
         )
 
     def ps3000SetAdvTriggerChannelProperties(
