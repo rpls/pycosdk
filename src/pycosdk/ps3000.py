@@ -437,6 +437,11 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
             error_code=unit_error,
         )
         # Return the number of values per channel; 0 on failure.
+        # TODO: Check on hardware what the driver returns in compatible streaming
+        # (run_streaming, windowed=0) when no new values have arrived: probably 0,
+        # which then raises although it is no error. In block mode, 0 is also
+        # returned before the capture is ready. Telling these apart needs the
+        # capture mode of the handle, or not checking the result at all.
         self._ps3000_get_values = self._bind_legacy(
             "ps3000_get_values",
             [
