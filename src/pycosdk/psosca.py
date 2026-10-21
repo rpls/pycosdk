@@ -1,3 +1,4 @@
+import re
 from collections.abc import Callable, Sequence
 from _ctypes import CFuncPtr
 from typing import Self, final
@@ -95,10 +96,11 @@ psospaDataReady = CALLBACK_FUNCTYPE(
     None, c_int16, PICO_STATUS_T, c_uint64, c_int16, c_void_p
 )
 
-# Upper bound of firmware components reported by psospaCheckForUpdate.
-_MAX_FIRMWARE_INFOS = 16
 # Size of the buffer receiving the serial numbers in psospaEnumerateUnits.
 _ENUMERATE_BUFFER_SIZE = 4096
+# Commas separating the units in psospaEnumerateUnits, not the requested
+# details in brackets after each serial number.
+_UNIT_SEPARATOR = re.compile(r",(?![^\[]*\])")
 
 
 def _range_value(value: float) -> int:
@@ -1386,14 +1388,20 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         self._psospaGetTriggerInfo(handle, triggerInfo, firstSegmentIndex, segmentCount)
         return PICO_TRIGGER_INFO.from_c_array(triggerInfo)
 
-    def psospaEnumerateUnits(self) -> tuple[int, list[str]]:
-        """Returns the number of units and their serial numbers."""
+    def psospaEnumerateUnits(self, serials: str = "") -> tuple[int, list[str]]:
+        """Returns the number of units and their serial numbers.
+
+        ``serials`` may request details about each unit (guide p28), e.g.
+        ``"-v:-c:-h:-u:-f"`` for the model number, calibration date, hardware,
+        USB and firmware versions; each serial number is then followed by them,
+        as in ``"10001/0001[3418E,01Jun24,769,2.0,1.7.16.0]"``.
+        """
+        buf = create_string_buffer(serials.encode(), _ENUMERATE_BUFFER_SIZE)
         count = c_int16(0)
-        serials = create_string_buffer(_ENUMERATE_BUFFER_SIZE)
         serialLth = c_int16(_ENUMERATE_BUFFER_SIZE)
-        self._psospaEnumerateUnits(byref(count), serials, byref(serialLth))
-        serialstr = serials.value.decode("utf-8")
-        return count.value, [s for s in serialstr.split(",") if s]
+        self._psospaEnumerateUnits(byref(count), buf, byref(serialLth))
+        serialstr = buf.value.decode("utf-8")
+        return count.value, [s for s in _UNIT_SEPARATOR.split(serialstr) if s]
 
     def psospaPingUnit(self, handle: c_int16) -> None:
         self._psospaPingUnit(handle)
@@ -1499,13 +1507,20 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
     def psospaCheckForUpdate(
         self, handle: c_int16
     ) -> tuple[list[PICO_FIRMWARE_INFO], bool]:
-        firmwareInfos = (PICO_FIRMWARE_INFO.c_type * _MAX_FIRMWARE_INFOS)()
-        nFirmwareInfos = c_int16(_MAX_FIRMWARE_INFOS)
+        """Returns the firmware components and whether any needs an update."""
+        # The first call (NULL array) only queries the number of components.
+        nFirmwareInfos = c_int16(0)
         updatesRequired = c_uint16(0)
         self._psospaCheckForUpdate(
-            handle, firmwareInfos, byref(nFirmwareInfos), byref(updatesRequired)
+            handle, None, byref(nFirmwareInfos), byref(updatesRequired)
         )
-        n = max(0, min(nFirmwareInfos.value, _MAX_FIRMWARE_INFOS))
+        capacity = max(0, nFirmwareInfos.value)
+        firmwareInfos = (PICO_FIRMWARE_INFO.c_type * capacity)()
+        if capacity > 0:
+            self._psospaCheckForUpdate(
+                handle, firmwareInfos, byref(nFirmwareInfos), byref(updatesRequired)
+            )
+        n = max(0, min(nFirmwareInfos.value, capacity))
         return (
             PICO_FIRMWARE_INFO.from_c_array(firmwareInfos[:n]),
             updatesRequired.value != 0,
