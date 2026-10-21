@@ -1141,7 +1141,7 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
     def psospaIsReady(self, handle: c_int16) -> bool:
         ready = c_int16(0)
         self._psospaIsReady(handle, byref(ready))
-        return ready.value == 1
+        return ready.value != 0
 
     def psospaRunStreaming(
         self,

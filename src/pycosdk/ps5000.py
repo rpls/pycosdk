@@ -1136,7 +1136,7 @@ class PicoScope5000Wrapper(PicoScopeWrapperBase):
     def ps5000IsReady(self, handle: c_int16) -> bool:
         ready = c_int16(0)
         self._ps5000IsReady(handle, byref(ready))
-        return ready.value == 1
+        return ready.value != 0
 
     def ps5000RunBlock(
         self,
