@@ -138,9 +138,11 @@ def action_buffer_changes(
     precisely what they clear, and keeping a buffer too long only costs memory.
     """
     # TODO: Verify that PICO_ADD replaces a buffer set earlier under the same key.
-    # The guides speak of a "list" of buffers per channel, data type and segment;
-    # if the driver queues them instead, an earlier buffer is released here while
-    # the driver may still write to it (keep a list per key then).
+    # The guides speak of a "list" of buffers per channel, data type and segment
+    # that only PICO_CLEAR_ALL empties (ps6000a guide p86, psospa p90), without
+    # the ratio mode; if the driver queues them instead, an earlier buffer is
+    # released here while the driver may still write to it (keep a list per key
+    # then).
     changes: list[tuple[tuple[Any, ...] | None, Any]] = []
     if action & PICO_ACTION.PICO_CLEAR_ALL:
         changes.append((None, None))

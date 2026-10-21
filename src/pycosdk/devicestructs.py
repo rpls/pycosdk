@@ -163,7 +163,7 @@ class PICO_STREAMING_DATA_INFO(CStruct):
     noOfSamples_: Annotated[int, c_int32] = 0
     bufferIndex_: Annotated[int, c_uint64] = 0
     startIndex_: Annotated[int, c_int32] = 0
-    overflow_: Annotated[int, c_int16] = 0
+    overflow_: Annotated[bool, c_int16] = False
 
 
 @final
