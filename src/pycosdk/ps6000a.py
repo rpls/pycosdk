@@ -1,4 +1,5 @@
 # pyright: reportAny=false, reportUnannotatedClassAttribute=false
+import re
 from collections.abc import Callable, Sequence
 from ctypes import (
     POINTER,
@@ -177,12 +178,30 @@ _OPEN_UNIT_INFO = frozenset(
 )
 
 
+# Commas separating the units in ps6000aEnumerateUnits, not the requested
+# details in brackets after each serial number.
+_UNIT_SEPARATOR = re.compile(r",(?![^\[]*\])")
+
+
 def _decode(buf: Any, size: int) -> str:
     """Decode a NUL terminated string of ``size`` bytes (including the NUL)."""
     return buf.raw[: max(size - 1, 0)].split(b"\0", 1)[0].decode("utf-8")
 
 
 class PicoScope6000aWrapper(PicoScopeWrapperBase):
+    # TODO: Rename the parameters that differ from the C prototypes:
+    # GetMinimumTimebaseStateless (enabledChannels -> enabledChannelFlags),
+    # NearestSampleIntervalStateless (enabledChannels, requiredInterval ->
+    # enabledChannelFlags, timeIntervalRequested), GetValuesAsync and
+    # GetValuesBulkAsync (callback -> lpDataReady), GetValuesBulk (startindex,
+    # nosamples, fromSegment, toSegment, downsampleRatio, downsampleMode),
+    # MemorySegments (nsegments), MemorySegmentsBySamples (nsamples),
+    # QueryMaxSegmentsBySamples (nsamples, nchannels -> nChannelEnabled), RunBlock
+    # (preSamples, postSamples, segment, callback -> noOfPreTriggerSamples,
+    # noOfPostTriggerSamples, segmentIndex, lpReady), SetChannelOn (analog_offset
+    # -> analogueOffset), SetDataBuffer (nsamples, datatype, downsampleMode),
+    # SetDigitalPortOn (logicThresholds -> logicThresholdLevel), SetNoOfCaptures
+    # (ncaptures) and SetSimpleTrigger (autoTriggerUS -> autoTriggerMicroSeconds).
     _library_name = "ps6000a"
 
     def __init__(self, library_path: str | None = None) -> None:
@@ -193,10 +212,12 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
             [POINTER(c_int16), c_char_p, PICO_DEVICE_RESOLUTION_T],
             info=_OPEN_UNIT_INFO,
         )
+        # A refused open (another one in progress, guide p69) reports this
+        # status with started = 0.
         self._ps6000aOpenUnitAsync = self._bind(
             "ps6000aOpenUnitAsync",
             [POINTER(c_int16), c_char_p, PICO_DEVICE_RESOLUTION_T],
-            info=_OPEN_UNIT_INFO,
+            info=_OPEN_UNIT_INFO | {PICO_STATUS.PICO_OPEN_OPERATION_IN_PROGRESS},
         )
         self._ps6000aOpenUnitProgress = self._bind(
             "ps6000aOpenUnitProgress",
@@ -776,7 +797,11 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
         self, serial: str | None, resolution: PICO_DEVICE_RESOLUTION
     ) -> tuple[bool, PICO_STATUS]:
         """Start opening a unit; returns whether the open operation was started,
-        and the status (see :meth:`ps6000aOpenUnit`)."""
+        and the status (see :meth:`ps6000aOpenUnit`).
+
+        If another open operation is in progress, nothing is started and the
+        status is PICO_OPEN_OPERATION_IN_PROGRESS.
+        """
         started = c_int16(0)
         ser = serial.encode() if serial is not None else None
         status = self._ps6000aOpenUnitAsync(byref(started), ser, resolution)
@@ -800,7 +825,11 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
     def ps6000aGetUnitInfo(self, handle: c_int16, info: PICO_INFO) -> str:
         buf = create_string_buffer(255)
         size = c_int16(0)
-        self._ps6000aGetUnitInfo(handle, buf, 255, byref(size), info)
+        self._ps6000aGetUnitInfo(handle, buf, len(buf), byref(size), info)
+        # The driver truncates longer strings without an error (guide p52).
+        if size.value > len(buf):
+            buf = create_string_buffer(size.value)
+            self._ps6000aGetUnitInfo(handle, buf, len(buf), byref(size), info)
         return _decode(buf, size.value)
 
     def ps6000aGetAccessoryInfo(
@@ -808,7 +837,13 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
     ) -> str:
         buf = create_string_buffer(255)
         size = c_int16(0)
-        self._ps6000aGetAccessoryInfo(handle, channel, buf, 255, byref(size), info)
+        self._ps6000aGetAccessoryInfo(handle, channel, buf, len(buf), byref(size), info)
+        # The driver truncates longer strings without an error (guide p31).
+        if size.value > len(buf):
+            buf = create_string_buffer(size.value)
+            self._ps6000aGetAccessoryInfo(
+                handle, channel, buf, len(buf), byref(size), info
+            )
         return _decode(buf, size.value)
 
     def ps6000aFlashLed(self, handle: c_int16, start: int) -> None:
@@ -902,6 +937,12 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
         analog_offset: float,
         bandwidth: PICO_BANDWIDTH_LIMITER,
     ) -> None:
+        """Enable ``channel`` with the given settings.
+
+        With an intelligent probe attached, the range cannot be set: the driver
+        returns PICO_WARNING_PROBE_CHANNEL_OUT_OF_SYNC (guide p84), which is a
+        warning, not an error (see :func:`pycosdk.seterr`).
+        """
         self._ps6000aSetChannelOn(
             handle, channel, coupling, range, analog_offset, bandwidth
         )
@@ -1114,9 +1155,13 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
         )
 
     def ps6000aSigGenPause(self, handle: c_int16) -> None:
+        """Raises PICO_SIGGEN_SETTINGS_CHANGED_CALL_APPLY if changed settings have
+        not been applied with :meth:`ps6000aSigGenApply` (guide p118)."""
         self._ps6000aSigGenPause(handle)
 
     def ps6000aSigGenRestart(self, handle: c_int16) -> None:
+        """Raises PICO_SIGGEN_SETTINGS_CHANGED_CALL_APPLY if changed settings have
+        not been applied with :meth:`ps6000aSigGenApply` (guide p123)."""
         self._ps6000aSigGenRestart(handle)
 
     def ps6000aSetSimpleTrigger(
@@ -1241,7 +1286,11 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
     def ps6000aGetValuesTriggerTimeOffsetBulk(
         self, handle: c_int16, fromSegmentIndex: int, toSegmentIndex: int
     ) -> list[float]:
-        """Returns the trigger time offsets of the segments in seconds."""
+        """Returns the trigger time offsets of the segments in seconds.
+
+        The driver wraps around from the last segment to the first if
+        ``toSegmentIndex < fromSegmentIndex``; the wrapper does not support this.
+        """
         assert fromSegmentIndex <= toSegmentIndex
         nsegments = (toSegmentIndex - fromSegmentIndex) + 1
         times = (c_int64 * nsegments)()
@@ -1343,7 +1392,7 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
     def ps6000aIsReady(self, handle: c_int16) -> bool:
         ready = c_int16(0)
         self._ps6000aIsReady(handle, byref(ready))
-        return ready.value == 1
+        return ready.value != 0
 
     def ps6000aRunStreaming(
         self,
@@ -1512,6 +1561,11 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
         downsampleRatio: int,
         downsampleMode: PICO_RATIO_MODE,
     ) -> tuple[int, list[PICO_CHANNEL_FLAGS]]:
+        """Returns the number of samples and the overflow flags of each segment.
+
+        The driver wraps around from the last segment to the first if
+        ``toSegment < fromSegment``; the wrapper does not support this.
+        """
         assert startindex >= 0
         assert nosamples > 0
         assert fromSegment <= toSegment
@@ -1581,7 +1635,11 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
         downSampleRatioMode: PICO_RATIO_MODE,
         callback: Callable[[int, PICO_STATUS, int, PICO_CHANNEL_FLAGS], None],
     ) -> None:
-        """``callback(handle, status, noOfSamples, overflow)`` is called when done."""
+        """``callback(handle, status, noOfSamples, overflow)`` is called when done.
+
+        If ``toSegmentIndex < fromSegmentIndex``, the driver wraps around from the
+        last segment to the first (guide p59).
+        """
         lpDataReady = self._data_ready(callback)
         self._with_callback(
             self._callback_key("ps6000aGetValuesBulkAsync", handle),
@@ -1615,6 +1673,9 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
         flags only once the capture is complete, so they are returned as the
         ctypes objects the driver writes to (read ``.value`` / the elements
         later). They are kept alive by this wrapper until replaced.
+
+        The driver wraps around from the last segment to the first if
+        ``toSegmentIndex < fromSegmentIndex``; the wrapper does not support this.
         """
         assert fromSegmentIndex <= toSegmentIndex
         nsegments = (toSegmentIndex - fromSegmentIndex) + 1
@@ -1662,13 +1723,19 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
         )
         return [PICO_AUTO_TRIGGER_STATUS(s) for s in autoTriggerStatus]
 
-    def ps6000aEnumerateUnits(self) -> list[str]:
-        """Returns the serial numbers of the units found (not opened yet)."""
+    def ps6000aEnumerateUnits(self, serials: str = "") -> list[str]:
+        """Returns the serial numbers of the units found (not opened yet).
+
+        ``serials`` may request details about each unit (guide p29), e.g.
+        ``"-v:-c:-h:-u:-f"`` for the model number, calibration date, hardware,
+        USB and firmware versions; each serial number is then followed by them
+        in brackets, as in ``"AQ005/139[6424E,...]"``.
+        """
+        buf = create_string_buffer(serials.encode(), 4096)
         count = c_int16(0)
-        serials = create_string_buffer(4096)
-        serialLth = c_int16(len(serials))
-        self._ps6000aEnumerateUnits(byref(count), serials, byref(serialLth))
-        units = [s for s in serials.value.decode("utf-8").split(",") if s]
+        serialLth = c_int16(len(buf))
+        self._ps6000aEnumerateUnits(byref(count), buf, byref(serialLth))
+        units = [s for s in _UNIT_SEPARATOR.split(buf.value.decode("utf-8")) if s]
         assert len(units) == count.value
         return units
 
@@ -1881,7 +1948,8 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
     ) -> None:
         """``callback(handle, status, probes)`` is called on probe changes.
 
-        ``probes`` are copies, valid beyond the callback.
+        ``probes`` are copies, valid beyond the callback. Register it right after
+        opening the unit, before any :meth:`ps6000aSetChannelOn` (guide p94).
         """
         cfunc = PicoProbeInteractions()
         if callback is not None:
