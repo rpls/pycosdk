@@ -89,6 +89,19 @@ class PS2000A_CHANNEL(IntEnum):
     PS2000A_MAX_TRIGGER_SOURCES = 6
 
 
+class PS2000A_CHANNEL_FLAGS(IntFlag):
+    """The per-channel bits of the ``overflow`` outputs (bit 0: channel A).
+
+    No C counterpart: the header passes them as ``int16_t``; modelled after the
+    shared ``PICO_CHANNEL_FLAGS``.
+    """
+
+    PS2000A_CHANNEL_A_FLAGS = 1 << PS2000A_CHANNEL.PS2000A_CHANNEL_A
+    PS2000A_CHANNEL_B_FLAGS = 1 << PS2000A_CHANNEL.PS2000A_CHANNEL_B
+    PS2000A_CHANNEL_C_FLAGS = 1 << PS2000A_CHANNEL.PS2000A_CHANNEL_C
+    PS2000A_CHANNEL_D_FLAGS = 1 << PS2000A_CHANNEL.PS2000A_CHANNEL_D
+
+
 PS2000A_TRIGGER_OPERAND_T = c_int32
 
 
@@ -1680,7 +1693,9 @@ class PicoScope2000aWrapper(PicoScopeWrapperBase):
     def ps2000aGetStreamingLatestValues(
         self,
         handle: c_int16,
-        callback: Callable[[int, int, int, int, int, bool, bool], None],
+        callback: Callable[
+            [int, int, int, PS2000A_CHANNEL_FLAGS, int, bool, bool], None
+        ],
     ) -> PICO_STATUS:
         """Fetch new streaming data, invoking ``callback`` if there is any.
 
@@ -1703,7 +1718,7 @@ class PicoScope2000aWrapper(PicoScopeWrapperBase):
                 handle,
                 noOfSamples,
                 startIndex,
-                overflow,
+                PS2000A_CHANNEL_FLAGS(overflow),
                 triggerAt,
                 triggered != 0,
                 autoStop != 0,
@@ -1746,7 +1761,7 @@ class PicoScope2000aWrapper(PicoScopeWrapperBase):
         downSampleRatio: int,
         downSampleRatioMode: PS2000A_RATIO_MODE,
         segmentIndex: int,
-    ) -> tuple[int, int]:
+    ) -> tuple[int, PS2000A_CHANNEL_FLAGS]:
         """Read data into the registered buffers; returns sample count and overflow."""
         noOfSamples_ = c_uint32(noOfSamples)
         overflow = c_int16(0)
@@ -1759,7 +1774,7 @@ class PicoScope2000aWrapper(PicoScopeWrapperBase):
             segmentIndex,
             byref(overflow),
         )
-        return noOfSamples_.value, overflow.value
+        return noOfSamples_.value, PS2000A_CHANNEL_FLAGS(overflow.value)
 
     def ps2000aGetValuesBulk(
         self,
@@ -1769,7 +1784,7 @@ class PicoScope2000aWrapper(PicoScopeWrapperBase):
         toSegment: int,
         downsampleRatio: int,
         downsampleMode: PS2000A_RATIO_MODE,
-    ) -> tuple[int, list[int]]:
+    ) -> tuple[int, list[PS2000A_CHANNEL_FLAGS]]:
         """Returns the number of samples and the overflow flags of each segment.
 
         The driver wraps around from the last segment to the first if
@@ -1789,7 +1804,7 @@ class PicoScope2000aWrapper(PicoScopeWrapperBase):
             downsampleMode,
             overflow,
         )
-        return nosamples_.value, [int(f) for f in overflow]
+        return nosamples_.value, [PS2000A_CHANNEL_FLAGS(f) for f in overflow]
 
     def ps2000aGetValuesAsync(
         self,
@@ -1799,7 +1814,7 @@ class PicoScope2000aWrapper(PicoScopeWrapperBase):
         downSampleRatio: int,
         downSampleRatioMode: PS2000A_RATIO_MODE,
         segmentIndex: int,
-        callback: Callable[[int, PICO_STATUS, int, int], None],
+        callback: Callable[[int, PICO_STATUS, int, PS2000A_CHANNEL_FLAGS], None],
     ) -> None:
         """Read data asynchronously.
 
@@ -1814,7 +1829,12 @@ class PicoScope2000aWrapper(PicoScopeWrapperBase):
         def cbwrapper(
             handle: int, status: int, noOfSamples: int, overflow: int, _: int | None
         ) -> None:
-            callback(handle, PICO_STATUS(status), noOfSamples, overflow)
+            callback(
+                handle,
+                PICO_STATUS(status),
+                noOfSamples,
+                PS2000A_CHANNEL_FLAGS(overflow),
+            )
 
         lpDataReady = ps2000aDataReady(cbwrapper)
         self._with_callback(
@@ -2154,6 +2174,7 @@ __all__ = (
     "PS2000A_CAPTURE_STATE",
     "PS2000A_CHANNEL",
     "PS2000A_CHANNEL_BUFFER_INDEX",
+    "PS2000A_CHANNEL_FLAGS",
     "PS2000A_CHANNEL_INFO",
     "PS2000A_COUPLING",
     "PS2000A_DIGITAL_CHANNEL",
