@@ -18,7 +18,7 @@ from ctypes import (
 from enum import IntEnum
 from typing import TYPE_CHECKING, Annotated, Any, Self, final
 
-from ._base import CALLBACK_FUNCTYPE, PicoScopeWrapperBase
+from ._base import CALLBACK_FUNCTYPE, PicoScopeWrapperBase, seconds
 from ._buffer import (
     SAMPLE_TYPES,
     DataBuffer,
@@ -879,18 +879,18 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
         handle: c_int16,
         resolution: PICO_DEVICE_RESOLUTION,
         timebase: int,
-        nChannelCombinations: int = 4096,
     ) -> list[PICO_CHANNEL_FLAGS]:
-        """Returns the channel combinations usable with ``timebase``.
-
-        ``nChannelCombinations`` is the size of the buffer for the result.
-        """
-        combinations = (PICO_CHANNEL_FLAGS_T * nChannelCombinations)()
-        n = c_uint32(nChannelCombinations)
+        """Returns the channel combinations usable with ``timebase``."""
+        # The guide (p26) doesn't document querying the count with a NULL array
+        # (unlike ps5000a), so use room for every combination of the 8 channels
+        # and 4 digital ports.
+        capacity = 1 << 12
+        combinations = (PICO_CHANNEL_FLAGS_T * capacity)()
+        n = c_uint32(capacity)
         self._ps6000aChannelCombinationsStateless(
             handle, combinations, byref(n), resolution, timebase
         )
-        count = min(n.value, nChannelCombinations)
+        count = min(n.value, capacity)
         return [PICO_CHANNEL_FLAGS(c) for c in combinations[:count]]
 
     def ps6000aSetChannelOn(
@@ -1229,19 +1229,19 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
             len(directions),
         )
 
-    def ps6000aGetTriggerTimeOffset(
-        self, handle: c_int16, segmentIndex: int
-    ) -> tuple[int, PICO_TIME_UNITS]:
+    def ps6000aGetTriggerTimeOffset(self, handle: c_int16, segmentIndex: int) -> float:
+        """Returns the trigger time offset of the segment in seconds."""
         time = c_int64(0)
         timeUnits = PICO_TIME_UNITS_T(0)
         self._ps6000aGetTriggerTimeOffset(
             handle, byref(time), byref(timeUnits), segmentIndex
         )
-        return time.value, PICO_TIME_UNITS(timeUnits.value)
+        return seconds(time.value, timeUnits.value)
 
     def ps6000aGetValuesTriggerTimeOffsetBulk(
         self, handle: c_int16, fromSegmentIndex: int, toSegmentIndex: int
-    ) -> tuple[list[int], list[PICO_TIME_UNITS]]:
+    ) -> list[float]:
+        """Returns the trigger time offsets of the segments in seconds."""
         assert fromSegmentIndex <= toSegmentIndex
         nsegments = (toSegmentIndex - fromSegmentIndex) + 1
         times = (c_int64 * nsegments)()
@@ -1249,7 +1249,9 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
         self._ps6000aGetValuesTriggerTimeOffsetBulk(
             handle, times, timeUnits, fromSegmentIndex, toSegmentIndex
         )
-        return list(times), [PICO_TIME_UNITS(u) for u in timeUnits]
+        return [
+            seconds(time, units) for time, units in zip(times, timeUnits, strict=True)
+        ]
 
     def ps6000aQueryMaxSegmentsBySamples(
         self,
@@ -1660,14 +1662,15 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
         )
         return [PICO_AUTO_TRIGGER_STATUS(s) for s in autoTriggerStatus]
 
-    def ps6000aEnumerateUnits(self) -> tuple[int, list[str]]:
-        """Returns the number of units, and their serial numbers."""
+    def ps6000aEnumerateUnits(self) -> list[str]:
+        """Returns the serial numbers of the units found (not opened yet)."""
         count = c_int16(0)
         serials = create_string_buffer(4096)
         serialLth = c_int16(len(serials))
         self._ps6000aEnumerateUnits(byref(count), serials, byref(serialLth))
-        text = serials.value.decode("utf-8")
-        return count.value, [s for s in text.split(",") if s]
+        units = [s for s in serials.value.decode("utf-8").split(",") if s]
+        assert len(units) == count.value
+        return units
 
     def ps6000aPingUnit(self, handle: c_int16) -> None:
         self._ps6000aPingUnit(handle)
@@ -1716,19 +1719,20 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
         return PICO_SCALING_FACTORS_VALUES.from_c_array(scalingValues)
 
     def ps6000aCheckForUpdate(
-        self, handle: c_int16, nFirmwareInfos: int = 16
+        self, handle: c_int16
     ) -> tuple[list[PICO_FIRMWARE_INFO], bool]:
-        """Returns the firmware infos, and whether updates are required.
-
-        ``nFirmwareInfos`` is the size of the buffer for the firmware infos.
-        """
-        firmwareInfos = (PICO_FIRMWARE_INFO.c_type * nFirmwareInfos)()
-        n = c_int16(nFirmwareInfos)
+        """Returns the firmware infos, and whether updates are required."""
+        # The first call (NULL array) only queries the number of infos (guide p27).
+        n = c_int16(0)
         updatesRequired = c_uint16(0)
-        self._ps6000aCheckForUpdate(
-            handle, firmwareInfos, byref(n), byref(updatesRequired)
-        )
-        count = max(0, min(n.value, nFirmwareInfos))
+        self._ps6000aCheckForUpdate(handle, None, byref(n), byref(updatesRequired))
+        capacity = max(0, n.value)
+        firmwareInfos = (PICO_FIRMWARE_INFO.c_type * capacity)()
+        if capacity > 0:
+            self._ps6000aCheckForUpdate(
+                handle, firmwareInfos, byref(n), byref(updatesRequired)
+            )
+        count = max(0, min(n.value, capacity))
         return (
             PICO_FIRMWARE_INFO.from_c_array(firmwareInfos[:count]),
             updatesRequired.value != 0,

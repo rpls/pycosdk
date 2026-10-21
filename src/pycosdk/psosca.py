@@ -20,7 +20,7 @@ from ctypes import (
 )
 
 from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
-from ._base import CALLBACK_FUNCTYPE, PicoScopeWrapperBase
+from ._base import CALLBACK_FUNCTYPE, PicoScopeWrapperBase, seconds
 from ._buffer import (
     SAMPLE_TYPES,
     DataBuffer,
@@ -996,32 +996,33 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
             len(directions),
         )
 
-    def psospaGetTriggerTimeOffset(
-        self, handle: c_int16, segmentIndex: int
-    ) -> tuple[int, PICO_TIME_UNITS]:
+    def psospaGetTriggerTimeOffset(self, handle: c_int16, segmentIndex: int) -> float:
+        """Returns the trigger time offset of the segment in seconds."""
         time = c_int64(0)
         timeUnits = PICO_TIME_UNITS_T(0)
         self._psospaGetTriggerTimeOffset(
             handle, byref(time), byref(timeUnits), segmentIndex
         )
-        return time.value, PICO_TIME_UNITS(timeUnits.value)
+        return seconds(time.value, timeUnits.value)
 
     def psospaGetValuesTriggerTimeOffsetBulk(
         self, handle: c_int16, fromSegmentIndex: int, toSegmentIndex: int
-    ) -> tuple[list[int], list[PICO_TIME_UNITS]]:
-        """Returns the time offsets and their units, one per segment.
+    ) -> list[float]:
+        """Returns the trigger time offsets of the segments in seconds.
 
         The driver wraps around from the last segment to the first if
         ``toSegmentIndex < fromSegmentIndex``; the wrapper does not support this.
         """
         assert fromSegmentIndex <= toSegmentIndex
-        n = (toSegmentIndex - fromSegmentIndex) + 1
-        times = (c_int64 * n)()
-        timeUnits = (PICO_TIME_UNITS_T * n)()
+        nsegments = (toSegmentIndex - fromSegmentIndex) + 1
+        times = (c_int64 * nsegments)()
+        timeUnits = (PICO_TIME_UNITS_T * nsegments)()
         self._psospaGetValuesTriggerTimeOffsetBulk(
             handle, times, timeUnits, fromSegmentIndex, toSegmentIndex
         )
-        return list(times), [PICO_TIME_UNITS(u) for u in timeUnits]
+        return [
+            seconds(time, units) for time, units in zip(times, timeUnits, strict=True)
+        ]
 
     def psospaSetDataBuffer(
         self,
@@ -1388,8 +1389,8 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         self._psospaGetTriggerInfo(handle, triggerInfo, firstSegmentIndex, segmentCount)
         return PICO_TRIGGER_INFO.from_c_array(triggerInfo)
 
-    def psospaEnumerateUnits(self, serials: str = "") -> tuple[int, list[str]]:
-        """Returns the number of units and their serial numbers.
+    def psospaEnumerateUnits(self, serials: str = "") -> list[str]:
+        """Returns the serial numbers of the units found (not opened yet).
 
         ``serials`` may request details about each unit (guide p28), e.g.
         ``"-v:-c:-h:-u:-f"`` for the model number, calibration date, hardware,
@@ -1400,8 +1401,9 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         count = c_int16(0)
         serialLth = c_int16(_ENUMERATE_BUFFER_SIZE)
         self._psospaEnumerateUnits(byref(count), buf, byref(serialLth))
-        serialstr = buf.value.decode("utf-8")
-        return count.value, [s for s in _UNIT_SEPARATOR.split(serialstr) if s]
+        units = [s for s in _UNIT_SEPARATOR.split(buf.value.decode("utf-8")) if s]
+        assert len(units) == count.value
+        return units
 
     def psospaPingUnit(self, handle: c_int16) -> None:
         self._psospaPingUnit(handle)

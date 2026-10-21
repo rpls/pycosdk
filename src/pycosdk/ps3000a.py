@@ -19,7 +19,13 @@ from ctypes import (
 from enum import IntEnum, IntFlag
 from typing import Annotated, Any, Self, final
 
-from ._base import CALLBACK_FUNCTYPE, POWER_SOURCE_STATUSES, PicoScopeWrapperBase
+from ._base import (
+    CALLBACK_FUNCTYPE,
+    POWER_SOURCE_STATUSES,
+    PicoScopeWrapperBase,
+    int64_from_halves,
+    seconds,
+)
 from ._buffer import DataBuffer, InputValues, buffer_argument, input_argument
 from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._struct import CStruct, c_array
@@ -463,8 +469,6 @@ ps3000aStreamingReady = CALLBACK_FUNCTYPE(
     None, c_int16, c_int32, c_uint32, c_int16, c_uint32, c_int16, c_int16, c_void_p
 )
 
-# Upper bound for the number of firmware infos returned by ps3000aCheckForUpdate.
-_MAX_FIRMWARE_INFOS = 16
 # Size of the buffer receiving the comma separated serials of ps3000aEnumerateUnits.
 _ENUMERATE_BUFFER_SIZE = 4096
 
@@ -1530,31 +1534,33 @@ class PicoScope3000aWrapper(PicoScopeWrapperBase):
         )
         return triggerEnabled.value != 0, pulseWidthQualifierEnabled.value != 0
 
-    def ps3000aGetTriggerTimeOffset(
-        self, handle: c_int16, segmentIndex: int
-    ) -> tuple[int, int, PS3000A_TIME_UNITS]:
+    def ps3000aGetTriggerTimeOffset(self, handle: c_int16, segmentIndex: int) -> float:
+        """Returns the trigger time offset of the segment in seconds."""
         timeUpper = c_uint32(0)
         timeLower = c_uint32(0)
         timeUnits = PS3000A_TIME_UNITS_T(0)
         self._ps3000aGetTriggerTimeOffset(
             handle, byref(timeUpper), byref(timeLower), byref(timeUnits), segmentIndex
         )
-        return timeUpper.value, timeLower.value, PS3000A_TIME_UNITS(timeUnits.value)
+        return seconds(
+            int64_from_halves(timeUpper.value, timeLower.value), timeUnits.value
+        )
 
     def ps3000aGetTriggerTimeOffset64(
         self, handle: c_int16, segmentIndex: int
-    ) -> tuple[int, PS3000A_TIME_UNITS]:
+    ) -> float:
+        """Returns the trigger time offset of the segment in seconds."""
         time = c_int64(0)
         timeUnits = PS3000A_TIME_UNITS_T(0)
         self._ps3000aGetTriggerTimeOffset64(
             handle, byref(time), byref(timeUnits), segmentIndex
         )
-        return time.value, PS3000A_TIME_UNITS(timeUnits.value)
+        return seconds(time.value, timeUnits.value)
 
     def ps3000aGetValuesTriggerTimeOffsetBulk(
         self, handle: c_int16, fromSegmentIndex: int, toSegmentIndex: int
-    ) -> tuple[list[int], list[int], list[PS3000A_TIME_UNITS]]:
-        """Returns the upper and lower 32 bits of the time offsets and their units.
+    ) -> list[float]:
+        """Returns the trigger time offsets of the segments in seconds.
 
         The driver wraps around from the last segment to the first if
         ``toSegmentIndex < fromSegmentIndex``; the wrapper does not support this.
@@ -1567,16 +1573,17 @@ class PicoScope3000aWrapper(PicoScopeWrapperBase):
         self._ps3000aGetValuesTriggerTimeOffsetBulk(
             handle, timesUpper, timesLower, timeUnits, fromSegmentIndex, toSegmentIndex
         )
-        return (
-            list(timesUpper),
-            list(timesLower),
-            [PS3000A_TIME_UNITS(u) for u in timeUnits],
-        )
+        return [
+            seconds(int64_from_halves(upper, lower), units)
+            for upper, lower, units in zip(
+                timesUpper, timesLower, timeUnits, strict=True
+            )
+        ]
 
     def ps3000aGetValuesTriggerTimeOffsetBulk64(
         self, handle: c_int16, fromSegmentIndex: int, toSegmentIndex: int
-    ) -> tuple[list[int], list[PS3000A_TIME_UNITS]]:
-        """Returns the time offsets and their units, one per segment.
+    ) -> list[float]:
+        """Returns the trigger time offsets of the segments in seconds.
 
         The driver wraps around from the last segment to the first if
         ``toSegmentIndex < fromSegmentIndex``; the wrapper does not support this.
@@ -1588,7 +1595,9 @@ class PicoScope3000aWrapper(PicoScopeWrapperBase):
         self._ps3000aGetValuesTriggerTimeOffsetBulk64(
             handle, times, timeUnits, fromSegmentIndex, toSegmentIndex
         )
-        return list(times), [PS3000A_TIME_UNITS(u) for u in timeUnits]
+        return [
+            seconds(time, units) for time, units in zip(times, timeUnits, strict=True)
+        ]
 
     def ps3000aGetNoOfCaptures(self, handle: c_int16) -> int:
         captures = c_uint32()
@@ -2058,14 +2067,15 @@ class PicoScope3000aWrapper(PicoScopeWrapperBase):
         )
         return [PS3000A_RANGE(r) for r in ranges[: length.value]]
 
-    def ps3000aEnumerateUnits(self) -> tuple[int, list[str]]:
-        """Return the number of units found and their serial numbers."""
+    def ps3000aEnumerateUnits(self) -> list[str]:
+        """Return the serial numbers of the units found (not opened yet)."""
         count = c_int16(0)
         serials = create_string_buffer(_ENUMERATE_BUFFER_SIZE)
         serialLth = c_int16(_ENUMERATE_BUFFER_SIZE)
         self._ps3000aEnumerateUnits(byref(count), serials, byref(serialLth))
-        serialstr = serials.value.decode("utf-8")
-        return count.value, [s for s in serialstr.split(",") if s]
+        units = [s for s in serials.value.decode("utf-8").split(",") if s]
+        assert len(units) == count.value
+        return units
 
     def ps3000aPingUnit(self, handle: c_int16) -> PICO_STATUS:
         """Check the unit responds; returns the status, which may report the power source."""
@@ -2126,14 +2136,22 @@ class PicoScope3000aWrapper(PicoScopeWrapperBase):
         self, handle: c_int16
     ) -> tuple[list[PICO_FIRMWARE_INFO], bool]:
         """Return the firmware infos and whether any update is required."""
-        firmwareInfos = (PICO_FIRMWARE_INFO.c_type * _MAX_FIRMWARE_INFOS)()
-        nFirmwareInfos = c_int16(_MAX_FIRMWARE_INFOS)
+        # The first call (NULL array) only queries the number of components, as
+        # documented for ps6000a and psospa (the ps3000a guide lacks the function).
+        nFirmwareInfos = c_int16(0)
         updatesRequired = c_uint16(0)
         self._ps3000aCheckForUpdate(
-            handle, firmwareInfos, byref(nFirmwareInfos), byref(updatesRequired)
+            handle, None, byref(nFirmwareInfos), byref(updatesRequired)
         )
+        capacity = max(0, nFirmwareInfos.value)
+        firmwareInfos = (PICO_FIRMWARE_INFO.c_type * capacity)()
+        if capacity > 0:
+            self._ps3000aCheckForUpdate(
+                handle, firmwareInfos, byref(nFirmwareInfos), byref(updatesRequired)
+            )
+        n = max(0, min(nFirmwareInfos.value, capacity))
         return (
-            PICO_FIRMWARE_INFO.from_c_array(firmwareInfos[: nFirmwareInfos.value]),
+            PICO_FIRMWARE_INFO.from_c_array(firmwareInfos[:n]),
             updatesRequired.value != 0,
         )
 

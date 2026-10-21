@@ -19,7 +19,7 @@ from ctypes import (
 from enum import IntEnum, IntFlag
 from typing import Annotated, Any, Self, final
 
-from ._base import CALLBACK_FUNCTYPE, PicoScopeWrapperBase
+from ._base import CALLBACK_FUNCTYPE, PicoScopeWrapperBase, int64_from_halves, seconds
 from ._buffer import DataBuffer, InputValues, buffer_argument, input_argument
 from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._struct import CStruct, c_array
@@ -1418,31 +1418,33 @@ class PicoScope2000aWrapper(PicoScopeWrapperBase):
         )
         return triggerEnabled.value != 0, pulseWidthQualifierEnabled.value != 0
 
-    def ps2000aGetTriggerTimeOffset(
-        self, handle: c_int16, segmentIndex: int
-    ) -> tuple[int, int, PS2000A_TIME_UNITS]:
+    def ps2000aGetTriggerTimeOffset(self, handle: c_int16, segmentIndex: int) -> float:
+        """Returns the trigger time offset of the segment in seconds."""
         timeUpper = c_uint32(0)
         timeLower = c_uint32(0)
         timeUnits = PS2000A_TIME_UNITS_T(0)
         self._ps2000aGetTriggerTimeOffset(
             handle, byref(timeUpper), byref(timeLower), byref(timeUnits), segmentIndex
         )
-        return timeUpper.value, timeLower.value, PS2000A_TIME_UNITS(timeUnits.value)
+        return seconds(
+            int64_from_halves(timeUpper.value, timeLower.value), timeUnits.value
+        )
 
     def ps2000aGetTriggerTimeOffset64(
         self, handle: c_int16, segmentIndex: int
-    ) -> tuple[int, PS2000A_TIME_UNITS]:
+    ) -> float:
+        """Returns the trigger time offset of the segment in seconds."""
         time = c_int64(0)
         timeUnits = PS2000A_TIME_UNITS_T(0)
         self._ps2000aGetTriggerTimeOffset64(
             handle, byref(time), byref(timeUnits), segmentIndex
         )
-        return time.value, PS2000A_TIME_UNITS(timeUnits.value)
+        return seconds(time.value, timeUnits.value)
 
     def ps2000aGetValuesTriggerTimeOffsetBulk(
         self, handle: c_int16, fromSegmentIndex: int, toSegmentIndex: int
-    ) -> tuple[list[int], list[int], list[PS2000A_TIME_UNITS]]:
-        """Returns the upper and lower 32 bits of the time offsets and their units.
+    ) -> list[float]:
+        """Returns the trigger time offsets of the segments in seconds.
 
         The driver wraps around from the last segment to the first if
         ``toSegmentIndex < fromSegmentIndex``; the wrapper does not support this.
@@ -1455,16 +1457,17 @@ class PicoScope2000aWrapper(PicoScopeWrapperBase):
         self._ps2000aGetValuesTriggerTimeOffsetBulk(
             handle, timesUpper, timesLower, timeUnits, fromSegmentIndex, toSegmentIndex
         )
-        return (
-            list(timesUpper),
-            list(timesLower),
-            [PS2000A_TIME_UNITS(u) for u in timeUnits],
-        )
+        return [
+            seconds(int64_from_halves(upper, lower), units)
+            for upper, lower, units in zip(
+                timesUpper, timesLower, timeUnits, strict=True
+            )
+        ]
 
     def ps2000aGetValuesTriggerTimeOffsetBulk64(
         self, handle: c_int16, fromSegmentIndex: int, toSegmentIndex: int
-    ) -> tuple[list[int], list[PS2000A_TIME_UNITS]]:
-        """Returns the time offsets and their units, one per segment.
+    ) -> list[float]:
+        """Returns the trigger time offsets of the segments in seconds.
 
         The driver wraps around from the last segment to the first if
         ``toSegmentIndex < fromSegmentIndex``; the wrapper does not support this.
@@ -1476,7 +1479,9 @@ class PicoScope2000aWrapper(PicoScopeWrapperBase):
         self._ps2000aGetValuesTriggerTimeOffsetBulk64(
             handle, times, timeUnits, fromSegmentIndex, toSegmentIndex
         )
-        return list(times), [PS2000A_TIME_UNITS(u) for u in timeUnits]
+        return [
+            seconds(time, units) for time, units in zip(times, timeUnits, strict=True)
+        ]
 
     def ps2000aGetNoOfCaptures(self, handle: c_int16) -> int:
         captures = c_uint32()
@@ -1947,14 +1952,15 @@ class PicoScope2000aWrapper(PicoScopeWrapperBase):
         )
         return [PS2000A_RANGE(r) for r in ranges[: length.value]]
 
-    def ps2000aEnumerateUnits(self) -> tuple[int, list[str]]:
-        """Return the number of units found and their serial numbers."""
+    def ps2000aEnumerateUnits(self) -> list[str]:
+        """Return the serial numbers of the units found (not opened yet)."""
         count = c_int16(0)
         serials = create_string_buffer(_ENUMERATE_BUFFER_SIZE)
         serialLth = c_int16(_ENUMERATE_BUFFER_SIZE)
         self._ps2000aEnumerateUnits(byref(count), serials, byref(serialLth))
-        serialstr = serials.value.decode("utf-8")
-        return count.value, [s for s in serialstr.split(",") if s]
+        units = [s for s in serials.value.decode("utf-8").split(",") if s]
+        assert len(units) == count.value
+        return units
 
     def ps2000aPingUnit(self, handle: c_int16) -> None:
         self._ps2000aPingUnit(handle)

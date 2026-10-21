@@ -20,7 +20,13 @@ from ctypes import (
 from enum import IntEnum, IntFlag
 from typing import Annotated, Self, final
 
-from ._base import CALLBACK_FUNCTYPE, POWER_SOURCE_STATUSES, PicoScopeWrapperBase
+from ._base import (
+    CALLBACK_FUNCTYPE,
+    POWER_SOURCE_STATUSES,
+    PicoScopeWrapperBase,
+    int64_from_halves,
+    seconds,
+)
 from ._buffer import DataBuffer, InputValues, buffer_argument, input_argument
 from ._device import PicoScopeDeviceBase, handle_method, wrapper_function
 from ._struct import CStruct, c_array
@@ -1694,69 +1700,70 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
         )
         return triggerEnabled.value != 0, pulseWidthQualifierEnabled.value != 0
 
-    def ps5000aGetTriggerTimeOffset(
-        self, handle: c_int16, segmentIndex: int
-    ) -> tuple[int, int, PS5000A_TIME_UNITS]:
+    def ps5000aGetTriggerTimeOffset(self, handle: c_int16, segmentIndex: int) -> float:
+        """Returns the trigger time offset of the segment in seconds."""
         timeUpper = c_uint32(0)
         timeLower = c_uint32(0)
         timeUnits = PS5000A_TIME_UNITS_T(0)
         self._ps5000aGetTriggerTimeOffset(
             handle, byref(timeUpper), byref(timeLower), byref(timeUnits), segmentIndex
         )
-        return (
-            timeUpper.value,
-            timeLower.value,
-            PS5000A_TIME_UNITS(timeUnits.value),
+        return seconds(
+            int64_from_halves(timeUpper.value, timeLower.value), timeUnits.value
         )
 
     def ps5000aGetTriggerTimeOffset64(
         self, handle: c_int16, segmentIndex: int
-    ) -> tuple[int, PS5000A_TIME_UNITS]:
+    ) -> float:
+        """Returns the trigger time offset of the segment in seconds."""
         time = c_int64(0)
         timeUnits = PS5000A_TIME_UNITS_T(0)
         self._ps5000aGetTriggerTimeOffset64(
             handle, byref(time), byref(timeUnits), segmentIndex
         )
-        return time.value, PS5000A_TIME_UNITS(timeUnits.value)
+        return seconds(time.value, timeUnits.value)
 
     def ps5000aGetValuesTriggerTimeOffsetBulk(
         self, handle: c_int16, fromSegmentIndex: int, toSegmentIndex: int
-    ) -> tuple[list[int], list[int], list[PS5000A_TIME_UNITS]]:
-        """Returns the upper and lower 32 bits of the time offsets and their units.
+    ) -> list[float]:
+        """Returns the trigger time offsets of the segments in seconds.
 
         The driver wraps around from the last segment to the first if
         ``toSegmentIndex < fromSegmentIndex``; the wrapper does not support this.
         """
         assert fromSegmentIndex <= toSegmentIndex
-        n = toSegmentIndex - fromSegmentIndex + 1
-        timesUpper = (c_uint32 * n)()
-        timesLower = (c_uint32 * n)()
-        timeUnits = (PS5000A_TIME_UNITS_T * n)()
+        nsegments = (toSegmentIndex - fromSegmentIndex) + 1
+        timesUpper = (c_uint32 * nsegments)()
+        timesLower = (c_uint32 * nsegments)()
+        timeUnits = (PS5000A_TIME_UNITS_T * nsegments)()
         self._ps5000aGetValuesTriggerTimeOffsetBulk(
             handle, timesUpper, timesLower, timeUnits, fromSegmentIndex, toSegmentIndex
         )
-        return (
-            list(timesUpper),
-            list(timesLower),
-            [PS5000A_TIME_UNITS(u) for u in timeUnits],
-        )
+        return [
+            seconds(int64_from_halves(upper, lower), units)
+            for upper, lower, units in zip(
+                timesUpper, timesLower, timeUnits, strict=True
+            )
+        ]
 
     def ps5000aGetValuesTriggerTimeOffsetBulk64(
         self, handle: c_int16, fromSegmentIndex: int, toSegmentIndex: int
-    ) -> tuple[list[int], list[PS5000A_TIME_UNITS]]:
-        """Returns the time offsets and their units, one per segment.
+    ) -> list[float]:
+        """Returns the trigger time offsets of the segments in seconds.
 
         The driver wraps around from the last segment to the first if
         ``toSegmentIndex < fromSegmentIndex``; the wrapper does not support this.
         """
         assert fromSegmentIndex <= toSegmentIndex
-        n = toSegmentIndex - fromSegmentIndex + 1
-        times = (c_int64 * n)()
-        timeUnits = (PS5000A_TIME_UNITS_T * n)()
+        nsegments = (toSegmentIndex - fromSegmentIndex) + 1
+        times = (c_int64 * nsegments)()
+        timeUnits = (PS5000A_TIME_UNITS_T * nsegments)()
         self._ps5000aGetValuesTriggerTimeOffsetBulk64(
             handle, times, timeUnits, fromSegmentIndex, toSegmentIndex
         )
-        return list(times), [PS5000A_TIME_UNITS(u) for u in timeUnits]
+        return [
+            seconds(time, units) for time, units in zip(times, timeUnits, strict=True)
+        ]
 
     def ps5000aSetDataBuffers(
         self,
@@ -2183,14 +2190,15 @@ class PicoScope5000aWrapper(PicoScopeWrapperBase):
             raise
         return PS5000A_TRIGGER_INFO.from_c_array(triggerInfo)
 
-    def ps5000aEnumerateUnits(self) -> tuple[int, list[str]]:
-        """Returns the number of units found and their serial numbers."""
+    def ps5000aEnumerateUnits(self) -> list[str]:
+        """Returns the serial numbers of the units found (not opened yet)."""
         count = c_int16(0)
         serials = create_string_buffer(4096)
         serialLth = c_int16(len(serials))
         self._ps5000aEnumerateUnits(byref(count), serials, byref(serialLth))
-        text = serials.value.decode("utf-8")
-        return count.value, [s for s in text.split(",") if s]
+        units = [s for s in serials.value.decode("utf-8").split(",") if s]
+        assert len(units) == count.value
+        return units
 
     def ps5000aGetChannelInformation(
         self,
