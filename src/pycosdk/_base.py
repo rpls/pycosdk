@@ -34,6 +34,22 @@ POWER_SOURCE_STATUSES: frozenset[PICO_STATUS] = frozenset(
 MACOS_SDK_LIBRARIES = Path("/Library/Frameworks/PicoSDK.framework/Libraries")
 
 
+def seconds(time: int, timeUnits: int) -> float:
+    """``time`` in ``timeUnits`` converted to seconds.
+
+    ``timeUnits`` is a value of a driver's time units enum (``PICO_TIME_UNITS``,
+    ``PS5000A_TIME_UNITS``, ...), which all count from femtoseconds (0) to
+    seconds (5) in steps of 1000.
+    """
+    return time / 10 ** (15 - 3 * int(timeUnits))
+
+
+def int64_from_halves(upper: int, lower: int) -> int:
+    """The signed 64-bit value whose upper and lower 32 bits are given."""
+    value = ((upper & 0xFFFFFFFF) << 32) | (lower & 0xFFFFFFFF)
+    return value - (1 << 64) if value >= 1 << 63 else value
+
+
 def find_driver_library(name: str) -> str | None:
     """Locate the shared library of the driver ``name`` (e.g. ``"ps6000a"``).
 
@@ -283,4 +299,6 @@ __all__ = (
     "POWER_SOURCE_STATUSES",
     "PicoScopeWrapperBase",
     "find_driver_library",
+    "int64_from_halves",
+    "seconds",
 )
