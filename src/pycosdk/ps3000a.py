@@ -47,22 +47,22 @@ PS3000A_EXT_MIN_VALUE = -32767
 PS3000A_MAX_LOGIC_LEVEL = 32767
 PS3000A_MIN_LOGIC_LEVEL = -32767
 
-PS3000A_MIN_SIG_GEN_FREQ = 0.0
-PS3000A_MAX_SIG_GEN_FREQ = 20000000.0
+PS3000A_MIN_SIG_GEN_FREQ = 0.0  # C: MIN_SIG_GEN_FREQ
+PS3000A_MAX_SIG_GEN_FREQ = 20000000.0  # C: MAX_SIG_GEN_FREQ
 
 PS3207B_MAX_SIG_GEN_BUFFER_SIZE = 32768
 PS3206B_MAX_SIG_GEN_BUFFER_SIZE = 16384
-PS3000A_MAX_SIG_GEN_BUFFER_SIZE = 8192
-PS3000A_MIN_SIG_GEN_BUFFER_SIZE = 1
-PS3000A_MIN_DWELL_COUNT = 3
-PS3000A_MAX_SWEEPS_SHOTS = (1 << 30) - 1
+PS3000A_MAX_SIG_GEN_BUFFER_SIZE = 8192  # C: MAX_SIG_GEN_BUFFER_SIZE
+PS3000A_MIN_SIG_GEN_BUFFER_SIZE = 1  # C: MIN_SIG_GEN_BUFFER_SIZE
+PS3000A_MIN_DWELL_COUNT = 3  # C: MIN_DWELL_COUNT
+PS3000A_MAX_SWEEPS_SHOTS = (1 << 30) - 1  # C: MAX_SWEEPS_SHOTS
 
-PS3000A_MAX_ANALOGUE_OFFSET_50MV_200MV = 0.250
-PS3000A_MIN_ANALOGUE_OFFSET_50MV_200MV = -0.250
-PS3000A_MAX_ANALOGUE_OFFSET_500MV_2V = 2.500
-PS3000A_MIN_ANALOGUE_OFFSET_500MV_2V = -2.500
-PS3000A_MAX_ANALOGUE_OFFSET_5V_20V = 20.0
-PS3000A_MIN_ANALOGUE_OFFSET_5V_20V = -20.0
+PS3000A_MAX_ANALOGUE_OFFSET_50MV_200MV = 0.250  # C: MAX_ANALOGUE_OFFSET_50MV_200MV
+PS3000A_MIN_ANALOGUE_OFFSET_50MV_200MV = -0.250  # C: MIN_ANALOGUE_OFFSET_50MV_200MV
+PS3000A_MAX_ANALOGUE_OFFSET_500MV_2V = 2.500  # C: MAX_ANALOGUE_OFFSET_500MV_2V
+PS3000A_MIN_ANALOGUE_OFFSET_500MV_2V = -2.500  # C: MIN_ANALOGUE_OFFSET_500MV_2V
+PS3000A_MAX_ANALOGUE_OFFSET_5V_20V = 20.0  # C: MAX_ANALOGUE_OFFSET_5V_20V
+PS3000A_MIN_ANALOGUE_OFFSET_5V_20V = -20.0  # C: MIN_ANALOGUE_OFFSET_5V_20V
 
 PS3000A_SHOT_SWEEP_TRIGGER_CONTINUOUS_RUN = 0xFFFFFFFF
 
@@ -950,8 +950,9 @@ class PicoScope3000aWrapper(PicoScopeWrapperBase):
             [c_int16, POINTER(PS3000A_TRIGGER_INFO.c_type), c_uint32, c_uint32],
         )
         self._ps3000aStop = self._bind("ps3000aStop", [c_int16])
-        self._ps3000aHoldOff = self._bind(
-            "ps3000aHoldOff", [c_int16, c_uint64, PS3000A_HOLDOFF_TYPE_T]
+        # Does nothing and returns an undefined value (guide p64): unchecked.
+        self._ps3000aHoldOff = self._bind_legacy(
+            "ps3000aHoldOff", [c_int16, c_uint64, PS3000A_HOLDOFF_TYPE_T], PICO_STATUS_T
         )
         self._ps3000aGetChannelInformation = self._bind(
             "ps3000aGetChannelInformation",
@@ -1602,7 +1603,7 @@ class PicoScope3000aWrapper(PicoScopeWrapperBase):
     def ps3000aSetDataBuffer(
         self,
         handle: c_int16,
-        channel: PS3000A_CHANNEL,
+        channel: PS3000A_CHANNEL | PS3000A_DIGITAL_PORT,
         buffer: DataBuffer,
         bufferLth: int,
         segmentIndex: int,
@@ -1610,6 +1611,7 @@ class PicoScope3000aWrapper(PicoScopeWrapperBase):
     ) -> None:
         """Set the buffer the driver writes the samples of ``channel`` to.
 
+        ``channel`` is an analog channel or a digital port (MSO models).
         ``buffer`` is a writable, C-contiguous buffer of at least ``bufferLth``
         int16 elements (e.g. ``np.empty(bufferLth, np.int16)``), or None. The
         wrapper keeps it from being freed or resized until it is replaced (same
@@ -2039,6 +2041,7 @@ class PicoScope3000aWrapper(PicoScopeWrapperBase):
     def ps3000aHoldOff(
         self, handle: c_int16, holdoff: int, type: PS3000A_HOLDOFF_TYPE
     ) -> None:
+        """Does nothing; for backward compatibility only (guide p64)."""
         self._ps3000aHoldOff(handle, holdoff, type)
 
     def ps3000aGetChannelInformation(
