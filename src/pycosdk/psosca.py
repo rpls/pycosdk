@@ -637,10 +637,11 @@ class PicoScope3000eWrapper(PicoScopeWrapperBase):
         self._release_buffers(handle)
 
     def psospaGetUnitInfo(self, handle: c_int16, info: PICO_INFO) -> str:
-        buf = create_string_buffer(bytes(255))
+        # Generous for any info string; longer ones are truncated (NUL terminated).
+        buf = create_string_buffer(4096)
         size = c_int16(0)
-        self._psospaGetUnitInfo(handle, buf, 255, byref(size), info)
-        return buf.raw[: size.value - 1].decode("utf-8")
+        self._psospaGetUnitInfo(handle, buf, len(buf), byref(size), info)
+        return buf.value.decode("utf-8")
 
     def psospaGetVariantDetails(
         self, variantName: str, textFormat: PICO_TEXT_FORMAT

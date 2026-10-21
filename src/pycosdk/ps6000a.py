@@ -183,11 +183,6 @@ _OPEN_UNIT_INFO = frozenset(
 _UNIT_SEPARATOR = re.compile(r",(?![^\[]*\])")
 
 
-def _decode(buf: Any, size: int) -> str:
-    """Decode a NUL terminated string of ``size`` bytes (including the NUL)."""
-    return buf.raw[: max(size - 1, 0)].split(b"\0", 1)[0].decode("utf-8")
-
-
 class PicoScope6000aWrapper(PicoScopeWrapperBase):
     # TODO: Rename the parameters that differ from the C prototypes:
     # GetMinimumTimebaseStateless (enabledChannels -> enabledChannelFlags),
@@ -823,28 +818,20 @@ class PicoScope6000aWrapper(PicoScopeWrapperBase):
         self._release_buffers(handle)
 
     def ps6000aGetUnitInfo(self, handle: c_int16, info: PICO_INFO) -> str:
-        buf = create_string_buffer(255)
+        # Generous for any info string; longer ones are truncated (NUL terminated).
+        buf = create_string_buffer(4096)
         size = c_int16(0)
         self._ps6000aGetUnitInfo(handle, buf, len(buf), byref(size), info)
-        # The driver truncates longer strings without an error (guide p52).
-        if size.value > len(buf):
-            buf = create_string_buffer(size.value)
-            self._ps6000aGetUnitInfo(handle, buf, len(buf), byref(size), info)
-        return _decode(buf, size.value)
+        return buf.value.decode("utf-8")
 
     def ps6000aGetAccessoryInfo(
         self, handle: c_int16, channel: PICO_CHANNEL, info: PICO_INFO
     ) -> str:
-        buf = create_string_buffer(255)
+        # Generous for any info string; longer ones are truncated (NUL terminated).
+        buf = create_string_buffer(4096)
         size = c_int16(0)
         self._ps6000aGetAccessoryInfo(handle, channel, buf, len(buf), byref(size), info)
-        # The driver truncates longer strings without an error (guide p31).
-        if size.value > len(buf):
-            buf = create_string_buffer(size.value)
-            self._ps6000aGetAccessoryInfo(
-                handle, channel, buf, len(buf), byref(size), info
-            )
-        return _decode(buf, size.value)
+        return buf.value.decode("utf-8")
 
     def ps6000aFlashLed(self, handle: c_int16, start: int) -> None:
         """``start`` < 0 flashes indefinitely, 0 stops, > 0 flashes that often."""

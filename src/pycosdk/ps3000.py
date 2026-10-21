@@ -651,7 +651,8 @@ class PicoScope3000Wrapper(PicoScopeWrapperBase):
 
         With handle 0, ``PS3000_ERROR_CODE`` gives the error of the last failed open.
         """
-        buf = create_string_buffer(256)
+        # Generous for any info string; longer ones are truncated (NUL terminated).
+        buf = create_string_buffer(4096)
         self._ps3000_get_unit_info(handle, buf, len(buf), line)
         return buf.value.decode("utf-8", errors="replace")
 
