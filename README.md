@@ -32,6 +32,8 @@ pip install pycosdk
 | `ps2000a` | `PicoScope2000aWrapper` | `PicoScope2000aDevice` |
 | `ps3000`  | `PicoScope3000Wrapper`  | `PicoScope3000Device`  |
 | `ps3000a` | `PicoScope3000aWrapper` | `PicoScope3000aDevice` |
+| `ps4000`  | `PicoScope4000Wrapper`  | `PicoScope4000Device`  |
+| `ps4000a` | `PicoScope4000aWrapper` | `PicoScope4000aDevice` |
 | `ps5000`  | `PicoScope5000Wrapper`  | `PicoScope5000Device`  |
 | `ps5000a` | `PicoScope5000aWrapper` | `PicoScope5000aDevice` |
 | `ps6000`  | `PicoScope6000Wrapper`  | `PicoScope6000Device`  |
@@ -157,16 +159,18 @@ output:
 
 | Functions                                                                           | Statuses                                                                                          |
 | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `OpenUnit`, `OpenUnitAsync`, `OpenUnitProgress` of ps3000a and ps5000a                | power source (`PICO_POWER_SUPPLY_NOT_CONNECTED`, `PICO_USB3_0_DEVICE_NON_USB3_0_PORT`, ...)        |
-| `ChangePowerSource`, `CurrentPowerSource`, `PingUnit` of ps3000a and ps5000a; `ps5000aSetDeviceResolution`; `ps6000PingUnit` | power source                                                   |
+| `OpenUnit*` functions of ps3000a, ps4000a and ps5000a                               | power source (`PICO_POWER_SUPPLY_NOT_CONNECTED`, `PICO_USB3_0_DEVICE_NON_USB3_0_PORT`, ...)        |
+| `ChangePowerSource`, `CurrentPowerSource`, `PingUnit` of ps3000a, ps4000a and ps5000a; `SetDeviceResolution` of ps4000a and ps5000a; `PingUnit` of ps4000 and ps6000 | power source                                                   |
+| `PingUnit` of ps3000a and ps4000a                                                   | `PICO_POWER_SUPPLY_UNDERVOLTAGE`                                                                  |
+| `OpenUnitAsync*` of ps4000, ps4000a and ps6000a                                     | `PICO_OPEN_OPERATION_IN_PROGRESS` (another open is in progress, nothing was started)               |
 | `OpenUnit`, `OpenUnitAsync`, `OpenUnitProgress` of ps6000a; `psospaOpenUnit`        | `PICO_USB3_0_DEVICE_NON_USB3_0_PORT`, `PICO_FIRMWARE_UPDATE_REQUIRED_TO_USE_DEVICE_WITH_THIS_DRIVER` |
-| `GetStreamingLatestValues` of ps2000a, ps3000a, ps5000, ps5000a and ps6000          | `PICO_BUSY` (no new data yet, poll again)                                                         |
+| `GetStreamingLatestValues` of ps2000a, ps3000a, ps4000, ps4000a, ps5000, ps5000a and ps6000 | `PICO_BUSY` (no new data yet, poll again)                                                         |
 | `GetStreamingLatestValues` of ps6000a and psospa                                    | `PICO_WAITING_FOR_DATA_BUFFERS` (set new buffers; the returned data is valid)                     |
 
 `EnumerateUnits` treats `PICO_NOT_FOUND` as a valid result (no units, count 0)
 without returning it.
 
-If the power supply of a ps3000a or ps5000a is connected or disconnected while
+If the power supply of a ps3000a, ps4000a or ps5000a is connected or disconnected while
 it is running, the next call raises a `StatusException` with the new power
 status; catch it and call `ChangePowerSource` to continue.
 

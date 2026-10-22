@@ -156,6 +156,8 @@ from .ps3000a import (
     PicoScope3000aWrapper,
     PicoScope3000aDevice,
 )
+from .ps4000 import PicoScope4000Device, PicoScope4000Wrapper
+from .ps4000a import PicoScope4000aDevice, PicoScope4000aWrapper
 from .ps5000 import PicoScope5000Device, PicoScope5000Wrapper
 from .ps5000a import (
     PS5000A_BANDWIDTH_LIMITER,
@@ -265,7 +267,7 @@ from .ps6000a import (
     PicoScope6000aDevice,
 )
 from .psosca import PicoScope3000eDevice, PicoScope3000eWrapper
-from .status import PICO_INFO, PICO_STATUS
+from .status import PICO_INFO, PICO_STATUS, PICO_STRING_VALUE
 from .statusconfig import (
     WARNING_STATUSES,
     StatusAction,
@@ -348,6 +350,7 @@ __all__ = (
     "PICO_SIGGEN_TRIG_SOURCE",
     "PICO_SIGGEN_TRIG_TYPE",
     "PICO_STATUS",
+    "PICO_STRING_VALUE",
     "PICO_SWEEP_TYPE",
     "PICO_TEMPERATURE_REFERENCE",
     "PICO_TEXT_FORMAT",
@@ -538,6 +541,10 @@ __all__ = (
     "PicoScope3000aWrapper",
     "PicoScope3000eDevice",
     "PicoScope3000eWrapper",
+    "PicoScope4000Device",
+    "PicoScope4000Wrapper",
+    "PicoScope4000aDevice",
+    "PicoScope4000aWrapper",
     "PicoScope5000Device",
     "PicoScope5000Wrapper",
     "PicoScope5000aDevice",

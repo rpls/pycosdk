@@ -1,4 +1,4 @@
-from ctypes import c_uint32
+from ctypes import c_int32, c_uint32
 from enum import IntEnum
 
 
@@ -921,6 +921,9 @@ class PICO_STRING_VALUE(IntEnum):
     PICO_SV_ETS_SAMPLE_TIME_PICOSECONDS = 92
 
 
+PICO_STRING_VALUE_T = c_int32
+
+
 PICO_STATUS_T = c_uint32
 
 
@@ -929,4 +932,6 @@ __all__ = (
     "PICO_INFO_T",
     "PICO_STATUS",
     "PICO_STATUS_T",
+    "PICO_STRING_VALUE",
+    "PICO_STRING_VALUE_T",
 )

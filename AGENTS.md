@@ -25,7 +25,7 @@ All code lives in `src/pycosdk/`:
 - `status.py` (`PicoStatus.h`), `deviceenums.py` (`PicoDeviceEnums.h`), `devicestructs.py` (`PicoDeviceStructs.h`), `connectprobe.py` (`PicoConnectProbes.h`), `callback.py` (`PicoCallback.h`), `version.py` (`PicoVersion.h`): types shared by the newer drivers.
 - One module per driver, each with its driver-specific enums/structs/constants, callback types, the wrapper class and the device class:
   - `ps2000.py`, `ps3000.py`: pre-`PICO_STATUS` drivers, see `_bind_legacy` below; `ps3000.py` reuses private helpers from `ps2000.py`.
-  - `ps2000a.py`, `ps3000a.py`, `ps5000.py`, `ps5000a.py`, `ps6000.py`: legacy drivers, mostly own `PS<model>_*` types.
+  - `ps2000a.py`, `ps3000a.py`, `ps4000.py`, `ps4000a.py`, `ps5000.py`, `ps5000a.py`, `ps6000.py`: legacy drivers, mostly own `PS<model>_*` types.
   - `ps6000a.py`: also covers `ps6000aApiExperimental.h` / `PicoDeviceDefinitionsExperimental.h`.
   - `psosca.py`: driver `psospa`, class `PicoScope3000eWrapper` (file name differs from the driver name).
 - `__init__.py`: re-exports wrappers, shared types and the `PS3000A_*` names; other driver-specific names are imported from their module.
@@ -43,7 +43,7 @@ The installed SDK (C headers and driver libraries) is the reference for the wrap
   - `ps6000` (legacy) is not part of the macOS SDK.
 - Windows: location unknown/undocumented here; libraries are found via `find_library` (i.e. `PATH`).
 - Check exported symbols with `nm -D --defined-only` (Linux) or `nm -gU` (macOS).
-- Only wrap functions declared in the headers; the libraries export some undocumented extras. The SDK also contains drivers not (yet) wrapped here (e.g. `ps2000`, `ps2000a`, `ps4000a`, data loggers); ignore them unless asked.
+- Only wrap functions declared in the headers; the libraries export some undocumented extras. The SDK also contains drivers not (yet) wrapped here (e.g. data loggers); ignore them unless asked.
 
 ## Wrapper Conventions
 
